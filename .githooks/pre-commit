@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "Running static analysis and tests before commit..."
+
+# Para Frontend (Android):
+if [ -f "./gradlew" ]; then
+    ./gradlew lint test
+# Para Backend (Spring Boot):
+elif [ -f "./mvnw" ]; then
+    ./mvnw test
+fi
+
+if [ $? -ne 0 ]; then
+    echo "Error: Las pruebas o el linting han fallado. El commit ha sido cancelado."
+    exit 1
+fi
+
+echo "Validación completada con éxito."
+exit 0
