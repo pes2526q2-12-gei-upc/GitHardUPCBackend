@@ -40,7 +40,7 @@ build/
 application-local.properties
 .env
 application.properties
-!application.properties.example
+!application-local.properties.example
 
 ### OS Específic ###
 .DS_Store
