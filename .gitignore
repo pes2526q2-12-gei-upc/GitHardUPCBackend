@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Spring Boot ###
+*.log
+*.gz
+
+# Fitxers de configuració local que PODEN contenir claus
+application-local.properties
+.env
+application.properties
+!application.properties.example
+
+### OS Específic ###
+.DS_Store
+Thumbs.db
