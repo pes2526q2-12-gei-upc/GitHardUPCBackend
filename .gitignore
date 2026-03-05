@@ -39,7 +39,7 @@ build/
 # Fitxers de configuració local que PODEN contenir claus
 application-local.properties
 .env
-application.properties
+!application.properties
 !application-local.properties.example
 
 ### OS Específic ###
