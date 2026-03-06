@@ -1,0 +1,25 @@
+# !!!Info important
+# Aquest fitxer es un exemple de configuracio per a l'aplicacio backend.
+# Per utilitzar-lo, cal que copiar el fitxer i canviar-li el nom a
+# "application-local.properties" (sense comes).
+# Despres cal crear una variable d'entorn anomenada "SAFESTEPS_DB_PASSWORD"
+# amb la contrasenya de la base de dades PostgreSQL.
+
+# Crear variable d'entorn:
+# IntelliJ IDEA:
+#   Run ->
+#   Edit Configurations -> Feu Alt+E (o modify options i cliqueu Environment variables) ->
+#   A environment variables poseu: SAFESTEPS_DB_PASSWORD=password
+
+# A windows:
+#   setx SAFESTEPS_DB_PASSWORD "password"
+
+#Configuracio de la base de dades PostgreSQL
+spring.datasource.url=jdbc:postgresql://nattech.fib.upc.edu:40390/safesteps
+spring.datasource.username=admin_safesteps
+spring.datasource.password=${SAFESTEPS_DB_PASSWORD}
+
+# Configuracio de Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.show-sql=true
