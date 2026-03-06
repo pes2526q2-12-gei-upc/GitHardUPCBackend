@@ -18,8 +18,3 @@
 spring.datasource.url=jdbc:postgresql://nattech.fib.upc.edu:40390/safesteps
 spring.datasource.username=admin_safesteps
 spring.datasource.password=${SAFESTEPS_DB_PASSWORD}
-
-# Configuracio de Hibernate
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.show-sql=true
