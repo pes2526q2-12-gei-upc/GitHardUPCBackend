@@ -182,6 +182,11 @@ def main():
                 elif "nodes" in filename.lower(): table_name = t_nodes
                 else: continue
 
+                # Necessitem esborrar les taules abans de carregar les noves dades.
+                # Utilitzem cascade per les vistes que apuntin a aquestes taules.
+                with engine.begin() as conn:
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE;'))
+
                 logging.info(f"Processant fitxer amb taula de destinacio '{table_name}'")
                 df = pd.read_csv(zip_file.open(filename), sep=';', encoding='latin1', low_memory=False)
                 df.to_sql(table_name, engine, if_exists='replace', index=False)
