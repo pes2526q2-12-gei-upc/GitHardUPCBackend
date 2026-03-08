@@ -53,3 +53,11 @@ application-local.properties
 ### OS Específic ###
 .DS_Store
 Thumbs.db
+
+# Logs i fitxers temporals
+logs/
+src/scripts/logs/
+
+# Python
+__pycache__/
+*.pyc
