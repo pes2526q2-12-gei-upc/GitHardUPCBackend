@@ -7,8 +7,6 @@ import lombok.Data;
 // El frontend haura de passar aquestes dades:
 @Data
 public class RouteRequestDTO {
-    private Double originLat;
-    private Double originLong;
-    private Double endLat;
-    private Double endLong;
+    private Coord origin;
+    private Coord destination;
 }

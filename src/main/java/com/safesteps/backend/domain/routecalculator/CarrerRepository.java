@@ -21,14 +21,31 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                         "'SELECT fid as id, source, target, longitud AS cost " +
                         "FROM v_trams_nodes', " +
                 ":originId, :destId, false" +
-                ")",
+                ") WHERE node > 0 ORDER BY seq",
             nativeQuery = true
     )
 
-    List<Long> findShortestPath(
+    Long[] findShortestPath(
             @Param("originId") Long originId,
             @Param("destId") Long destId
     );
+
+
+    /*
+    Query per a trobar les coordenades (latitud i longitud) a partir dels identificadors dels nodes.
+     Utilitza les funcions de PostGIS per a transformar les coordenades dels nodes de la BD (UTM) a coordenades GPS (lat i long.) (WGS84).
+     */
+    @Query(value =
+            "SELECT ST_X(geom_gps) AS lon, ST_Y(geom_gps) AS lat " +
+                    "FROM (" +
+                    "  SELECT t.seq, " +
+                    "         ST_Transform(ST_SetSRID(ST_MakePoint(n.\"Coord_X\", n.\"Coord_Y\"), 25831), 4326) AS geom_gps " +
+                    "  FROM unnest(cast(:fids as bigint[])) WITH ORDINALITY AS t(fid, seq) " +
+                    "  JOIN bcn_grafvial_nodes n ON n.\"FID\" = t.fid " +
+                    "  ORDER BY t.seq" +
+                    ") AS sub",
+            nativeQuery = true)
+    List<Object[]> getCoordsFromNodeIds(@Param("fids") Long[] fids);
 
     /*
     Query per a trobar el node mes proper a unes coordenades donades (latitud i longitud).
