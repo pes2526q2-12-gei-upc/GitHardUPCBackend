@@ -1,20 +1,24 @@
 package com.safesteps.backend.domain.routecalculator;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-
-/*
- * Clase per a representar les coordenades (latitud i longitud) d'un punt.
- * S'utilitza per a encapsular les coordenades d'origen i desti en les peticions i respostes del calcul de la ruta.
- * Les coordenades es representen en el sistema de referencia WGS84
- */
-
+@Schema(description = "Objeto que representa una coordenada geográfica (Latitud y Longitud) dentro del Área Metropolitana de Barcelona.")
 public class Coord {
-    private Double lon;
+
+    @NotNull(message = "La latitud es obligatoria")
+    @DecimalMin(value = "41.32", message = "La latitud debe estar dentro de los límites de Barcelona (Mínimo 41.32)")
+    @DecimalMax(value = "41.47", message = "La latitud debe estar dentro de los límites de Barcelona (Máximo 41.47)")
+    @Schema(description = "Latitud de la coordenada geolocalizada", example = "41.3874", requiredMode = Schema.RequiredMode.REQUIRED)
     private Double lat;
+
+    @NotNull(message = "La longitud es obligatoria")
+    @DecimalMin(value = "2.05", message = "La longitud debe estar dentro de los límites de Barcelona (Mínimo 2.05)")
+    @DecimalMax(value = "2.23", message = "La longitud debe estar dentro de los límites de Barcelona (Máximo 2.23)")
+    @Schema(description = "Longitud de la coordenada geolocalizada", example = "2.1686", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Double lon;
 }
