@@ -16,16 +16,17 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
      creuant els carrers amb els nodes de la BD.
      */
     @Query(value =
-            "SELECT node FROM pgr_dijkstra" +
-                "(" +
-                        "'SELECT fid as id, source, target, longitud AS cost " +
-                        "FROM v_trams_nodes', " +
-                ":originId, :destId, false" +
-                ") WHERE node > 0 ORDER BY seq",
+            "SELECT di.node, COALESCE(v.longitud, 0.0) AS real_length " +
+                    "FROM pgr_dijkstra(" +
+                    "'SELECT fid as id, source, target, longitud AS cost " +
+                    "FROM v_trams_nodes', " +
+                    ":originId, :destId, false" +
+                    ") di " +
+                    "LEFT JOIN v_trams_nodes v ON di.edge = v.fid " +
+                    "WHERE di.node > 0 ORDER BY di.seq",
             nativeQuery = true
     )
-
-    Long[] findShortestPath(
+    List<Object[]> findShortestPathWithCost(
             @Param("originId") Long originId,
             @Param("destId") Long destId
     );
