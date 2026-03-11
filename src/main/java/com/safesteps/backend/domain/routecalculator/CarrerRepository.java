@@ -16,7 +16,7 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
      creuant els carrers amb els nodes de la BD.
      */
     @Query(value =
-            "SELECT di.node, COALESCE(v.longitud, 0.0) AS real_length " +
+            "SELECT di.node, COALESCE(v.longitud, 0.0) AS real_length, di.edge " +
                     "FROM pgr_dijkstra(" +
                     "'SELECT fid as id, source, target, longitud AS cost " +
                     "FROM v_trams_nodes', " +
@@ -31,6 +31,22 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
             @Param("destId") Long destId
     );
 
+    @Query(value =
+            "SELECT di.node AS node, di.edge AS edge, di.seq AS seq, COALESCE(v.longitud, 0.0) AS cost " +
+                    "FROM pgr_dijkstra(" +
+                    "  'SELECT fid as id, source, target, " +
+                    "          CASE WHEN fid = ANY(string_to_array(''' || :penalizedEdges || ''', '','')::bigint[]) THEN longitud * 1.25 ELSE longitud END AS cost " +
+                    "   FROM v_trams_nodes', " +
+                    "  :originId, :destId, false" +
+                    ") di " +
+                    "LEFT JOIN v_trams_nodes v ON di.edge = v.fid " +
+                    "ORDER BY di.seq",
+            nativeQuery = true)
+    List<Object[]> findPathWithPenalties(
+            @Param("originId") Long originId,
+            @Param("destId") Long destId,
+            @Param("penalizedEdges") String penalizedEdges
+    );
 
     /*
     Query per a trobar les coordenades (latitud i longitud) a partir dels identificadors dels nodes.

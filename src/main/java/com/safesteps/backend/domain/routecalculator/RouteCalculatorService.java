@@ -2,7 +2,9 @@ package com.safesteps.backend.domain.routecalculator;
 
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class RouteCalculatorService {
@@ -20,25 +22,52 @@ public class RouteCalculatorService {
         Long end = carrerRepository.findNearestNode(dest.getLat(), dest.getLon());
 
         // Executar Dijkstra a prova de futur: extreu el node i la longitud real topogràfica del tram
-        List<Object[]> pathResult = carrerRepository.findShortestPathWithCost(start, end);
+        List<Object[]> rutaPrincipal = carrerRepository.findShortestPathWithCost(start, end);
+
+        // Conjunt de nodes que s'han visitat en la ruta principal o en les alternatives. Ens permet crear rutes alt. que intentin no passar per aquests nodes i així generar rutes diferents.
+        Set<Long> nodesVisitats = new HashSet<>();
+        rutaPrincipal.forEach(r -> {if((Long) r[2] > 0) nodesVisitats.add(((Number) r[2]).longValue());});
 
         // Extraurem els IDs dels nodes i sumem la distància física real pas a pas
-        Long[] rutaFID = new Long[pathResult.size()];
+        Long[] rutaPrincipalFID = new Long[rutaPrincipal.size()];
         double distanceMeters = 0.0;
 
-        for (int i = 0; i < pathResult.size(); i++) {
-            Object[] row = pathResult.get(i);
-            rutaFID[i] = ((Number) row[0]).longValue();
+        for (int i = 0; i < rutaPrincipal.size(); i++) {
+            Object[] row = rutaPrincipal.get(i);
+            rutaPrincipalFID[i] = ((Number) row[0]).longValue();
 
             // Sumem els metres reals d'aquest tram concret per blindar el càlcul
             distanceMeters += ((Number) row[1]).doubleValue();
         }
 
+        String formattedEdges = "";
+        if (!nodesVisitats.isEmpty()) {
+            // Generem un String net separat per comes: "1,2,3,4"
+            formattedEdges = String.join(",",
+                    nodesVisitats.stream().map(String::valueOf).toArray(String[]::new));
+        }
+
+        List<Object[]> rutaAlternativa1 = carrerRepository.findPathWithPenalties(start, end, formattedEdges);
+        rutaAlternativa1.forEach(r -> {if((int) r[2] > 0) nodesVisitats.add(((Number) r[2]).longValue());});
+
+        Long[] rutaAlternativa1FID = new Long[rutaAlternativa1.size()];
+
+        for (int i = 0; i < rutaAlternativa1.size(); i++) {
+            Object[] row = rutaAlternativa1.get(i);
+            rutaAlternativa1FID[i] = ((Number) row[0]).longValue();
+        }
+
         // Necessitem passar els fids dels nodes a coordenades per a que el frontend pugui treballar amb elles
-        List<Object[]> rutaFIDCoords = carrerRepository.getCoordsFromNodeIds(rutaFID);
+        List<Object[]> rutaFIDCoords = carrerRepository.getCoordsFromNodeIds(rutaPrincipalFID);
 
         // S'ha de transformar la llista de Object[] a una llista de Double[]
         List<Double[]> ruta = rutaFIDCoords.stream()
+                .map(row -> new Double[]{ ((Number) row[0]).doubleValue(), ((Number) row[1]).doubleValue() })
+                .toList();
+
+
+        List<Object[]> rutaAltFIDCoords = carrerRepository.getCoordsFromNodeIds(rutaAlternativa1FID);
+        List<Double[]> rutaAlt = rutaAltFIDCoords.stream()
                 .map(row -> new Double[]{ ((Number) row[0]).doubleValue(), ((Number) row[1]).doubleValue() })
                 .toList();
 
@@ -54,6 +83,7 @@ public class RouteCalculatorService {
         // Arrodonim la distància a 2 decimals (ex: 1540.25 m) per tenir un JSON net
         response.setDistanceMeters(Math.round(distanceMeters * 100.0) / 100.0);
         response.setEstimatedTimeMinutes(estimatedTimeMinutes);
+        response.setAlt(rutaAlt);
 
         return response;
     }
