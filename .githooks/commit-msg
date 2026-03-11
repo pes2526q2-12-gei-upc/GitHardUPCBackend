@@ -1,13 +1,13 @@
-      #!/bin/bash
+#!/usr/bin/env bash
 
-      # Expresión regular para validar el formato: [TG-ID] tipo: mensaje
-      commit_regex="^\[TG-[0-9]+\] (feat|fix|docs|style|refactor|test|chore): .+"
+# Expresión regular para validar el formato: [TG-ID] tipo: mensaje
+commit_regex="^\[TG-[0-9]+\] (feat|fix|docs|style|refactor|test|chore): .+"
 
-      error_msg="Aborting commit. Tu mensaje no cumple el estándar: [TG-ID] tipo: descripción"
+error_msg="Aborting commit. Tu mensaje no cumple el estándar: [TG-ID] tipo: descripción"
 
-      if ! grep -iqE "$commit_regex" "$1"; then
-          echo "Error: $error_msg"
-          exit 1
-      fi
+if ! grep -iqE "$commit_regex" "$1"; then
+    echo "Error: $error_msg"
+    exit 1
+fi
 
-      exit 0
+exit 0
