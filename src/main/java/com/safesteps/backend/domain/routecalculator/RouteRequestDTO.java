@@ -2,6 +2,8 @@ package com.safesteps.backend.domain.routecalculator;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -18,4 +20,9 @@ public class RouteRequestDTO {
     @NotNull(message = "El punto de destino es obligatorio")
     @Schema(description = "Coordenadas del punto de destino", requiredMode = Schema.RequiredMode.REQUIRED)
     private Coord destination;
+
+    @Valid
+    @Min(value = 1, message = "Se necesita minimo una ruta por peticion")
+    @Max(value = 5, message = "No se pueden pedir mas de 5 rutas por peticion")
+    private int nRoutes = 3;
 }

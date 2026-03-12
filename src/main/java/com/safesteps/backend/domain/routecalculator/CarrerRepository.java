@@ -1,5 +1,7 @@
 package com.safesteps.backend.domain.routecalculator;
 
+import com.safesteps.backend.domain.routecalculator.projections.CoordDBProjection;
+import com.safesteps.backend.domain.routecalculator.projections.RouteDBProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,22 +18,6 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
      creuant els carrers amb els nodes de la BD.
      */
     @Query(value =
-            "SELECT di.node, COALESCE(v.longitud, 0.0) AS real_length, di.edge " +
-                    "FROM pgr_dijkstra(" +
-                    "'SELECT fid as id, source, target, longitud AS cost " +
-                    "FROM v_trams_nodes', " +
-                    ":originId, :destId, false" +
-                    ") di " +
-                    "LEFT JOIN v_trams_nodes v ON di.edge = v.fid " +
-                    "WHERE di.node > 0 ORDER BY di.seq",
-            nativeQuery = true
-    )
-    List<Object[]> findShortestPathWithCost(
-            @Param("originId") Long originId,
-            @Param("destId") Long destId
-    );
-
-    @Query(value =
             "SELECT di.node AS node, di.edge AS edge, di.seq AS seq, COALESCE(v.longitud, 0.0) AS cost " +
                     "FROM pgr_dijkstra(" +
                     "  'SELECT fid as id, source, target, " +
@@ -42,7 +28,7 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "LEFT JOIN v_trams_nodes v ON di.edge = v.fid " +
                     "ORDER BY di.seq",
             nativeQuery = true)
-    List<Object[]> findPathWithPenalties(
+    List<RouteDBProjection> findPathWithPenalties(
             @Param("originId") Long originId,
             @Param("destId") Long destId,
             @Param("penalizedEdges") String penalizedEdges
@@ -62,7 +48,7 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "  ORDER BY t.seq" +
                     ") AS sub",
             nativeQuery = true)
-    List<Object[]> getCoordsFromNodeIds(@Param("fids") Long[] fids);
+    List<CoordDBProjection> getCoordsFromNodeIds(@Param("fids") Long[] fids);
 
     /*
     Query per a trobar el node mes proper a unes coordenades donades (latitud i longitud).

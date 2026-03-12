@@ -37,7 +37,8 @@ public class ApiAddressController {
 
         RouteResponseDTO response = routeCalculatorService.getBestRoute(
                 request.getOrigin(),
-                request.getDestination()
+                request.getDestination(),
+                request.getNRoutes()
         );
 
         return ResponseEntity.ok(response);
