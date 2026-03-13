@@ -2,8 +2,10 @@ package com.safesteps.backend.domain.routecalculator;
 
 import com.safesteps.backend.domain.routecalculator.projections.CoordDBProjection;
 import com.safesteps.backend.domain.routecalculator.projections.RouteDBProjection;
+import com.safesteps.backend.domain.routecalculator.projections.PoiDBProjection;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +41,7 @@ public class RouteCalculatorService {
         Long[] rutaPrincipalFID = new Long[rutaPrincipal.size()];
         double distanceMeters = 0.0;
         int i = 0;
+
         // Extraurem els IDs dels nodes i sumem la distància física real pas a pas
         for (RouteDBProjection rp : rutaPrincipal) {
             if (rp.getEdge() != null && rp.getEdge() > 0) edgesVisitats.add(rp.getEdge());
@@ -46,15 +49,64 @@ public class RouteCalculatorService {
             distanceMeters += rp.getCost();
         }
 
-        // Necessitem passar els fids dels nodes a coordenades per a que el frontend pugui treballar amb elles
+        // Obtenim les coordenades per pintar la línia de la ruta
         List<CoordDBProjection> rutaFIDCoords = carrerRepository.getCoordsFromNodeIds(rutaPrincipalFID);
-
-        // S'ha de transformar la llista de Object[] a una llista de Double[]
         List<Double[]> ruta = rutaFIDCoords.stream()
                 .map(r -> new Double[]{ r.getLon(), r.getLat() })
                 .toList();
 
-        return new Route(ruta, Math.round(distanceMeters * 100.0) / 100.0, calculateEstimatedTime(distanceMeters));
+        List<PoiDTO> pois = new ArrayList<>();
+
+        // A. Comissaries (Radi ample: 500 metres, útil per a seguretat a la zona)
+        List<PoiDBProjection> comissariesDB = carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0);
+        pois.addAll(comissariesDB.stream()
+                .map(c -> new PoiDTO("COMISSARIA", c.getName(), c.getLat(), c.getLon()))
+                .toList());
+
+        // B. Fonts de beure (Radi curt: 75 metres, l'usuari no vol desviar-se molt per beure aigua)
+        List<PoiDBProjection> fontsDB = carrerRepository.findFontsNearRoute(rutaPrincipalFID, 100.0);
+        pois.addAll(fontsDB.stream()
+                .map(f -> new PoiDTO("FONT", f.getName(), f.getLat(), f.getLon()))
+                .toList());
+
+        // C. Bancs (Radi molt curt: 30 metres. N'hi ha milers, només volem els que estan literalment al camí)
+        List<PoiDBProjection> bancsDB = carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0);
+        pois.addAll(bancsDB.stream()
+                .map(b -> new PoiDTO("BANC", b.getName(), b.getLat(), b.getLon()))
+                .toList());
+
+        // D. Càmeres de seguretat (Radi: 100 metres. Cobreixen un cert camp de visió)
+        List<PoiDBProjection> cameresDB = carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0);
+        pois.addAll(cameresDB.stream()
+                .map(c -> new PoiDTO("CAMERA", c.getName(), c.getLat(), c.getLon()))
+                .toList());
+
+        // E. Escales Mecàniques (Radi: 50 metres. Molt útils per evitar desnivells pronunciats)
+        List<PoiDBProjection> escalesDB = carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0);
+        pois.addAll(escalesDB.stream()
+                .map(e -> new PoiDTO("ESCALA_MECANICA", e.getName(), e.getLat(), e.getLon()))
+                .toList());
+
+        // F. Arbrat Viari (Radi: 15 metres. Vital per a l'ombra a l'estiu, però limitem el radi per evitar sobrecàrrega de dades)
+        List<PoiDBProjection> arbresDB = carrerRepository.findArbresNearRoute(rutaPrincipalFID, 15.0);
+        pois.addAll(arbresDB.stream()
+                .map(a -> new PoiDTO("ARBRE", a.getName(), a.getLat(), a.getLon()))
+                .toList());
+
+        // G. Arbrat de Zona (Radi: 15 metres. Arbres dins de parcs o places per on passa la ruta)
+        List<PoiDBProjection> arbresZonaDB = carrerRepository.findArbresZonaNearRoute(rutaPrincipalFID, 15.0);
+        pois.addAll(arbresZonaDB.stream()
+                .map(a -> new PoiDTO("ARBRE", a.getName(), a.getLat(), a.getLon()))
+                .toList());
+
+
+        // 3. Retornem la Ruta enriquida (Ara el constructor de Route demana els POIs al final)
+        return new Route(
+                ruta,
+                Math.round(distanceMeters * 100.0) / 100.0,
+                calculateEstimatedTime(distanceMeters),
+                pois
+        );
     }
 
     // Calcular el temps estimat (Velocitat a peu de 5 km/h -> ~83.33 m/min)
