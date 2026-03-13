@@ -5,7 +5,7 @@ echo "🔍 Ejecutando análisis estático y tests unitarios (Backend)..."
 # Solo ejecutamos Maven si existe el archivo mvnw
 if [ -f "./mvnw" ]; then
     # Ejecutamos tests y Checkstyle (si lo tienes configurado) para cumplir con el RNF de sintaxis [cite: 632, 678]
-    ./mvnw clean test
+    mvn clean test
 
     if [ $? -ne 0 ]; then
         echo "🛑 Error: Las pruebas han fallado. Revisa tu lógica antes de hacer commit." [cite: 633]

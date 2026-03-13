@@ -1,14 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Expresión regular para validar: [TG-ID] tipo: mensaje
-# Tipos permitidos según nuestra metodología: feat, fix, docs, style, refactor, test, chore [cite: 625]
+# Expresión regular para validar el formato: [TG-ID] tipo: mensaje
 commit_regex="^\[TG-[0-9]+\] (feat|fix|docs|style|refactor|test|chore): .+"
 
 error_msg="Aborting commit. Tu mensaje no cumple el estándar: [TG-ID] tipo: descripción"
 
-if ! grep -qE "$commit_regex" "$1"; then
-    echo "❌ Error: $error_msg"
-    echo "Ejemplo válido: [TG-45] feat: implementar cálculo de ruta segura" [cite: 624]
+if ! grep -iqE "$commit_regex" "$1"; then
+    echo "Error: $error_msg"
     exit 1
 fi
 
