@@ -64,7 +64,7 @@ public class RouteCalculatorService {
                 .toList());
 
         // B. Fonts de beure (Radi curt: 75 metres, l'usuari no vol desviar-se molt per beure aigua)
-        List<PoiDBProjection> fontsDB = carrerRepository.findFontsNearRoute(rutaPrincipalFID, 100.0);
+        List<PoiDBProjection> fontsDB = carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0);
         pois.addAll(fontsDB.stream()
                 .map(f -> new PoiDTO("FONT", f.getName(), f.getLat(), f.getLon()))
                 .toList());
