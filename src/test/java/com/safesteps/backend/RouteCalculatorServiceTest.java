@@ -55,8 +55,8 @@ class RouteCalculatorServiceTest {
 
         // Simulamos que el algoritmo de Dijkstra devuelve un tramo de ruta
         RouteDBProjection routeMock = mock(RouteDBProjection.class);
-        when(routeMock.getNode()).thenReturn(100L);
-        when(routeMock.getCost()).thenReturn(150.0); // 150 metros
+        //when(routeMock.getNode()).thenReturn(100L);
+        //when(routeMock.getCost()).thenReturn(150.0); // 150 metros
         when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
                 .thenReturn(List.of(routeMock));
 
@@ -128,5 +128,174 @@ class RouteCalculatorServiceTest {
         verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
         verify(carrerRepository, times(1)).findArbresNearRoute(any(), eq(15.0));
         verify(carrerRepository, times(1)).findArbresZonaNearRoute(any(), eq(15.0));
+    }
+
+    @Test
+    void getBestRouteTwoRoutesWithCorrectResult() {
+        // Preparem les dades d'entrada i simulem la BD
+        Coord origin = new Coord(); origin.setLat(41.3889087); origin.setLon(2.1130685);
+        Coord dest = new Coord(); dest.setLat(41.3864032); dest.setLon(2.1171256);
+        int nRoutes = 2; // Demanem 2 rutes
+
+        //Node origen 1, node desti 5
+        when(carrerRepository.findNearestNode(anyDouble(), anyDouble()))
+                .thenReturn(1L, 5L);
+
+        // Simulem una Projeccio de Ruta (el que retorna pg_routing)
+        RouteDBProjection n1 = mock(RouteDBProjection.class);
+        when(n1.getEdge()).thenReturn(100L); // ID del carrer
+        when(n1.getNode()).thenReturn(10L);  // ID del node
+        when(n1.getCost()).thenReturn(250.0); // 250 metres
+
+        RouteDBProjection n2 = mock(RouteDBProjection.class);
+        when(n2.getEdge()).thenReturn(107L); // ID del carrer
+        when(n2.getNode()).thenReturn(15L);  // ID del node
+        when(n2.getCost()).thenReturn(311.0); // 250 metres
+
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+                .thenReturn(List.of(n1, n2));
+
+        // Simulem una Projeccio de Coordenades
+        CoordDBProjection c1 = mock(CoordDBProjection.class);
+        when(c1.getLat()).thenReturn(41.3865032);
+        when(c1.getLon()).thenReturn(2.1140685);
+
+        CoordDBProjection c2 = mock(CoordDBProjection.class);
+        when(c2.getLat()).thenReturn(41.3875032);
+        when(c2.getLon()).thenReturn(2.1160685);
+
+        when(carrerRepository.getCoordsFromNodeIds(any()))
+                .thenReturn(List.of(c1, c2));
+
+
+        // Executem el metode real
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+
+
+        // Comprovem que el resultat es l'esperat
+        assertNotNull(response);
+        assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
+
+        Route primeraRuta = response.getRoutes().getFirst();
+        assertEquals(561.0, primeraRuta.getDistanceMeters(), "La distancia ha de sumar 561m");
+        assertEquals(7, primeraRuta.getEstimatedTimeMinutes(), "561m a 83.33m/min -> 6.7 -> 7m");
+        assertEquals(2, primeraRuta.getCoordinates().size(), "Ha de tenir 1 coordenada simulada");
+
+        verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
+        verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+
+    }
+
+    //Org = Dest
+    @Test
+    void getBestRouteTwoRoutesWithCorrectResult2() {
+        Coord origin2 = new Coord(); origin2.setLat(41.3889087); origin2.setLon(2.1130685);
+        Coord dest2 = new Coord(); dest2.setLat(41.3889088); dest2.setLon(2.1130686);
+        int nRoutes = 2;
+
+        //Simulem una ruta d'inici i desti iguals (no hi ha cami)
+        when(carrerRepository.findNearestNode(anyDouble(), anyDouble()))
+                .thenReturn(5L, 5L);
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+                .thenReturn(List.of());
+        CoordDBProjection c1 = mock(CoordDBProjection.class);
+        when(c1.getLat()).thenReturn(41.3865032);
+        when(c1.getLon()).thenReturn(2.1140685);
+
+        when(carrerRepository.getCoordsFromNodeIds(any()))
+                .thenReturn(List.of(c1));
+
+
+        // Executem el metode real
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin2, dest2, nRoutes);
+
+
+        // Comprovem que el resultat es l'esperat
+        assertNotNull(response);
+        assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
+
+        Route primeraRuta = response.getRoutes().getFirst();
+        assertEquals(0.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
+        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(1, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
+
+        verify(carrerRepository, times(1)).findNearestNode(origin2.getLat(), origin2.getLon());
+        verify(carrerRepository, times(1)).findNearestNode(dest2.getLat(), dest2.getLon());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    void getBestRouteTwoRoutesWithCorrectResult3() {
+        Coord origin = new Coord(); origin.setLat(41.3889087); origin.setLon(2.1130685);
+        Coord dest = new Coord(); dest.setLat(41.3889087); dest.setLon(2.1130686);
+        int nRoutes = 2;
+
+        //Simulem una ruta d'inici i desti iguals (no hi ha cami)
+        when(carrerRepository.findNearestNode(anyDouble(), anyDouble()))
+                .thenReturn(5L, 6L);
+        RouteDBProjection n1 = mock(RouteDBProjection.class);
+        when(n1.getEdge()).thenReturn(100L); // ID del carrer
+        when(n1.getNode()).thenReturn(10L);  // ID del node
+        when(n1.getCost()).thenReturn(5.0); // 250 metres
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+                .thenReturn(List.of(n1));
+        when(carrerRepository.getCoordsFromNodeIds(any()))
+                .thenReturn(List.of());
+
+
+        // Executem el metode real
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+
+
+        // Comprovem que el resultat es l'esperat
+        assertNotNull(response);
+        assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
+
+        Route primeraRuta = response.getRoutes().getFirst();
+        assertEquals(5.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
+        assertEquals(1, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(0, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
+
+        verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
+        verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    void getBestRouteTwoRoutesError() {
+        Coord origin = new Coord(); origin.setLat(41.3889087); origin.setLon(2.1130685);
+        Coord dest = new Coord(); dest.setLat(41.3889087); dest.setLon(2.1130686);
+        int nRoutes = 2;
+
+        //Simulem una ruta d'inici i desti iguals (no hi ha cami)
+        when(carrerRepository.findNearestNode(anyDouble(), anyDouble()))
+                .thenReturn(5L, 6L);
+        RouteDBProjection n1 = mock(RouteDBProjection.class);
+        when(n1.getEdge()).thenReturn(null); // ID del carrer
+        RouteDBProjection n2 = mock(RouteDBProjection.class);
+        when(n1.getEdge()).thenReturn(100L); // ID del carrer
+        when(n1.getNode()).thenReturn(10L);  // ID del node
+        when(n1.getCost()).thenReturn(0.0); // 250 metres
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+                .thenReturn(List.of(n1,n2));
+        when(carrerRepository.getCoordsFromNodeIds(any()))
+                .thenReturn(List.of());
+
+        // Executem el metode real
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+
+        // Comprovem que el resultat es l'esperat
+        assertNotNull(response);
+        assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
+
+        Route primeraRuta = response.getRoutes().getFirst();
+        assertEquals(0.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
+        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(0, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
+
+        verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
+        verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
     }
 }

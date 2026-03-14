@@ -44,9 +44,12 @@ public class RouteCalculatorService {
 
         // Extraurem els IDs dels nodes i sumem la distància física real pas a pas
         for (RouteDBProjection rp : rutaPrincipal) {
-            if (rp.getEdge() != null && rp.getEdge() > 0) edgesVisitats.add(rp.getEdge());
-            rutaPrincipalFID[i++] = rp.getNode();
-            distanceMeters += rp.getCost();
+            if (rp.getEdge() != null && rp.getEdge() > 0) {
+                edgesVisitats.add(rp.getEdge());
+                rutaPrincipalFID[i++] = rp.getNode();
+                distanceMeters += rp.getCost();
+            }
+
         }
 
         // Obtenim les coordenades per pintar la línia de la ruta
