@@ -5,8 +5,9 @@ commit_regex="^\[TG-[0-9]+\] (feat|fix|docs|style|refactor|test|chore): .+"
 
 error_msg="Aborting commit. Tu mensaje no cumple el estándar: [TG-ID] tipo: descripción"
 
-if ! grep -iqE "$commit_regex" "$1"; then
-    echo "Error: $error_msg"
+if ! grep -qE "$commit_regex" "$1"; then
+    echo "❌ Error: $error_msg"
+    echo "Ejemplo válido: [TG-45] feat: implementar cálculo de ruta segura"
     exit 1
 fi
 
