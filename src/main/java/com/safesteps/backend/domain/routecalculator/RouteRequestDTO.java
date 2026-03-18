@@ -25,4 +25,8 @@ public class RouteRequestDTO {
     @Min(value = 1, message = "Se necesita minimo una ruta por peticion")
     @Max(value = 5, message = "No se pueden pedir mas de 5 rutas por peticion")
     private int nRoutes = 3;
+
+    @Valid
+    @Schema(description = "Filtros de preferencia para el calculo de la ruta. Cada filtro debe tener un valor entre 0 y 1, donde 0 significa que el filtro no se tiene en cuenta y 1 significa que el filtro es muy importante.")
+    private Filtres filtre;
 }
