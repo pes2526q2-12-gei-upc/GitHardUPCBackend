@@ -28,5 +28,5 @@ public class RouteRequestDTO {
 
     @Valid
     @Schema(description = "Filtros de preferencia para el calculo de la ruta. Cada filtro debe tener un valor entre 0 y 1, donde 0 significa que el filtro no se tiene en cuenta y 1 significa que el filtro es muy importante.")
-    private Filtres filtre;
+    private Filtre filtre;
 }
