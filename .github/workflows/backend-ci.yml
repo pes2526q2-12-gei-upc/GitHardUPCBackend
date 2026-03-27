@@ -1,0 +1,36 @@
+name: SafeSteps Backend CI
+
+on:
+  push:
+    branches: [ main, develop, config/Integracio_Continua]
+  pull_request:
+    branches: [ main, develop, config/Integracio_Continua]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and Run Tests
+        env:
+          SAFESTEPS_BD_PASSWORD: ${{ secrets.SAFESTEPS_BD_PASSWORD }}
+        run: ./mvnw clean verify
+
+      - name: SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ./mvnw sonar:sonar \
+            -Dsonar.login=$SONAR_TOKEN

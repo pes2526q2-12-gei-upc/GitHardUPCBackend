@@ -1,19 +1,20 @@
 #!/bin/bash
 
-echo "Running static analysis and tests before commit..."
+echo "🔍 Ejecutando análisis estático y tests unitarios (Backend)..."
 
-# Para Frontend (Android):
-if [ -f "./gradlew" ]; then
-    ./gradlew lint test
-# Para Backend (Spring Boot):
-elif [ -f "./mvnw" ]; then
-    ./mvnw test
-fi
+# Solo ejecutamos Maven si existe el archivo mvnw
+if [ -f "./mvnw" ]; then
+    # Ejecutamos tests y Checkstyle (si lo tienes configurado) para cumplir con el RNF de sintaxis [cite: 632, 678]
+    ./mvnw clean test
 
-if [ $? -ne 0 ]; then
-    echo "Error: Las pruebas o el linting han fallado. El commit ha sido cancelado."
+    if [ $? -ne 0 ]; then
+        echo "🛑 Error: Las pruebas han fallado. Revisa tu lógica antes de hacer commit." [cite: 633]
+        exit 1
+    fi
+else
+    echo "⚠️  Atención: No se encontró ./mvnw. ¿Estás en la raíz del proyecto Backend?"
     exit 1
 fi
 
-echo "Validación completada con éxito."
+echo "✅ Validación completada. Procediendo con el commit..."
 exit 0
