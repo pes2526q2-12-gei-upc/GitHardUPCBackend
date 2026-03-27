@@ -1,5 +1,6 @@
 package com.safesteps.backend.controller;
 
+import com.safesteps.backend.domain.routecalculator.Filtre;
 import com.safesteps.backend.domain.routecalculator.RouteCalculatorService;
 import com.safesteps.backend.domain.routecalculator.RouteRequestDTO;
 import com.safesteps.backend.domain.routecalculator.RouteResponseDTO;
@@ -34,11 +35,13 @@ public class ApiAddressController {
     })
     @PostMapping("/calculate-route")
     public ResponseEntity<RouteResponseDTO> calculateRoute(@Valid @RequestBody RouteRequestDTO request) {
+        Filtre filtre = request.getFiltre() != null ? request.getFiltre() : new Filtre();
 
         RouteResponseDTO response = routeCalculatorService.getBestRoute(
                 request.getOrigin(),
                 request.getDestination(),
-                request.getNRoutes()
+                request.getNRoutes(),
+                filtre
         );
 
         return ResponseEntity.ok(response);

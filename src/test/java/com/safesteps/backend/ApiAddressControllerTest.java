@@ -2,10 +2,7 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.ApiAddressController;
-import com.safesteps.backend.domain.routecalculator.Coord;
-import com.safesteps.backend.domain.routecalculator.RouteCalculatorService;
-import com.safesteps.backend.domain.routecalculator.RouteRequestDTO;
-import com.safesteps.backend.domain.routecalculator.RouteResponseDTO;
+import com.safesteps.backend.domain.routecalculator.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,11 +50,13 @@ class ApiAddressControllerTest {
         RouteRequestDTO request = new RouteRequestDTO();
         Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
         Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
+        Filtre filtre = new Filtre();
         request.setOrigin(org);
         request.setDestination(dest);
         request.setNRoutes(3);
+        request.setFiltre(filtre);
 
-        when(routeCalculatorService.getBestRoute(any(), any(), anyInt()))
+        when(routeCalculatorService.getBestRoute(any(), any(), anyInt(), any()))
                 .thenReturn(new RouteResponseDTO());
 
         mockMvc.perform(post("/api/v1/calculate-route")
@@ -89,6 +88,42 @@ class ApiAddressControllerTest {
         request.setOrigin(org);
         request.setDestination(dest);
         request.setNRoutes(0); // minim 1
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void calculateRoute_WithFiltreOverOne() throws Exception {
+        RouteRequestDTO request = new RouteRequestDTO();
+        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
+        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
+        Filtre filtre = new Filtre();
+        filtre.setSeguretat(1.5f); // màxim 1
+        request.setOrigin(org);
+        request.setDestination(dest);
+        request.setNRoutes(0); // minim 1
+        request.setFiltre(filtre);
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void calculateRoute_WithFiltreUnderZero() throws Exception {
+        RouteRequestDTO request = new RouteRequestDTO();
+        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
+        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
+        Filtre filtre = new Filtre();
+        filtre.setSeguretat(-1f); // màxim 1
+        request.setOrigin(org);
+        request.setDestination(dest);
+        request.setNRoutes(0); // minim 1
+        request.setFiltre(filtre);
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -53,7 +53,7 @@ class RouteCalculatorServiceTest {
             @Override public Double getCost() { return 150.0; }
         };
 
-        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
                 .thenReturn(List.of(routeMock));
 
         CoordDBProjection coordMock = new CoordDBProjection() {
@@ -82,10 +82,9 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.findBancsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findArbresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findArbresZonaNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1);
+        Filtre f = new Filtre();
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
 
         assertNotNull(response);
         assertEquals(1, response.getRoutes().size());
@@ -126,7 +125,7 @@ class RouteCalculatorServiceTest {
         when(n2.getNode()).thenReturn(15L);
         when(n2.getCost()).thenReturn(311.0);
 
-        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
                 .thenReturn(List.of(n1, n2));
 
         CoordDBProjection c1 = mock(CoordDBProjection.class);
@@ -140,19 +139,20 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of(c1, c2));
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+        Filtre f = new Filtre();
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);
         assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
 
         Route primeraRuta = response.getRoutes().getFirst();
         assertEquals(561.0, primeraRuta.getDistanceMeters(), "La distancia ha de sumar 561m");
-        assertEquals(7, primeraRuta.getEstimatedTimeMinutes(), "561m a 83.33m/min -> 6.7 -> 7m");
+        assertEquals(7, primeraRuta.getEstimatedTimeMinutes(), "561m a 75m/min -> 6.7 -> 7m");
         assertEquals(2, primeraRuta.getCoordinates().size(), "Ha de tenir 1 coordenada simulada");
 
         verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
         verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
-        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class));
     }
 
     @Test
@@ -163,7 +163,7 @@ class RouteCalculatorServiceTest {
 
         when(carrerRepository.findNearestNode(anyDouble(), anyDouble()))
                 .thenReturn(5L, 5L);
-        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
                 .thenReturn(List.of());
         CoordDBProjection c1 = mock(CoordDBProjection.class);
         when(c1.getLat()).thenReturn(41.3865032);
@@ -172,19 +172,20 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of(c1));
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin2, dest2, nRoutes);
+        Filtre f = new Filtre();
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin2, dest2, nRoutes, f);
 
         assertNotNull(response);
         assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
 
         Route primeraRuta = response.getRoutes().getFirst();
         assertEquals(0.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
-        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 75m/min -> 0m");
         assertEquals(1, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
 
         verify(carrerRepository, times(1)).findNearestNode(origin2.getLat(), origin2.getLon());
         verify(carrerRepository, times(1)).findNearestNode(dest2.getLat(), dest2.getLon());
-        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class));
     }
 
     @Test
@@ -199,24 +200,25 @@ class RouteCalculatorServiceTest {
         when(n1.getEdge()).thenReturn(100L);
         when(n1.getNode()).thenReturn(10L);
         when(n1.getCost()).thenReturn(5.0);
-        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
                 .thenReturn(List.of(n1));
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of());
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+        Filtre f = new Filtre();
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);
         assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
 
         Route primeraRuta = response.getRoutes().getFirst();
         assertEquals(5.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
-        assertEquals(1, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(1, primeraRuta.getEstimatedTimeMinutes(), "0m a 75m/min -> 0m");
         assertEquals(0, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
 
         verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
         verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
-        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class));
     }
 
     @Test
@@ -234,23 +236,24 @@ class RouteCalculatorServiceTest {
         when(n2.getNode()).thenReturn(10L);
         when(n2.getCost()).thenReturn(0.0);
 
-        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString()))
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
                 .thenReturn(List.of(n1, n2));
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of());
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes);
+        Filtre f = new Filtre();
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);
         assertEquals(nRoutes, response.getRoutes().size(), "Ha de retornar exactament 2 rutes");
 
         Route primeraRuta = response.getRoutes().getFirst();
         assertEquals(0.0, primeraRuta.getDistanceMeters(), "No ens hem de moure -> 0m");
-        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 83.3m/min -> 0m");
+        assertEquals(0, primeraRuta.getEstimatedTimeMinutes(), "0m a 75m/min -> 0m");
         assertEquals(0, primeraRuta.getCoordinates().size(), "Com no ens hem de moure no ha de tenir cap node");
 
         verify(carrerRepository, times(1)).findNearestNode(origin.getLat(), origin.getLon());
         verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
-        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString());
+        verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class));
     }
 }
