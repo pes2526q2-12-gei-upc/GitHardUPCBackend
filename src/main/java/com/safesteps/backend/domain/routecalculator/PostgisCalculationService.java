@@ -17,7 +17,18 @@ public class PostgisCalculationService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Transactional
+    // Ejecuta ANALYZE fuera del bloque transaccional, ya que Postgres 
+    // no permite comandos de mantenimiento dentro de bloques transaccionales.
+    public void executePreAnalysis() {
+        logger.info("Executing Pre-Analysis statistics on newly downloaded tables...");
+        try {
+            jdbcTemplate.execute("ANALYZE bcn_grafvial_nodes;");
+            jdbcTemplate.execute("ANALYZE bcn_grafvial_trams;");
+        } catch (Exception e) {
+            logger.warn("Could not execute ANALYZE. Proceeding anyway. Error: " + e.getMessage());
+        }
+    }
+
     public void performDatabaseCalculations() {
         logger.info("Performing database post-calculations from external SQL script...");
         try {

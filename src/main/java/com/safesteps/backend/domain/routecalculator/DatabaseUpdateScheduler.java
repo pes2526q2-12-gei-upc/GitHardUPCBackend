@@ -34,8 +34,7 @@ public class DatabaseUpdateScheduler {
             "DataLoad_Arbrat_viari.py",
             "DataLoad_Arbrat_zona.py",
             "DataLoad_Fets_Penals.py",
-            "DataLoad_Infraccions_Administratives.py"
-    );
+            "DataLoad_Infraccions_Administratives.py");
 
     private final PostgisCalculationService postgisCalculationService;
 
@@ -45,18 +44,28 @@ public class DatabaseUpdateScheduler {
         this.postgisCalculationService = postgisCalculationService;
     }
 
+    // DISPARADOR DE PRUEBA: Si descomentas esta línea, se ejecutará UNA ÚNICA VEZ
+    // justo al arrancar el servidor.
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    // Restaurado a "una vez al día" para prevenir solapes y fallos de lock
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
         logger.info("Iniciando pipeline nocturno de actualización de OpenData BCN");
         try {
             boolean dataLoadSuccess = executePythonDataLoad();
-            
+
             // GUARD CLAUSE (Bouncer Pattern)
             if (!dataLoadSuccess) {
-                logger.error("Se abortan los cálculos geométricos espaciales porque la ingesta de datos falló críticamente.");
+                logger.error(
+                        "Se abortan los cálculos geométricos espaciales porque la ingesta de datos falló críticamente.");
                 return;
             }
-            
+
+            // Ejecutamos las estadísticas de PostgreSQL ANTES de bloquear las tablas
+            // con nuestra transacción masiva.
+            postgisCalculationService.executePreAnalysis();
+
+            // Evaluamos la matemática espacial bajo transacción (Todo o Nada)
             postgisCalculationService.performDatabaseCalculations();
             logger.info("Pipeline completado con éxito.");
 
@@ -70,7 +79,8 @@ public class DatabaseUpdateScheduler {
 
         for (String script : PYTHON_SCRIPTS) {
             if (!executeSingleScript(script)) {
-                return false; // Si prefieres detener todo por un solo fallo, si no, puedes obviar este return.
+                return false; // Si prefieres detener todo por un solo fallo, si no, puedes obviar este
+                              // return.
             }
         }
         return true;
