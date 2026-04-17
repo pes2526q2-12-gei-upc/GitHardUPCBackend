@@ -22,7 +22,17 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
             "SELECT di.node AS node, di.edge AS edge, di.seq AS seq, COALESCE(v.longitud, 0.0) AS cost " +
                     "FROM pgr_dijkstra(" +
                     "  'SELECT fid as id, source, target, " +
-                    "          CASE WHEN fid = ANY(string_to_array(''' || :penalizedEdges || ''', '','')::bigint[]) THEN longitud * 1.25 ELSE longitud END AS cost " +
+                    "          (longitud * (1.0 " +
+                    "              + (' || :#{#filtre.seguretat} || ' * GREATEST(0, 1.0 - COALESCE(cnt_comissaries, 0.0))) " +    //Ponderacions de cada filtre
+                    "              + (' || :#{#filtre.fontsAigua}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_fonts, 0.0))) " +
+                    "              + (' || :#{#filtre.ombra}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_arbres, 0.0))) " +
+                    "              + (' || :#{#filtre.escalesMecaniques}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_escales, 0.0))) " +
+                    "              + (' || :#{#filtre.bancs}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_bancs, 0.0))) " +
+                    "          )) * " +
+                    "          CASE WHEN fid = ANY(string_to_array(''' || :penalizedEdges || ''', '','')::bigint[]) " +
+                    "               THEN 1.25 " + // Factor de penalitzacio per rutes repetides
+                    "               ELSE 1.0 " +
+                    "          END AS cost " +
                     "   FROM v_trams_nodes', " +
                     "  :originId, :destId, false" +
                     ") di " +
@@ -32,7 +42,8 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
     List<RouteDBProjection> findPathWithPenalties(
             @Param("originId") Long originId,
             @Param("destId") Long destId,
-            @Param("penalizedEdges") String penalizedEdges
+            @Param("penalizedEdges") String penalizedEdges,
+            @Param("filtre") Filtre filtre
     );
 
     /*

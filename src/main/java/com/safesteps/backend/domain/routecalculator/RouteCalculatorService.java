@@ -20,7 +20,7 @@ public class RouteCalculatorService {
         this.carrerRepository = carrerRepository;
     }
 
-    public RouteResponseDTO getBestRoute(Coord org, Coord dest, int nRoutes) {
+    public RouteResponseDTO getBestRoute(Coord org, Coord dest, int nRoutes, Filtre filtre) {
         // Com ens arriba en lat i long, ho hem de passar als identificadors dels carrers mes propers
         Long start = carrerRepository.findNearestNode(org.getLat(), org.getLon());
         Long end = carrerRepository.findNearestNode(dest.getLat(), dest.getLon());
@@ -29,14 +29,14 @@ public class RouteCalculatorService {
         Set<Long> edgesVisitats = new HashSet<>();
         RouteResponseDTO response = new RouteResponseDTO();
         for (int i = 0; i < nRoutes; ++i)
-            response.getRoutes().add(calculRuta(edgesVisitats,  start, end));
+            response.getRoutes().add(calculRuta(edgesVisitats,  start, end, filtre));
 
         return response;
     }
 
-    private Route calculRuta(Set<Long> edgesVisitats, Long org, Long dest) {
+    private Route calculRuta(Set<Long> edgesVisitats, Long org, Long dest, Filtre filtre) {
         String formattedEdges = formatEdgesSetForDB(edgesVisitats);
-        List<RouteDBProjection> rutaPrincipal = carrerRepository.findPathWithPenalties(org, dest, formattedEdges);
+        List<RouteDBProjection> rutaPrincipal = carrerRepository.findPathWithPenalties(org, dest, formattedEdges, filtre);
 
         Long[] rutaPrincipalFID = new Long[rutaPrincipal.size()];
         double distanceMeters = 0.0;
@@ -90,19 +90,6 @@ public class RouteCalculatorService {
                 .map(e -> new PoiDTO("ESCALA_MECANICA", e.getName(), e.getLat(), e.getLon()))
                 .toList());
 
-        // F. Arbrat Viari (Radi: 15 metres. Vital per a l'ombra a l'estiu, però limitem el radi per evitar sobrecàrrega de dades)
-        List<PoiDBProjection> arbresDB = carrerRepository.findArbresNearRoute(rutaPrincipalFID, 15.0);
-        pois.addAll(arbresDB.stream()
-                .map(a -> new PoiDTO("ARBRE", a.getName(), a.getLat(), a.getLon()))
-                .toList());
-
-        // G. Arbrat de Zona (Radi: 15 metres. Arbres dins de parcs o places per on passa la ruta)
-        List<PoiDBProjection> arbresZonaDB = carrerRepository.findArbresZonaNearRoute(rutaPrincipalFID, 15.0);
-        pois.addAll(arbresZonaDB.stream()
-                .map(a -> new PoiDTO("ARBRE", a.getName(), a.getLat(), a.getLon()))
-                .toList());
-
-
         // 3. Retornem la Ruta enriquida (Ara el constructor de Route demana els POIs al final)
         return new Route(
                 ruta,
@@ -114,7 +101,7 @@ public class RouteCalculatorService {
 
     // Calcular el temps estimat (Velocitat a peu de 5 km/h -> ~83.33 m/min)
     private int calculateEstimatedTime(double distance) {
-        int time = (int) Math.round(distance / 83.33);
+        int time = (int) Math.round(distance / 75);
         return (time == 0 && distance > 0) ? 1  : time;
     }
 
