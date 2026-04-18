@@ -16,6 +16,7 @@ ADD COLUMN IF NOT EXISTS cnt_cameres INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_escales INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_arbres INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -111,3 +112,9 @@ SET score_comissaries = (
     SELECT COALESCE(MAX(GREATEST(0, 100 * (1 - (ST_Distance(t.geom, c.geom) / 500.0)))), 0) 
     FROM bcn_comissaries c WHERE c.geom IS NOT NULL AND ST_DWithin(t.geom, c.geom, 500) 
 );
+
+UPDATE bcn_grafvial_trams t
+SET cnt_fets_delictius = f.total_delictes_vianants
+FROM bcn_districtes_poligons p
+JOIN cat_fets_penals f ON p.nom_districte = f.nom
+WHERE ST_Intersects(t.geom, p.geom);
