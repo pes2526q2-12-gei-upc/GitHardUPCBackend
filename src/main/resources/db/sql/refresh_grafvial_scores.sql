@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_grafvial_trams_nf ON bcn_grafvial_trams("C_Nus_F"
 -- (El ANALYZE de estas tablas se realiza directamente desde Java antes de entrar en transaccion)
 
 -- 1. Añadir todas las columnas y la de geometría general
-ALTER TABLE bcn_grafvial_trams 
+ALTER TABLE bcn_grafvial_trams
 ADD COLUMN IF NOT EXISTS cnt_comissaries INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fonts INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_bancs INTEGER DEFAULT 0,
@@ -18,6 +18,7 @@ ADD COLUMN IF NOT EXISTS cnt_arbres INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -84,6 +85,12 @@ ALTER TABLE bcn_contaminacio_acustica ADD COLUMN IF NOT EXISTS geom geometry(Poi
 UPDATE bcn_contaminacio_acustica SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_soroll_geom ON bcn_contaminacio_acustica USING GIST(geom);
 
+-- Calidad del aire
+ALTER TABLE bcn_qualitat_aire ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
+UPDATE bcn_qualitat_aire SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831)
+WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_aire_geom ON bcn_qualitat_aire USING GIST(geom);
+
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
 -- =========================================================================================
@@ -137,4 +144,15 @@ SET score_soroll = (
     FROM bcn_contaminacio_acustica s
     WHERE s.geom IS NOT NULL
     AND ST_DWithin(t.geom, s.geom, 100)
+);
+-- Score Aire per a PM2.5 (0-100)
+-- Normalització: 25 ug/m3 o més = 100 de score (Molt contaminat per PM2.5)
+-- Valor per defecte si no hi ha dades: 10.0 ug/m3 (Score 40)
+UPDATE bcn_grafvial_trams t
+SET score_aire = (
+    SELECT
+        -- Multipliquem per 4.0 perquè 25 ug/m3 * 4 = 100 punts de risc
+        LEAST(100.0, GREATEST(0.0, (COALESCE(AVG(a.nivell_aire), 10.0) * 4.0)))
+    FROM bcn_qualitat_aire a
+    WHERE a.geom IS NOT NULL AND ST_DWithin(t.geom, a.geom, 2500)
 );
