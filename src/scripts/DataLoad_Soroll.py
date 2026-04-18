@@ -50,7 +50,8 @@ def get_config():
     return config
 
 def get_latest_resource_info(api_url):
-    logging.info("Consultant l'API d'Open Data BCN per trobar l'enllaç del recurs de Soroll...")
+    """Funció del teu codi original, perfecta per navegar per l'API de CKAN"""
+    logging.info(f"Consultant l'API d'Open Data BCN per: {api_url}")
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(api_url, headers=headers)
@@ -62,13 +63,11 @@ def get_latest_resource_info(api_url):
             # Primer busquem si hi ha algun CSV directe
             for res in resources:
                 if res["format"].upper() == "CSV":
-                    logging.info("URL Trobada (CSV): " + res["url"])
                     return res["url"], "CSV"
 
             # Si no n'hi ha, aquests datasets pesats sovint venen en ZIP
             for res in resources:
                 if res["format"].upper() == "ZIP":
-                    logging.info("URL Trobada (ZIP): " + res["url"])
                     return res["url"], "ZIP"
 
         return None, None
@@ -76,27 +75,104 @@ def get_latest_resource_info(api_url):
         logging.error(f"Error connectant amb l'API: {e}")
         return None, None
 
+def descarregar_dataframe_bcn(api_url, filtrar_temps=False):
+    """Aplica la teva lògica de descàrrega i llegeix per blocs si cal filtrar"""
+    download_url, file_format = get_latest_resource_info(api_url)
+
+    if not download_url:
+        raise ValueError(f"No s'ha trobat cap recurs CSV ni ZIP a l'URL: {api_url}")
+
+    logging.info("Iniciant descàrrega del contingut...")
+    r = requests.get(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+    r.raise_for_status()
+
+    if file_format == "ZIP" or download_url.endswith('.zip'):
+        logging.info("Format ZIP detectat. Extreient les dades en memòria...")
+        with zipfile.ZipFile(BytesIO(r.content)) as z:
+            nom_fitxer = z.namelist()[0]
+            contingut_cru = z.read(nom_fitxer)
+    else:
+        contingut_cru = r.content
+
+    if b'\x00' in contingut_cru:
+        contingut = contingut_cru.decode('utf-16')
+    else:
+        contingut = contingut_cru.decode('utf-8', errors='replace')
+
+    csv_data = StringIO(contingut)
+
+    # =========================================================
+    # LÒGICA DE LECTURA PER BLOCS (CHUNKING) PER A FITXERS GEGANTS
+    # =========================================================
+    if filtrar_temps:
+        logging.info("Lectura per blocs activada. Buscant la columna de data/hora per filtrar...")
+        chunks_filtrats = []
+
+        # Llegim de 250.000 en 250.000 files per no col·lapsar la RAM
+        for i, chunk in enumerate(pd.read_csv(csv_data, sep=',', on_bad_lines='skip', engine='python', chunksize=250000)):
+            # 1. Netegem les columnes d'aquest bloc petit
+            chunk.columns = [str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in chunk.columns]
+
+            # 2. AUTODETECCIÓ de la columna de temps (només busquem el nom al primer bloc)
+            col_temps = next((c for c in chunk.columns if 'time' in c or 'data' in c or 'date' in c or 'timestamp' in c or 'observacio' in c), None)
+
+            if not col_temps:
+                if i == 0:
+                    logging.error(f"FATAL: No trobo cap columna de temps per filtrar! Les columnes són: {list(chunk.columns)}")
+                # Si no hi ha columna, no podem filtrar, així que parem d'afegir escombraries
+                continue
+
+            if i == 0:
+                logging.info(f"Columna de temps detectada automàticament: '{col_temps}'. Aplicant filtre de l'any...")
+
+            # 3. Convertim a data unificant zones horàries a UTC per evitar errors
+            chunk['data_temp'] = pd.to_datetime(chunk[col_temps], errors='coerce', utc=True)
+
+            # Obtenim l'any i el mes actuals del sistema
+            any_actual = datetime.now().year
+
+
+            # FILTRE ESTRICTE: Ens quedem només amb dades d'aquest any I d'aquest mes
+            # IMPORTANT: A Pandas, si poses dues condicions, han d'anar entre parèntesis separades per &
+            chunk = chunk[chunk['data_temp'].dt.year == any_actual]
+
+
+
+            # Esborrem la columna auxiliar per estalviar memòria
+            chunk = chunk.drop(columns=['data_temp'])
+
+            # Guardem el bloc ja filtrat
+            chunks_filtrats.append(chunk)
+
+        # Unim tots els blocs filtrats en un sol DataFrame (si n'hem trobat algun)
+        if chunks_filtrats:
+            df = pd.concat(chunks_filtrats, ignore_index=True)
+            logging.info(f"Filtratge completat amb èxit! Ens hem quedat amb només {len(df)} files d'aquest any.")
+        else:
+            logging.warning("El resultat final és de 0 files. Cap dada complia les condicions.")
+            df = pd.DataFrame() # Retorna buit si tot ha fallat
+
+    else:
+        # Lectura normal per a fitxers petits (com l'inventari d'estacions)
+        logging.info("Llegint les dades (lectura normal sense filtres de temps)...")
+        df = pd.read_csv(csv_data, sep=',', on_bad_lines='skip', engine='python')
+        df.columns = [str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
+
+    return df
+
+
 def main():
-    logging.info("---------- Actualitzant dades de l'API de Contaminació Acústica (BCN) ----------")
+    logging.info("---------- Actualitzant dades Soroll (Lectures + Estacions) ----------")
     config = get_config()
 
-    url_api = config.get("opendata.soroll.url")
+    # ARA TENIM DUES URLs:
+    url_lectures = config.get("opendata.soroll.url")
+    url_inventari = config.get("opendata.soroll_estacions.url")
     t_soroll = config.get("db.table.soroll")
+
     db_user = config.get("spring.datasource.username")
     db_pass = config.get("spring.datasource.password")
     db_url_jdbc = config.get("spring.datasource.url")
-
-    params = {
-        "url_api": url_api,
-        "t_soroll": t_soroll,
-        "db_user": db_user,
-        "db_pass": db_pass,
-        "db_url_jdbc": db_url_jdbc
-    }
-    missing = [k for k, v in params.items() if not v]
-    if missing:
-        logging.error(f"Falten paràmetres de configuració: {missing}")
-        return
 
     try:
         clean_url = db_url_jdbc.replace("jdbc:", "")
@@ -106,51 +182,53 @@ def main():
         logging.error(f"Error de connexió a la BD: {e}")
         return
 
-    download_url, file_format = get_latest_resource_info(url_api)
-    if not download_url:
-        logging.error("No s'ha trobat cap recurs CSV ni ZIP per a aquest dataset.")
-        return
-
     try:
-        logging.info("Iniciant descàrrega del contingut...")
-        r = requests.get(download_url, headers={'User-Agent': 'Mozilla/5.0'})
-        r.raise_for_status()
+        # 1. Descarreguem LECTURES (Activarem el filtre de temps perquè és enorme!)
+        logging.info(">>> PAS 1: Descarregant LECTURES...")
+        df_lectures = descarregar_dataframe_bcn(url_lectures, filtrar_temps=True)
 
-        # Procés d'extracció segons el format
-        if file_format == "ZIP":
-            logging.info("Format ZIP detectat. Extreient les dades en memòria...")
-            with zipfile.ZipFile(BytesIO(r.content)) as z:
-                # Agafem el primer fitxer dins del ZIP (que hauria de ser el CSV amb dades)
-                nom_fitxer = z.namelist()[0]
-                contingut_cru = z.read(nom_fitxer)
-        else:
-            contingut_cru = r.content
+        # 2. Descarreguem INVENTARI D'ESTACIONS (Fitxer petit, lectura normal)
+        logging.info(">>> PAS 2: Descarregant INVENTARI D'ESTACIONS...")
+        df_inventari = descarregar_dataframe_bcn(url_inventari, filtrar_temps=False)
 
-        # Tractament d'encoding (BCN a vegades fa servir UTF-16 amb \x00)
-        if b'\x00' in contingut_cru:
-            logging.info("Format UTF-16 detectat. Decodificant...")
-            contingut = contingut_cru.decode('utf-16')
-        else:
-            # Usem 'replace' per evitar que un caràcter rar trenqui tot l'script
-            contingut = contingut_cru.decode('utf-8', errors='replace')
+        # 2. Comprovem la columna pont (id_instal)
+        # El teu codi de neteja haurà convertit "Id_Instal" en "id_instal" automàticament!
+        if 'id_instal' not in df_lectures.columns or 'id_instal' not in df_inventari.columns:
+            logging.error("No es troba la columna 'id_instal' per fer el creuament.")
+            logging.error(f"Lectures: {list(df_lectures.columns)}")
+            logging.error(f"Inventari: {list(df_inventari.columns)}")
+            return
 
-        csv_data = StringIO(contingut)
+        # 3. Creuament de dades
+        logging.info(">>> PAS 3: Creuant dades per 'id_instal'...")
+        df_merged = pd.merge(df_lectures, df_inventari, on='id_instal', how='inner')
 
-        logging.info("Llegint les dades i preparant columnes...")
-        df = pd.read_csv(csv_data, sep=',', on_bad_lines='skip', engine='python')
+        # 4. Extracció de coordenades i decibels
+        col_val = 'valor' if 'valor' in df_merged.columns else next((c for c in df_merged.columns if 'laeq' in c), None)
 
-        # Neteja de columnes per compatibilitat amb PostgreSQL
-        df.columns = [str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
+        if not col_val or 'latitud' not in df_merged.columns or 'longitud' not in df_merged.columns:
+            logging.error("No s'han trobat les columnes de valor, latitud o longitud després del creuament.")
+            return
 
-        logging.info(f"Pujant {len(df)} files a la taula '{t_soroll}'...")
+        # Arreglem comes per punts i passem a numèric
+        for col in [col_val, 'latitud', 'longitud']:
+            df_merged[col] = pd.to_numeric(df_merged[col].astype(str).str.replace(',', '.'), errors='coerce')
+
+        # Agrupem per punt geogràfic i fem la mitjana
+        df_final = df_merged.dropna(subset=[col_val, 'latitud', 'longitud'])
+        df_final = df_final.groupby(['latitud', 'longitud'])[col_val].mean().reset_index()
+        df_final.columns = ['latitud', 'longitud', 'nivell_db']
+
+        # 5. Pugem a PostgreSQL
+        logging.info(f">>> PAS 4: Pujant {len(df_final)} sensors geolocalitzats a la taula '{t_soroll}'...")
         with engine.begin() as conn:
             conn.execute(text(f'DROP TABLE IF EXISTS "{t_soroll}" CASCADE;'))
 
-        df.to_sql(t_soroll, engine, if_exists='replace', index=False)
-        logging.info(f"ÈXIT: Taula '{t_soroll}' actualitzada correctament amb les dades del soroll.")
+        df_final.to_sql(t_soroll, engine, if_exists='replace', index=False)
+        logging.info(f"ÈXIT: Taula '{t_soroll}' actualitzada correctament amb les dades de soroll enriquides.")
 
     except Exception as e:
-        logging.error(f"Error en el processament: {e}")
+        logging.error(f"Error crític en el processament: {e}")
 
 if __name__ == "__main__":
     main()
