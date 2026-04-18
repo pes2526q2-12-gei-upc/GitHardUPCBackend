@@ -17,6 +17,7 @@ ADD COLUMN IF NOT EXISTS cnt_escales INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_arbres INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -78,6 +79,10 @@ ALTER TABLE bcn_arbrat_zona ALTER COLUMN geom TYPE geometry(Point, 25831) USING 
 UPDATE bcn_arbrat_zona SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;        
 CREATE INDEX IF NOT EXISTS idx_arbrat_zona_geom ON bcn_arbrat_zona USING GIST(geom);
 
+-- Contaminación acústica
+ALTER TABLE bcn_contaminacio_acustica ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
+UPDATE bcn_contaminacio_acustica SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_soroll_geom ON bcn_contaminacio_acustica USING GIST(geom);
 
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
@@ -118,3 +123,18 @@ SET cnt_fets_delictius = f.total_delictes_vianants
 FROM bcn_districtes_poligons p
 JOIN cat_fets_penals f ON p.nom_districte = f.nom
 WHERE ST_Intersects(t.geom, p.geom);
+
+-- Apliquem una fórmula de mapatge:
+-- 50 dB o menys = Score 0
+-- 80 dB o més   = Score 100
+-- Valor per defecte si no hi ha dades = 55.0 dB (Score ~16.6)
+UPDATE bcn_grafvial_trams t
+SET score_soroll = (
+    SELECT
+
+            LEAST(100.0, GREATEST(0.0, ((COALESCE(AVG(s.nivell_db), 55.0) - 50.0) / 30.0) * 100.0))
+
+    FROM bcn_contaminacio_acustica s
+    WHERE s.geom IS NOT NULL
+    AND ST_DWithin(t.geom, s.geom, 100)
+);
