@@ -71,6 +71,7 @@ public class IncidentController {
 
     @PostMapping("/{id}/votes")
     public ResponseEntity<VoteResponseDTO> newVote(@PathVariable("id") Long incidenceId, @Valid @RequestBody VoteRequestDTO voteRequest) {
+        //Request user reliability
         VoteResponseDTO updatedIncident = voteService.createVote(incidenceId, voteRequest);
         return ResponseEntity.ok(updatedIncident);
     }
@@ -84,8 +85,9 @@ public class IncidentController {
 
     @DeleteMapping("/{incidenceId}/users/{userId}/vote")
     public ResponseEntity<Void> deleteByUserAndIncidence(@PathVariable("incidenceId") Long incidenceId, @PathVariable("userId") Long userId) {
-        voteService.deleteByUserAndIncidence(incidenceId, userId);
-        return ResponseEntity.noContent().build();
+        boolean deleteStatus = voteService.deleteByUserAndIncidence(incidenceId, userId);
+        if (deleteStatus) return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
     }
 
     @GetMapping("/votes/users/{userId}")

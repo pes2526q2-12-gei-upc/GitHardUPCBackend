@@ -12,7 +12,7 @@ public class VoteResponseDTO {
     private  Long id;
     private Long incidenceId;
     private Long userId;
-    private float score;
+    private double score;
     private LocalDateTime createdAt;
 
     public VoteResponseDTO(Vote v) {

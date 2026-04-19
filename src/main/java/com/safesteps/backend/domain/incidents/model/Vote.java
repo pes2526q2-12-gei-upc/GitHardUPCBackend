@@ -22,7 +22,10 @@ public class Vote {
     private Long userId;
 
     @Column(nullable = false)
-    private float score;
+    private double score;
+
+    @Column(nullable = false, name = "data_score")
+    private double dataScore;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

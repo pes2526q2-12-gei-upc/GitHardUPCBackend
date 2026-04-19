@@ -14,12 +14,9 @@ public class VoteRequestDTO {
     private Long userId;
 
     @Valid
-    @NotNull(message = "El id de la incidencia es obligatorio")
-    @Schema(description = "Identificador de la incidencia", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long incidentId;
-
-    @Valid
     @NotNull(message = "La puntuacion d'una incidencia es obligatoria")
     @Schema(description = "Puntuacion dada al voto de una incidencia", requiredMode = Schema.RequiredMode.REQUIRED)
-    private int score;
+    private int accepted;
+    //NOMES 1 o -1 -> 1 es accepted, 0 rebutjat
+
 }

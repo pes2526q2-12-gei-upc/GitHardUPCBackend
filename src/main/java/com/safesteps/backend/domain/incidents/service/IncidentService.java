@@ -85,21 +85,28 @@ public class IncidentService {
         }
 
         @Transactional
-        public void updateIncidentVoteCount(int voteScore, Long incidentId) {
+        public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
             Optional<Incident> i = incidentRepo.findById(incidentId);
             if (i.isEmpty()) return;
             Incident incident = i.get();
 
-            if (voteScore > 0) {
-                incident.setPositiveVotes(incident.getPositiveVotes() + voteScore);
+            if (delete) {
+                if (voteScore > 0) {
+                    incident.setPositiveVotes(incident.getPositiveVotes() -1);
+                } else {
+                    incident.setNegativeVotes(incident.getNegativeVotes() - 1);
+                }
+                incident.setReliabilityIndex(incident.getReliabilityIndex() - voteScore);
             } else {
-                incident.setNegativeVotes(incident.getNegativeVotes() + voteScore);
+                if (voteScore > 0) {
+                    incident.setPositiveVotes(incident.getPositiveVotes() + 1);
+                } else {
+                    incident.setNegativeVotes(incident.getNegativeVotes() + 1);
+                }
+
+                incident.setReliabilityIndex(incident.getReliabilityIndex() + voteScore);
             }
-            int totalVotes = incident.getPositiveVotes() - incident.getNegativeVotes();
-            if (totalVotes > 0) {
-                double reliabilityIndex = (double) incident.getPositiveVotes() / totalVotes;
-                incident.setReliabilityIndex(reliabilityIndex);
-            }
+
             incidentRepo.save(incident);
         }
 }
