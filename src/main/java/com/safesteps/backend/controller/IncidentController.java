@@ -2,6 +2,7 @@ package com.safesteps.backend.controller;
 
 import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
+import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,9 +17,11 @@ import java.util.List;
 public class IncidentController {
 
     private final IncidentService incidentService;
+    private final IncidentVoteService voteService;
 
-    public IncidentController(IncidentService incidentService) {
+    public IncidentController(IncidentService incidentService,  IncidentVoteService voteService) {
         this.incidentService = incidentService;
+        this.voteService = voteService;
     }
 
     @GetMapping
@@ -52,8 +55,41 @@ public class IncidentController {
         return ResponseEntity.notFound().build();
     }
 
+    @GetMapping("/{id}/count-votes")
+    public ResponseEntity<VoteCountDTO> getInfoVotes(@PathVariable("id") Long incidentId) {
+        VoteCountDTO count = incidentService.getVoteCount(incidentId);
+        if (count == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(count);
+    }
+
     @GetMapping("/users/{userId}")
     public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long userId) {
         return ResponseEntity.ok(incidentService.getIncidentsByUserId(userId));
+    }
+
+
+
+    @PostMapping("/{id}/votes")
+    public ResponseEntity<VoteResponseDTO> newVote(@PathVariable("id") Long incidenceId, @Valid @RequestBody VoteRequestDTO voteRequest) {
+        VoteResponseDTO updatedIncident = voteService.createVote(incidenceId, voteRequest);
+        return ResponseEntity.ok(updatedIncident);
+    }
+
+    @DeleteMapping("/votes/{voteId}")
+    public ResponseEntity<Void> deleteVoteByVoteId(@PathVariable("voteId") Long voteId) {
+        boolean deleteStatus = voteService.deleteVoteByVoteId(voteId);
+        if (deleteStatus) return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{incidenceId}/users/{userId}/vote")
+    public ResponseEntity<Void> deleteByUserAndIncidence(@PathVariable("incidenceId") Long incidenceId, @PathVariable("userId") Long userId) {
+        voteService.deleteByUserAndIncidence(incidenceId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/votes/users/{userId}")
+    public ResponseEntity<List<VoteResponseDTO>> getUserVotes(@PathVariable Long userId) {
+        return ResponseEntity.ok(voteService.getUserVotes(userId));
     }
 }

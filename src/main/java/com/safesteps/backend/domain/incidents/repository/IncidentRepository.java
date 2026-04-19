@@ -2,6 +2,7 @@ package com.safesteps.backend.domain.incidents.repository;
 
 import com.safesteps.backend.domain.incidents.model.Incident;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
+import com.safesteps.backend.domain.incidents.projections.VoteCountDBProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -72,4 +73,15 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
             ORDER BY i.id
             """, nativeQuery = true)
     List<IncidentDBProjection> getAllByUserId(@Param("userId") Long userId);
+
+    @Query(value = """
+            SELECT 
+                i.id as id,
+                i.positive_votes as positiveVotes,
+                i.negative_votes as negativeVotes,
+                i.reliability_index as reliabilityIndex
+            FROM incidents i
+            WHERE i.id = :id
+            """, nativeQuery = true)
+    Optional<VoteCountDBProjection> getVoteCount(@Param("id") Long id);
 }
