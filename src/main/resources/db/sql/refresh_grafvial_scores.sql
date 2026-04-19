@@ -128,7 +128,7 @@ SET score_comissaries = (
 UPDATE bcn_grafvial_trams t
 SET cnt_fets_delictius = f.total_delictes_vianants
 FROM bcn_districtes_poligons p
-JOIN cat_fets_penals f ON p.nom_districte = f.nom
+JOIN cat_fets_penals f ON f.nom_districte = p.nom
 WHERE ST_Intersects(t.geom, p.geom);
 
 -- Apliquem una fórmula de mapatge:
