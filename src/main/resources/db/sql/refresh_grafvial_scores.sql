@@ -19,6 +19,7 @@ ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS cnt_refugis_climatics INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -91,6 +92,11 @@ UPDATE bcn_qualitat_aire SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitu
 WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_aire_geom ON bcn_qualitat_aire USING GIST(geom);
 
+-- Refugios climáticos
+ALTER TABLE bcn_refugis_climatics ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
+UPDATE bcn_refugis_climatics SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(geo_epgs_4326_lon::numeric, geo_epgs_4326_lat::numeric), 4326), 25831) WHERE geo_epgs_4326_lon IS NOT NULL AND geo_epgs_4326_lat IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_refugis_geom ON bcn_refugis_climatics USING GIST(geom);
+
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
 -- =========================================================================================
@@ -155,4 +161,12 @@ SET score_aire = (
         LEAST(100.0, GREATEST(0.0, (COALESCE(AVG(a.nivell_aire), 10.0) * 4.0)))
     FROM bcn_qualitat_aire a
     WHERE a.geom IS NOT NULL AND ST_DWithin(t.geom, a.geom, 2500)
+);
+
+UPDATE bcn_grafvial_trams t
+SET cnt_refugis_climatics = (
+    SELECT COUNT(*)
+    FROM bcn_refugis_climatics r
+    WHERE r.geom IS NOT NULL
+    AND ST_DWithin(t.geom, r.geom, 50) -- Un radi de 50m sembla adient
 );
