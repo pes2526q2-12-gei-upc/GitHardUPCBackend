@@ -34,17 +34,20 @@ public class RouteEvaluationSafetyService {
 
         // --- 1. Factor de Protecció Local (Micro-seguretat) ---
         // Calculem un índex de "vida" i "vigilància" al carrer. De 0.0 (desert) a 1.0 (súper protegit)
-        double nivellVigilancia = (avgComisaries / 100.0) + (avgCameres >= 2 ? 1.0 : (avgCameres / 2.0));
-        nivellVigilancia = Math.min(1.0, nivellVigilancia); // Mai pot passar d'1.0
+        double nivellVigilancia = (avgComisaries / 100.0) + (avgCameres * 20.0);
+        nivellVigilancia = Math.min(1.0, nivellVigilancia);// Mai pot passar d'1.0
 
         // --- 2. Penalització de Delictes (Mitigada) ---
-        double penalitzacioBaseDelictes = (avgDelictes / 4500.0) * 6.0; // Màxim 4 punts de penalització
+        double penalitzacioBaseDelictes = Math.min((avgDelictes / 15000.0) * 5.0, 5.0); // Màxim 5 punts de penalització
 
-        double penalitzacioRealDelictes = penalitzacioBaseDelictes * (1.0 - (0.25 * nivellVigilancia));
+        double penalitzacioRealDelictes = penalitzacioBaseDelictes * (1.0 - (0.30 * nivellVigilancia));
         safetyScore -= penalitzacioRealDelictes;
 
         if (nivellVigilancia < 0.3) {
-            safetyScore -= (0.3 - nivellVigilancia) * 3.0; // Resta fins a -0.9 punts extres
+            double factorRisc = Math.max(0.0, (avgDelictes - 8000.0) / 10000.0);
+            factorRisc = Math.min(factorRisc, 1.0);
+
+            safetyScore -= (0.3 - nivellVigilancia) * 5.0 * factorRisc;
         }
 
         // 5. Assegurar limits i arrodonir
