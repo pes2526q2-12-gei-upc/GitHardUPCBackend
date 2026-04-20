@@ -45,7 +45,7 @@ public class DatabaseUpdateScheduler {
 
     // DISPARADOR DE PRUEBA: Si descomentas esta línea, se ejecutará UNA ÚNICA VEZ
     // justo al arrancar el servidor.
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     // Restaurado a "una vez al día" para prevenir solapes y fallos de lock
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
@@ -114,7 +114,14 @@ public class DatabaseUpdateScheduler {
             }
             return true;
 
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            logger.error("[INTERRUPCIÓN] El hilo fue interrumpido mientras esperaba al script {}.", scriptName);
+            // ¡ESTA ES LA LÍNEA MÁGICA QUE PIDE SONARQUBE!
+            // Restauramos el estado de interrupción del hilo actual.
+            Thread.currentThread().interrupt();
+            return false;
+
+        } catch (java.io.IOException e) {
             logger.error("Error de I/O despachando el script {}: {}", scriptName, e.getMessage());
             return false;
         }

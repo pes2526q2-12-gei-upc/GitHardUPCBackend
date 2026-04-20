@@ -114,6 +114,7 @@ def main():
         # A. Filtrar pels últims 3 anys (evitem històrics de 2011 que no reflecteixen la ciutat actual)
         max_year = df['any'].max()
         df = df[df['any'] >= (max_year - 2)]
+        logger.info(f"Després de filtrar per any: {len(df)} files.")
 
         # B. Filtrar només els districtes de Barcelona ciutat
         bcn_abps = [
@@ -122,10 +123,12 @@ def main():
             'ABP Nou Barris', 'ABP Sant Andreu'
         ]
         df = df[df['area_basica_policial_abp'].isin(bcn_abps)]
+        logger.info(f"Després de filtrar per ABP (Barcelona): {len(df)} files.")
 
         # C. Filtrar pels delictes que importen a un vianant (mitjançant expressions regulars)
         paraules_clau_perill = 'violència|lesions|sexual|homicidi|amenaces|coaccions|robatori amb força|estrebada'
         df = df[df['tipus_de_fet'].str.contains(paraules_clau_perill, case=False, na=False)]
+        logger.info(f"Després de filtrar per tipus de delicte: {len(df)} files.")
 
         # D. Agrupar i sumar els fets coneguts per cada districte
         df_agrupat = df.groupby('area_basica_policial_abp')['coneguts'].sum().reset_index()
@@ -153,6 +156,8 @@ def main():
 
     except Exception as e:
         logger.error("Error en el processament: %s", e)
+        import sys
+        sys.exit(1)  # ¡Le decimos a Java que ESTO HA FALLADO!
 
 if __name__ == "__main__":
     main()
