@@ -17,19 +17,19 @@ public interface IncidentVoteRepository extends JpaRepository<Vote, Long>  {
     @Query(value = """
             SELECT *
             FROM votes
-            WHERE id_incidence = :incidenceId AND id_user = :userId
+            WHERE incidence_id = :incidenceId AND user_id = :userId
             """, nativeQuery = true)
     Optional<Vote> findByUserAndIncidence(@Param("incidenceId") Long incidenceId, @Param("userId") Long userId);
 
     @Query(value = """
             SELECT 
                 id AS id,
-                id_incidence AS idIncidence,
-                id_user AS idUser,
+                incidence_id AS incidenceId,
+                user_id AS userId,
                 score AS score,
                 created_at AS createdAt
             FROM votes
-            WHERE id_user = :userId
+            WHERE user_id = :userId
             """, nativeQuery = true)
     List<VoteDBProjection> findAllByUserId(@Param("userId") Long userId);
 

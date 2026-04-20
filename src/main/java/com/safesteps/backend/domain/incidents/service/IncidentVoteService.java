@@ -28,6 +28,7 @@ public class IncidentVoteService {
         this.incidentSv = incidentSv;
     }
 
+    @Transactional
     public VoteResponseDTO createVote(Long id, VoteRequestDTO vote) {
         IncidentResponseDTO i = incidentSv.findIncidentById(id);
 
@@ -37,23 +38,30 @@ public class IncidentVoteService {
         diffDays = Math.max(0, diffDays);
         double scoreDay = 1.0 / (1.0 + pow(diffDays/7, 4));
 
-        double score = vote.getAccepted() * scoreDay;
-
         Vote v = new Vote();
         v.setIncidenceId(id);
         v.setUserId(vote.getUserId());
-        v.setScore(vote.getAccepted());
+        //AL TENIR EL MODEL D'USUARI POSAR LA SEVA FIABILITAT !!
+        v.setReliability(1.0);
         v.setDataScore(scoreDay);
-        v = voteRepository.save(v);
 
-        updateIncidentVoteCount(score, id, false);
-        return new VoteResponseDTO(v);
+        double score = v.getReliability() * v.getDataScore() * vote.getVoteScore();
+        v.setScore(score);
+
+        if (score != 0) {
+            v = voteRepository.save(v);
+            updateIncidentVoteCount(score, id, false);
+            return new VoteResponseDTO(v);
+        }
+        return new VoteResponseDTO();
     }
 
+    @Transactional
     public boolean deleteVoteByVoteId(Long id){
         return deleteVote(voteRepository.findById(id));
     }
 
+    @Transactional
     public boolean deleteByUserAndIncidence(Long incidenceId, Long userId){
         return deleteVote(voteRepository.findByUserAndIncidence(incidenceId, userId));
     }
@@ -62,8 +70,7 @@ public class IncidentVoteService {
     public boolean deleteVote(Optional<Vote> v) {
         if (v.isEmpty()) return false;
         Vote vote = v.get();
-        double score = vote.getDataScore() * vote.getScore();
-        updateIncidentVoteCount(score, v.get().getIncidenceId(), true);
+        updateIncidentVoteCount(vote.getScore(), vote.getIncidenceId(), true);
         voteRepository.deleteById(v.get().getId());
         return true;
     }
@@ -77,7 +84,8 @@ public class IncidentVoteService {
         return result;
     }
 
-    private void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
-        incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
+    @Transactional
+    public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
+        if (voteScore != 0) incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
     }
 }

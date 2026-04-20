@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 
 public interface VoteDBProjection {
     Long getId();
-    Long getIdIncidence();
-    Long getIdUser();
+    Long getIncidenceId();
+    Long getUserId();
     float getScore();
     LocalDateTime getCreatedAt();
 }

@@ -15,14 +15,17 @@ public class Vote {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, name = "id_incidence")
+    @Column(nullable = false, name = "incidence_id")
     private Long incidenceId;
 
-    @Column(nullable = false, name = "id_user")
+    @Column(nullable = false, name = "user_id")
     private Long userId;
 
     @Column(nullable = false)
     private double score;
+
+    @Column(nullable = false, name = "user_reliability")
+    private double reliability;
 
     @Column(nullable = false, name = "data_score")
     private double dataScore;

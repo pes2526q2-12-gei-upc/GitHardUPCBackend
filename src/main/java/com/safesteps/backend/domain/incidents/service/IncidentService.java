@@ -87,7 +87,7 @@ public class IncidentService {
         @Transactional
         public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
             Optional<Incident> i = incidentRepo.findById(incidentId);
-            if (i.isEmpty()) return;
+            if (i.isEmpty() || voteScore == 0) return;
             Incident incident = i.get();
 
             if (delete) {
