@@ -1,9 +1,6 @@
 package com.safesteps.backend.controller;
 
-import com.safesteps.backend.domain.routecalculator.Filtre;
-import com.safesteps.backend.domain.routecalculator.RouteCalculatorService;
-import com.safesteps.backend.domain.routecalculator.RouteRequestDTO;
-import com.safesteps.backend.domain.routecalculator.RouteResponseDTO;
+import com.safesteps.backend.domain.routecalculator.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,9 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class ApiAddressController {
 
     private final RouteCalculatorService routeCalculatorService;
+    private final RouteEvaluationSafetyService routeEvaluationSafetyService;
 
-    public ApiAddressController(RouteCalculatorService routeCalculatorService) {
+    public ApiAddressController(RouteCalculatorService routeCalculatorService,
+                                RouteEvaluationSafetyService routeEvaluationSafetyService) {
         this.routeCalculatorService = routeCalculatorService;
+        this.routeEvaluationSafetyService = routeEvaluationSafetyService;
     }
 
     @Operation(
@@ -43,6 +43,33 @@ public class ApiAddressController {
                 request.getNRoutes(),
                 filtre
         );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Valorar la seguridad de una ruta",
+            description = "Recibe un conjunto de coordenadas que representan una ruta y devuelve una valoración de seguridad basada en datos internos."
+    )
+    @io.swagger.v3.oas.annotations.Parameter(
+            name = "X-API-KEY",
+            description = "Token de seguridad para acceder a la API.",
+            required = true,
+            in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Valoración de seguridad calculada exitosamente"),
+            @ApiResponse(responseCode = "400", description = "Lista de coordenadas inválida o vacía.", content = @Content),
+    })
+    @PostMapping("/evaluate-route-security")
+    public ResponseEntity<ExternalSafetyResponseDTO> evaluateRouteSecurity(@RequestBody ExternalRouteRequestDTO request) {
+
+        if (request.getRoutePoints() == null || request.getRoutePoints().size() < 2) {
+            return ResponseEntity.badRequest().build(); // Necessitem almenys 2 punts per fer una ruta
+        }
+
+        // Cridem al servei per avaluar la llista de coordenades
+        ExternalSafetyResponseDTO response = routeEvaluationSafetyService.evaluateSafetyIndex(request.getRoutePoints());
 
         return ResponseEntity.ok(response);
     }

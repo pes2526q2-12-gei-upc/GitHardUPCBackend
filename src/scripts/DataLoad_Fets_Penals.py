@@ -111,10 +111,9 @@ def main():
         # PAS 1: FILTRATGE I AGREGACIÓ (PANDAS)
         # =====================================================================
 
-        # A. Filtrar pels últims 3 anys (evitem històrics de 2011 que no reflecteixen la ciutat actual)
+        # A. Filtrar pel últim any (evitem històrics que no reflecteixen la ciutat actual)
         max_year = df['any'].max()
-        df = df[df['any'] >= (max_year - 2)]
-        logger.info(f"Després de filtrar per any: {len(df)} files.")
+        df = df[df['any'] == max_year]
 
         # B. Filtrar només els districtes de Barcelona ciutat
         bcn_abps = [
