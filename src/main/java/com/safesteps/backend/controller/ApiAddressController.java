@@ -1,9 +1,6 @@
 package com.safesteps.backend.controller;
 
-import com.safesteps.backend.domain.routecalculator.Filtre;
-import com.safesteps.backend.domain.routecalculator.RouteCalculatorService;
-import com.safesteps.backend.domain.routecalculator.RouteRequestDTO;
-import com.safesteps.backend.domain.routecalculator.RouteResponseDTO;
+import com.safesteps.backend.domain.routecalculator.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,9 +16,11 @@ import org.springframework.web.bind.annotation.*;
 public class ApiAddressController {
 
     private final RouteCalculatorService routeCalculatorService;
+    private final FiltreService filtreSv;
 
-    public ApiAddressController(RouteCalculatorService routeCalculatorService) {
+    public ApiAddressController(RouteCalculatorService routeCalculatorService,  FiltreService filtreSv) {
         this.routeCalculatorService = routeCalculatorService;
+        this.filtreSv = filtreSv;
     }
 
     @Operation(
@@ -35,7 +34,9 @@ public class ApiAddressController {
     })
     @PostMapping("/calculate-route")
     public ResponseEntity<RouteResponseDTO> calculateRoute(@Valid @RequestBody RouteRequestDTO request) {
-        Filtre filtre = request.getFiltre() != null ? request.getFiltre() : new Filtre();
+        FiltreEnum f = request.getFiltre();
+        Filtre filtre = filtreSv.getFiltre(request.getGoogleId(), f);
+        if (filtre == null) return ResponseEntity.badRequest().build();
 
         RouteResponseDTO response = routeCalculatorService.getBestRoute(
                 request.getOrigin(),
