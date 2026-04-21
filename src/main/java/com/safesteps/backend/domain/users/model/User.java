@@ -14,15 +14,15 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Este es tu ID interno (PK)
+    private Long id;
 
-    @Column(name = "google_id", length = 100)
+    @Column(name = "google_id", length = 100, unique = true)
     private String googleId;
 
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String username;
 
     @Column(name = "picture_url")

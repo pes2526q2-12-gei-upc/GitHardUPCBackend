@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
 @Service
 public class UserService {
 
@@ -17,8 +18,14 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    public UserResponseDTO getUserById(Long id) {
-        return userRepository.findById(id)
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserResponseDTO::new)
+                .toList();
+    }
+
+    public UserResponseDTO getUserByGoogleId(String googleId) {
+        return userRepository.findByGoogleId(googleId)
                 .map(UserResponseDTO::new)
                 .orElse(null);
     }
@@ -29,15 +36,9 @@ public class UserService {
                 .orElse(null);
     }
 
-    public List<UserResponseDTO> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(UserResponseDTO::new)
-                .toList();
-    }
-
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO req) {
-        if (userRepository.existsByEmail(req.getEmail()) || userRepository.existsByUsername(req.getUsername())) {
+        if (userRepository.existsByEmail(req.getEmail()) || userRepository.existsByGoogleId(req.getGoogleId())) {
             return null;
         }
 
@@ -48,7 +49,6 @@ public class UserService {
         user.setPictureUrl(req.getPictureUrl());
         user.setLanguage(req.getLanguage());
         user.setIsAnonymous(req.getIsAnonymous());
-
         user.setPoints(0);
         user.setLevel(1L);
         user.setReputacio(1);
@@ -57,11 +57,21 @@ public class UserService {
     }
 
     @Transactional
-    public boolean deleteUserById(Long id) {
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
+    public UserResponseDTO updateUser(String googleId, UserRequestDTO req) {
+        return userRepository.findByGoogleId(googleId).map(user -> {
+            user.setUsername(req.getUsername());
+            user.setPictureUrl(req.getPictureUrl());
+            user.setLanguage(req.getLanguage());
+            user.setIsAnonymous(req.getIsAnonymous());
+            return new UserResponseDTO(userRepository.save(user));
+        }).orElse(null);
+    }
+
+    @Transactional
+    public boolean deleteUserByGoogleId(String googleId) {
+        return userRepository.findByGoogleId(googleId).map(user -> {
+            userRepository.delete(user);
             return true;
-        }
-        return false;
+        }).orElse(false);
     }
 }

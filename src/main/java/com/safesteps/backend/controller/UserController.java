@@ -27,9 +27,9 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
-        UserResponseDTO user = userService.getUserById(id);
+    @GetMapping("/{googleId}")
+    public ResponseEntity<UserResponseDTO> getByGoogleId(@PathVariable String googleId) {
+        UserResponseDTO user = userService.getUserByGoogleId(googleId);
         return (user != null) ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
     }
 
@@ -46,13 +46,15 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        boolean deleted = userService.deleteUserById(id);
-        if (deleted) {
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @PutMapping("/{googleId}")
+    public ResponseEntity<UserResponseDTO> update(@PathVariable String googleId, @Valid @RequestBody UserRequestDTO req) {
+        UserResponseDTO updated = userService.updateUser(googleId, req);
+        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{googleId}")
+    public ResponseEntity<Void> delete(@PathVariable String googleId) {
+        boolean deleted = userService.deleteUserByGoogleId(googleId);
+        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }

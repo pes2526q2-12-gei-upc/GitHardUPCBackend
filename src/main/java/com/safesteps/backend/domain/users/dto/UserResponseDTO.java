@@ -1,12 +1,12 @@
 package com.safesteps.backend.domain.users.dto;
 
 import com.safesteps.backend.domain.users.model.User;
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Data
-@AllArgsConstructor
+@NoArgsConstructor
 public class UserResponseDTO {
     private Long id;
     private String email;
