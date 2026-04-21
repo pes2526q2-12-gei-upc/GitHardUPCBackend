@@ -2,17 +2,24 @@
 
 echo "🔍 Ejecutando análisis estático y tests unitarios (Backend)..."
 
-# Solo ejecutamos Maven si existe el archivo mvnw
-if [ -f "./mvnw" ]; then
-    # Ejecutamos tests y Checkstyle (si lo tienes configurado) para cumplir con el RNF de sintaxis [cite: 632, 678]
-    ./mvnw clean test
+# 1. Detectamos si estamos en Windows (Git Bash usa 'msys' o 'cygwin')
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    MAVEN_CMD="./mvnw.cmd"
+else
+    MAVEN_CMD="./mvnw"
+fi
+
+# 2. Comprobamos que el archivo existe y lo ejecutamos
+if [ -f "$MAVEN_CMD" ] || [ -f "./mvnw" ]; then
+
+    $MAVEN_CMD clean test
 
     if [ $? -ne 0 ]; then
-        echo "🛑 Error: Las pruebas han fallado. Revisa tu lógica antes de hacer commit." [cite: 633]
+        echo "🛑 Error: Las pruebas han fallado. Revisa tu lógica antes de hacer commit."
         exit 1
     fi
 else
-    echo "⚠️  Atención: No se encontró ./mvnw. ¿Estás en la raíz del proyecto Backend?"
+    echo "⚠️  Atención: No se encontró el Maven Wrapper. ¿Estás en la raíz del proyecto Backend?"
     exit 1
 fi
 
