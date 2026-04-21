@@ -24,7 +24,7 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "FROM pgr_dijkstra(" +
                     "  'SELECT fid as id, source, target, " +
                     "          (longitud * (1.0 " +
-                    "              + (' || :#{#filtre.seguretat} || ' * GREATEST(0, 1.0 - COALESCE(cnt_comissaries, 0.0))) " +    //Ponderacions de cada filtre
+                    "              + (' || :#{#filtre.seguretat} || ' * GREATEST(0, 1.0 - COALESCE(score_comissaries, 0.0))) " +    //Ponderacions de cada filtre
                     "              + (' || :#{#filtre.fontsAigua}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_fonts, 0.0))) " +
                     "              + (' || :#{#filtre.ombra}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_arbres, 0.0))) " +
                     "              + (' || :#{#filtre.escalesMecaniques}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_escales, 0.0))) " +

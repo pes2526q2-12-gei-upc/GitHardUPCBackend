@@ -170,3 +170,38 @@ SET cnt_refugis_climatics = (
     WHERE r.geom IS NOT NULL
     AND ST_DWithin(t.geom, r.geom, 50) -- Un radi de 50m sembla adient
 );
+-- =========================================================================================
+-- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
+-- =========================================================================================
+-- 1. Por si acaso, la borramos (aunque Python ya lo haya hecho por cascade)
+DROP VIEW IF EXISTS public.v_trams_nodes CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS public.v_trams_nodes CASCADE;
+
+-- 2. La creamos de nuevo con los datos frescos y TODOS los scores
+CREATE MATERIALIZED VIEW public.v_trams_nodes
+TABLESPACE pg_default
+AS SELECT t."FID" AS fid,
+          n_inici."FID" AS source,
+          n_final."FID" AS target,
+          t."LONGITUD" AS longitud,
+          t."NVia_D" AS nom_carrer,
+          t.cnt_comissaries,
+          t.score_comissaries,
+          t.cnt_fonts,
+          t.cnt_bancs,
+          t.cnt_arbres,
+          t.cnt_escales,
+          t.cnt_fets_delictius,
+          t.score_soroll,
+          t.score_aire,
+          t.cnt_refugis_climatics
+   FROM bcn_grafvial_trams t
+            JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
+            JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
+   WHERE t."TVia_D" <> ALL (ARRAY['Viaducte'::text, 'Nus'::text, '-'::text, ' '::text, ''::text])
+                   WITH DATA;
+
+-- 3. Recreamos los índices para que el algoritmo JGraphT/pgRouting vuele
+CREATE UNIQUE INDEX idx_vtrams_fid ON public.v_trams_nodes USING btree (fid);
+CREATE INDEX idx_vtrams_source ON public.v_trams_nodes USING btree (source);
+CREATE INDEX idx_vtrams_target ON public.v_trams_nodes USING btree (target);

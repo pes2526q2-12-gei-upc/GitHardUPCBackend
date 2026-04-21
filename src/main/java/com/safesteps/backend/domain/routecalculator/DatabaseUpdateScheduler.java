@@ -114,7 +114,14 @@ public class DatabaseUpdateScheduler {
             }
             return true;
 
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            logger.error("[INTERRUPCIÓN] El hilo fue interrumpido mientras esperaba al script {}.", scriptName);
+            // ¡ESTA ES LA LÍNEA MÁGICA QUE PIDE SONARQUBE!
+            // Restauramos el estado de interrupción del hilo actual.
+            Thread.currentThread().interrupt();
+            return false;
+
+        } catch (java.io.IOException e) {
             logger.error("Error de I/O despachando el script {}: {}", scriptName, e.getMessage());
             return false;
         }
