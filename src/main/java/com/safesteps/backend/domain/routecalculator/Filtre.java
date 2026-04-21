@@ -17,6 +17,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Filtre {
 
+    /*
+        En tots els casos es considera que si es un filtre predeterminat
+        el valor "Default" sera 0. En canvi, si el filtre es "PERSONALITZAT"
+        el valor "Default" sera 0.5.
+    */
+
     @Id
     @Column(name = "google_id")
     private String googleId;
@@ -24,7 +30,7 @@ public class Filtre {
     //Seguretat
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
-    private double comissaries = 0; //+comissaries -fets delictius
+    private double comissaries = 0;
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double fetsPenals = 0;
