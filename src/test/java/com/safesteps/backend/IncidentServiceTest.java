@@ -2,7 +2,6 @@ package com.safesteps.backend;
 
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
-import com.safesteps.backend.domain.incidents.dto.VoteCountDTO;
 import com.safesteps.backend.domain.incidents.model.Incident;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;

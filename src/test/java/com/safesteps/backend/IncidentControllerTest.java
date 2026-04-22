@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.IncidentController;
 import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
-import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
 import com.safesteps.backend.domain.routecalculator.Coord;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.*;
 
@@ -126,7 +124,6 @@ class IncidentControllerTest {
         req.setDescription("Test desc");
         req.setCoordinates(c);
 
-        IncidentResponseDTO exp = new IncidentResponseDTO();
         when(incidentService.editIncidentById(1L, req)).thenReturn(null);
         mockMvc.perform(put("/api/v1/incidents/1")
                         .contentType(MediaType.APPLICATION_JSON)
