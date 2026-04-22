@@ -19,6 +19,7 @@ ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS cnt_refugis_climatics INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -91,6 +92,11 @@ UPDATE bcn_qualitat_aire SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitu
 WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_aire_geom ON bcn_qualitat_aire USING GIST(geom);
 
+-- Refugios climáticos
+ALTER TABLE bcn_refugis_climatics ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
+UPDATE bcn_refugis_climatics SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(geo_epgs_4326_lon::numeric, geo_epgs_4326_lat::numeric), 4326), 25831) WHERE geo_epgs_4326_lon IS NOT NULL AND geo_epgs_4326_lat IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_refugis_geom ON bcn_refugis_climatics USING GIST(geom);
+
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
 -- =========================================================================================
@@ -127,8 +133,8 @@ SET score_comissaries = (
 
 UPDATE bcn_grafvial_trams t
 SET cnt_fets_delictius = f.total_delictes_vianants
-    FROM bcn_districtes_poligons p
-JOIN cat_fets_penals f ON p.nom = f.nom_districte
+FROM bcn_districtes_poligons p
+JOIN cat_fets_penals f ON f.nom_districte = p.nom
 WHERE ST_Intersects(t.geom, p.geom);
 
 -- Apliquem una fórmula de mapatge:
@@ -157,6 +163,13 @@ SET score_aire = (
     WHERE a.geom IS NOT NULL AND ST_DWithin(t.geom, a.geom, 2500)
 );
 
+UPDATE bcn_grafvial_trams t
+SET cnt_refugis_climatics = (
+    SELECT COUNT(*)
+    FROM bcn_refugis_climatics r
+    WHERE r.geom IS NOT NULL
+    AND ST_DWithin(t.geom, r.geom, 50) -- Un radi de 50m sembla adient
+);
 -- =========================================================================================
 -- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
 -- =========================================================================================
@@ -180,7 +193,8 @@ AS SELECT t."FID" AS fid,
           t.cnt_escales,
           t.cnt_fets_delictius,
           t.score_soroll,
-          t.score_aire
+          t.score_aire,
+          t.cnt_refugis_climatics
    FROM bcn_grafvial_trams t
             JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
             JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
