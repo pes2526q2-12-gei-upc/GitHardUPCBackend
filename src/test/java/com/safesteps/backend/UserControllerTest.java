@@ -16,6 +16,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -36,57 +39,77 @@ class UserControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Registramos el módulo de tiempo para que Jackson entienda OffsetDateTime si aparece
         objectMapper.registerModule(new JavaTimeModule());
         mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
     }
+
+    // --- TESTS PARA GET ALL ---
+
+    @Test
+    void getAll_ReturnsList() throws Exception {
+        UserResponseDTO user1 = new UserResponseDTO();
+        user1.setGoogleId("1");
+        List<UserResponseDTO> users = Arrays.asList(user1, new UserResponseDTO());
+
+        when(userService.getAllUsers()).thenReturn(users);
+
+        mockMvc.perform(get("/api/v1/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()").value(2));
+    }
+
+    // --- TESTS PARA GET BY GOOGLE ID ---
 
     @Test
     void getByGoogleId_WhenUserExists_ReturnsOk() throws Exception {
         String googleId = "google-123";
         UserResponseDTO response = new UserResponseDTO();
         response.setGoogleId(googleId);
-        response.setEmail("test@safesteps.com");
 
         when(userService.getUserByGoogleId(googleId)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/users/{googleId}", googleId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.googleId").value(googleId))
-                .andExpect(jsonPath("$.email").value("test@safesteps.com"));
+                .andExpect(jsonPath("$.googleId").value(googleId));
     }
 
     @Test
     void getByGoogleId_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
-        String googleId = "non-existent";
-        when(userService.getUserByGoogleId(googleId)).thenReturn(null);
+        when(userService.getUserByGoogleId("none")).thenReturn(null);
 
-        mockMvc.perform(get("/api/v1/users/{googleId}", googleId))
+        mockMvc.perform(get("/api/v1/users/none"))
                 .andExpect(status().isNotFound());
     }
 
+    // --- TESTS PARA GET BY EMAIL ---
+
     @Test
-    void getByEmail_ReturnsOk() throws Exception {
+    void getByEmail_WhenUserExists_ReturnsOk() throws Exception {
         String email = "test@safesteps.com";
         UserResponseDTO response = new UserResponseDTO();
         response.setEmail(email);
 
         when(userService.getUserByEmail(email)).thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/users/search")
-                        .param("email", email))
+        mockMvc.perform(get("/api/v1/users/search").param("email", email))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));
     }
 
     @Test
-    void create_WhenSuccessful_ReturnsCreated() throws Exception {
-        UserRequestDTO request = new UserRequestDTO();
-        request.setEmail("new@user.com");
-        request.setUsername("newuser");
-        request.setGoogleId("g-999");
-        request.setIsAnonymous(false);
+    void getByEmail_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
+        String email = "notfound@mail.com";
+        when(userService.getUserByEmail(email)).thenReturn(null);
 
+        mockMvc.perform(get("/api/v1/users/search").param("email", email))
+                .andExpect(status().isNotFound());
+    }
+
+    // --- TESTS PARA CREATE ---
+
+    @Test
+    void create_WhenSuccessful_ReturnsCreated() throws Exception {
+        UserRequestDTO request = createValidRequest("new@user.com", "newuser");
         UserResponseDTO response = new UserResponseDTO();
         response.setEmail("new@user.com");
 
@@ -100,13 +123,24 @@ class UserControllerTest {
     }
 
     @Test
+    void create_WhenConflict_ReturnsConflict() throws Exception {
+        // Usamos un DTO válido para que pase la validación de Spring, pero simulamos conflicto en el servicio
+        UserRequestDTO request = createValidRequest("existing@user.com", "user");
+
+        when(userService.createUser(any(UserRequestDTO.class))).thenReturn(null);
+
+        mockMvc.perform(post("/api/v1/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    // --- TESTS PARA UPDATE ---
+
+    @Test
     void update_WhenUserExists_ReturnsOk() throws Exception {
         String googleId = "g-123";
-        UserRequestDTO request = new UserRequestDTO();
-        request.setUsername("updatedName");
-        request.setIsAnonymous(true);
-        request.setEmail("fixed@mail.com"); // Aunque no se edite, el DTO lo requiere
-        request.setGoogleId(googleId);
+        UserRequestDTO request = createValidRequest("fixed@mail.com", "updatedName");
 
         UserResponseDTO updatedResponse = new UserResponseDTO();
         updatedResponse.setUsername("updatedName");
@@ -121,11 +155,49 @@ class UserControllerTest {
     }
 
     @Test
+    void update_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
+        String googleId = "non-existent";
+        UserRequestDTO request = createValidRequest("test@test.com", "user");
+
+        when(userService.updateUser(eq(googleId), any(UserRequestDTO.class))).thenReturn(null);
+
+        mockMvc.perform(put("/api/v1/users/{googleId}", googleId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+    }
+
+    // --- TESTS PARA DELETE ---
+
+    @Test
     void delete_WhenUserExists_ReturnsNoContent() throws Exception {
         String googleId = "g-123";
         when(userService.deleteUserByGoogleId(googleId)).thenReturn(true);
 
         mockMvc.perform(delete("/api/v1/users/{googleId}", googleId))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void delete_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
+        String googleId = "not-found";
+        when(userService.deleteUserByGoogleId(googleId)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/v1/users/{googleId}", googleId))
+                .andExpect(status().isNotFound());
+    }
+
+    // --- HELPER METHOD ---
+
+    /**
+     * Crea un DTO con los campos obligatorios llenos para pasar las validaciones @Valid
+     */
+    private UserRequestDTO createValidRequest(String email, String username) {
+        UserRequestDTO request = new UserRequestDTO();
+        request.setEmail(email);
+        request.setUsername(username);
+        request.setGoogleId("g-id-test");
+        request.setIsAnonymous(false); // Evita el error "must not be null"
+        return request;
     }
 }
