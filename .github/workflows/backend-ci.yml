@@ -34,3 +34,4 @@ jobs:
         run: |
           ./mvnw sonar:sonar \
             -Dsonar.login=$SONAR_TOKEN
+            -Dsonar.qualitygate.wait=true
