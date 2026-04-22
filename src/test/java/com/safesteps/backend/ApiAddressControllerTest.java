@@ -6,7 +6,6 @@ import com.safesteps.backend.domain.routecalculator.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -30,16 +29,16 @@ class ApiAddressControllerTest {
     @Mock
     private RouteCalculatorService routeCalculatorService;
 
-    @InjectMocks
-    private ApiAddressController apiAddressController;
+    @Mock
+    private RouteEvaluationSafetyService routeEvaluationSafetyService;
 
     @BeforeEach
     void setUp() {
-
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        // Construïm el MockMvc injectant-li el nostre controlador i el validador
+        ApiAddressController apiAddressController = new ApiAddressController(routeCalculatorService, routeEvaluationSafetyService);
+
         mockMvc = MockMvcBuilders.standaloneSetup(apiAddressController)
                 .setValidator(validator)
                 .build();
@@ -104,7 +103,7 @@ class ApiAddressControllerTest {
         filtre.setSeguretat(1.5f); // màxim 1
         request.setOrigin(org);
         request.setDestination(dest);
-        request.setNRoutes(0); // minim 1
+        request.setNRoutes(1); // minim 1
         request.setFiltre(filtre);
 
         mockMvc.perform(post("/api/v1/calculate-route")
@@ -122,12 +121,68 @@ class ApiAddressControllerTest {
         filtre.setSeguretat(-1f); // màxim 1
         request.setOrigin(org);
         request.setDestination(dest);
-        request.setNRoutes(0); // minim 1
+        request.setNRoutes(1); // minim 1
         request.setFiltre(filtre);
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void calculateRoute_WithNoFilter() throws Exception {
+        RouteRequestDTO request = new RouteRequestDTO();
+        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
+        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
+        request.setOrigin(org);
+        request.setDestination(dest);
+        request.setNRoutes(1); // minim 1
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NullRoutePoints() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints2() throws Exception {
+        String s = "{\"routePoints\": null}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}" +
+                "]}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_OK() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}, " +
+                "{\"lon\": 2.17, \"lat\": 41.38}" +
+                "]}";
+
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isOk());
     }
 }
