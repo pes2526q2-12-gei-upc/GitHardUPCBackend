@@ -2,10 +2,11 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.IncidentController;
-import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
-import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
+import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
+import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
+import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
 import com.safesteps.backend.domain.routecalculator.Coord;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ class IncidentControllerTest {
 
     @MockBean
     private IncidentService incidentService;
+
+    @MockBean
+    private IncidentVoteService voteService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -156,5 +160,107 @@ class IncidentControllerTest {
                 .andExpect(status().isOk());
         List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId(1L);
         assertNotNull(exp);
+    }
+
+    @Test
+    void checkVoteNoValid() throws Exception {
+        VoteRequestDTO exp = new VoteRequestDTO();
+        exp.setUserId(1L);
+        exp.setVoteScore(10);
+
+        mockMvc.perform(post("/api/v1/incidents/1/votes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(exp)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void checkVoteValid1() throws Exception {
+        VoteRequestDTO exp = new VoteRequestDTO();
+        exp.setUserId(1L);
+        exp.setVoteScore(1);
+
+        mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(exp)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void checkVoteValid2() throws Exception {
+        VoteRequestDTO exp = new VoteRequestDTO();
+        exp.setUserId(1L);
+        exp.setVoteScore(-1);
+
+        mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(exp)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void checkVoteNull() throws Exception {
+        VoteRequestDTO exp = new VoteRequestDTO();
+        exp.setUserId(1L);
+
+        mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(exp)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getInfoVotes_OK() throws Exception {
+        when(incidentService.getVoteCount(any())).thenReturn(new VoteCountDTO());
+        mockMvc.perform(get("/api/v1/incidents/1/count-votes"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getInfoVotes_NULL() throws Exception {
+        when(incidentService.getVoteCount(any())).thenReturn(null);
+
+        mockMvc.perform(get("/api/v1/incidents/1/count-votes"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_OK() throws Exception {
+        when(voteService.deleteVoteByVoteId(1L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/v1/incidents/votes/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void delete_NotFound() throws Exception {
+        when(voteService.deleteVoteByVoteId(1L)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/v1/incidents/votes/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteByUserIncidence_OK() throws Exception {
+        when(voteService.deleteByUserAndIncidence(1L, 1L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteByUserIncidence_NOTFOUND() throws Exception {
+        when(voteService.deleteByUserAndIncidence(1L, 1L)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getUserVotes_OK() throws Exception {
+        when(voteService.getUserVotes(any())).thenReturn(List.of(new VoteResponseDTO()));
+
+        mockMvc.perform(get("/api/v1/incidents/votes/users/1"))
+                .andExpect(status().isOk());
     }
 }

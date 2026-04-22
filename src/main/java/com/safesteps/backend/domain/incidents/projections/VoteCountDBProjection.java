@@ -4,5 +4,5 @@ public interface VoteCountDBProjection {
     Long getId();
     Long getPositiveVotes();
     Long getNegativeVotes();
-    Long getReliabilityIndex();
+    Double getReliabilityIndex();
 }
