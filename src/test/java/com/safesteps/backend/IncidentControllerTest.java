@@ -50,7 +50,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -97,7 +97,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -117,7 +117,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);

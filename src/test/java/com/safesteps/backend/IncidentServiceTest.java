@@ -58,7 +58,7 @@ class IncidentServiceTest {
         Coord c = new Coord(); c.setLat(41.38); c.setLon(2.16);
 
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.OBRES);
         req.setDescription("test");
         req.setCoordinates(c);
@@ -84,7 +84,7 @@ class IncidentServiceTest {
         Coord c = new Coord(); c.setLat(41.38); c.setLon(2.16);
 
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.OBRES);
         req.setCoordinates(c);
 
@@ -130,7 +130,7 @@ class IncidentServiceTest {
     void editIncidentById_DTO() {
         Coord mockCoord = mock(Coord.class);
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setUserId(1L);
+        req.setGoogleId(1L);
         req.setType(IncidentTypeEnum.OBRES);
         req.setDescription("test");
         req.setCoordinates(mockCoord);

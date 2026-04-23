@@ -17,7 +17,7 @@ public class Incident {
     private Long id;
 
     @Column(name = "user_id")
-    private Long userId;
+    private Long googleId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

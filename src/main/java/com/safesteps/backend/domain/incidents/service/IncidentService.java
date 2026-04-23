@@ -31,7 +31,7 @@ public class IncidentService {
         @Transactional
         public IncidentResponseDTO createIncident(IncidentRequestDTO req) {
             Incident i = new Incident();
-            i.setUserId(req.getUserId());
+            i.setGoogleId(req.getGoogleId());
             i.setType(req.getType());
             i.setDescription(req.getDescription());
             i.setLocation(req.getCoordinates().toPoint());
