@@ -1,5 +1,6 @@
-package com.safesteps.backend.domain.routecalculator;
+package com.safesteps.backend;
 
+import com.safesteps.backend.domain.routecalculator.*;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +31,7 @@ class RouteCalculatorPerformanceTest {
         dest.setLat(41.4036);
         dest.setLon(2.1744);
 
-        Filtre filtre = new Filtre();
-        filtre.setSeguretat(1.0f); // Forcem a calcular amb pes de seguretat
+        Filtre filtre = new Filtre(FiltreEnum.SEGURETAT); // Forcem a calcular amb pes de seguretat
 
         // 2. Validar Rendiment Estricte (NFR-01: menys de 2.5 segons)
         assertTimeout(Duration.ofMillis(2500), () -> {
