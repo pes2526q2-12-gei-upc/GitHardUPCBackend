@@ -12,7 +12,7 @@ import lombok.Data;
 public class RouteRequestDTO {
 
     @Valid
-    @Schema(description = "El identificador de google de usuario", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "El identificador de google de usuario")
     private String googleId;
 
     @Valid
@@ -32,6 +32,6 @@ public class RouteRequestDTO {
 
     @Valid
     @NotNull
-    @Schema(description = "Filtros de preferencia para el calculo de la ruta. Cada filtro debe tener un valor entre 0 y 1, donde 0 significa que el filtro no se tiene en cuenta y 1 significa que el filtro es muy importante.")
+    @Schema(description = "Filtros de preferencia para el calculo de la ruta. Tipos posibles: SEGURETAT, CONFORT, CLIMA o PERSONALITZAT", requiredMode = Schema.RequiredMode.REQUIRED)
     private FiltreEnum filtre;
 }

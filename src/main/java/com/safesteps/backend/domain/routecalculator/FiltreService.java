@@ -16,6 +16,7 @@ public class FiltreService {
         if (f == FiltreEnum.PERSONALITZAT) {
             if (googleId == null) return null;
             FiltreDBProjection fPj = filtreRepository.findByGoogleId(googleId);
+            if (fPj == null) return null;
             filtre = new Filtre(fPj);
         } else {
             filtre = new Filtre(f);

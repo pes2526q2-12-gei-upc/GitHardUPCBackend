@@ -112,6 +112,51 @@ class ApiAddressControllerTest {
     }
 
     @Test
+    void calculateRouteClimaNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.CLIMA);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.CLIMA)).thenReturn(new Filtre(FiltreEnum.CLIMA));
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.CLIMA);
+    }
+
+    @Test
+    void calculateRouteConfortNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.CONFORT);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.CONFORT)).thenReturn(new Filtre(FiltreEnum.CONFORT));
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.CONFORT);
+    }
+
+    @Test
+    void calculateRouteSeguretatNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.SEGURETAT)).thenReturn(new  Filtre(FiltreEnum.SEGURETAT));
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.SEGURETAT);
+    }
+
+    @Test
     void calculateRouteInvalidOriginLongitude() throws Exception {
         RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
         request.getOrigin().setLon(1.5);

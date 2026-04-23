@@ -88,6 +88,7 @@ public class Filtre {
     }
     
     public Filtre(FiltreDBProjection fPj) {
+        if (fPj == null) return;
         this.comissaries = (fPj.getComissaries() == null)? 0.5: fPj.getComissaries();
         this.fetsPenals = (fPj.getFetsPenals() == null)? 0.5: fPj.getFetsPenals();
         this.cameresSeguretat = (fPj.getCameresSeguretat() == null)? 0.5: fPj.getCameresSeguretat();

@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -69,6 +70,13 @@ class FiltreServiceTest {
     @Test
     void getFiltrePersonalitzatIdNull() {
         Filtre filtre = filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT);
+        assertNull(filtre);
+    }
+
+    @Test
+    void getFiltrePersonalitzatFPJNull() {
+        when(filtreRepository.findByGoogleId(any())).thenReturn(null);
+        Filtre filtre = filtreService.getFiltre("a", FiltreEnum.PERSONALITZAT);
         assertNull(filtre);
     }
 

@@ -173,5 +173,21 @@ class FiltreTest {
         assertEquals(0.0, filtre.getRefugisClimatics());
         assertEquals(0.0, filtre.getQualitatAire());
     }
+
+    @Test
+    void constructorOutOfFilterProj() {
+        Filtre filtre = new Filtre((FiltreDBProjection) null);
+        assertEquals(0.0, filtre.getComissaries());
+        assertEquals(0.0, filtre.getFetsPenals());
+        assertEquals(0.0, filtre.getCameresSeguretat());
+        assertEquals(0.0, filtre.getInfraccions());
+        assertEquals(0.0, filtre.getFontsAigua());
+        assertEquals(0.0, filtre.getBancs());
+        assertEquals(0.0, filtre.getContaminacioAcustica());
+        assertEquals(0.0, filtre.getEscalesMecaniques());
+        assertEquals(0.0, filtre.getArbres());
+        assertEquals(0.0, filtre.getRefugisClimatics());
+        assertEquals(0.0, filtre.getQualitatAire());
+    }
 }
 
