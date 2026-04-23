@@ -1,6 +1,7 @@
 package com.safesteps.backend.domain.routecalculator;
 
 import com.safesteps.backend.domain.routecalculator.projections.CoordDBProjection;
+import com.safesteps.backend.domain.routecalculator.projections.RouteAveragesDBProjection;
 import com.safesteps.backend.domain.routecalculator.projections.RouteDBProjection;
 import com.safesteps.backend.domain.routecalculator.projections.PoiDBProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -198,4 +199,19 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "WHERE ST_DWithin(ST_SetSRID(ST_MakePoint(a.x_etrs89, a.y_etrs89), 25831), rg.geom, :radi)",
             nativeQuery = true)
     List<PoiDBProjection> findArbresZonaNearRoute(@Param("fids") Long[] fids, @Param("radi") Double radiMetres);
+
+    /*
+     * Avaluació externa de rutes: Agafem un LINESTRING (wkt_line), mirem quins trams
+     * de carrer intersequen a menys de 20m, i fem la mitjana de tots els seus scores.
+     */
+    @Query(value =
+            "SELECT " +
+                    "   COALESCE(AVG(cnt_fets_delictius), 0.0) as avgDelictes, " +
+                    "   COALESCE(AVG(cnt_cameres), 0.0) as avgCameres, " +
+                    "   COALESCE(AVG(score_comissaries), 0.0) as avgComissaries " +
+                    "FROM bcn_grafvial_trams " +
+                    "WHERE geom IS NOT NULL " +
+                    "AND ST_DWithin(geom, ST_Transform(ST_GeomFromText(:wktLine, 4326), 25831), 20)",
+            nativeQuery = true)
+    RouteAveragesDBProjection getRouteAveragesFromWKT(@Param("wktLine") String wktLine);
 }
