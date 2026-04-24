@@ -11,7 +11,7 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("integration")
+@ActiveProfiles("local")
 @Tag("integration")
 class RouteCalculatorPerformanceTest {
 
