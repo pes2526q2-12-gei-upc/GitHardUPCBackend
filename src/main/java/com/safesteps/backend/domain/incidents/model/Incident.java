@@ -16,8 +16,8 @@ public class Incident {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "google_id")
+    private String googleId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

@@ -40,7 +40,7 @@ class IncidentVoteServiceTest {
         Long incidentId = 1L;
         VoteRequestDTO req = new VoteRequestDTO();
         req.setVoteScore(1);
-        req.setUserId(100L);
+        req.setGoogleId("100L");
 
         // formula: 1 / (1 + (7/7)^4) = 1/2 = 0.5
         IncidentResponseDTO incident = new IncidentResponseDTO();
@@ -64,7 +64,7 @@ class IncidentVoteServiceTest {
         Long incidentId = 1L;
         VoteRequestDTO req = new VoteRequestDTO();
         req.setVoteScore(0); // Vot 0
-        req.setUserId(100L);
+        req.setGoogleId("100L");
 
         IncidentResponseDTO incident = new IncidentResponseDTO();
         incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
@@ -79,7 +79,7 @@ class IncidentVoteServiceTest {
         assertEquals(0.0, r.getScore(), 0.001);
         assertNull(r.getCreatedAt());
         assertNull(r.getIncidenceId());
-        assertNull(r.getUserId());
+        assertNull(r.getGoogleId());
         assertNull(r.getId());
     }
 
@@ -125,9 +125,9 @@ class IncidentVoteServiceTest {
         vote.setId(voteId);
         vote.setIncidenceId(1L);
         vote.setScore(0.8);
-        when(voteRepository.findByUserAndIncidence(1L, 100L)).thenReturn(Optional.of(vote));
+        when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.of(vote));
 
-        boolean result = voteService.deleteByUserAndIncidence(1L, 100L);
+        boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
 
         assertTrue(result);
         verify(incidentSv).updateIncidentVoteCount(0.8, 1L, true);
@@ -136,9 +136,9 @@ class IncidentVoteServiceTest {
 
     @Test
     void deleteByUserAndIncidence_EMPTY() {
-        when(voteRepository.findByUserAndIncidence(1L, 100L)).thenReturn(Optional.empty());
+        when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.empty());
 
-        boolean result = voteService.deleteByUserAndIncidence(1L, 100L);
+        boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
 
         assertFalse(result);
         verify(voteRepository, never()).deleteById(any());
@@ -148,17 +148,17 @@ class IncidentVoteServiceTest {
 
     @Test
     void getUserVotes_DTO() {
-        Long userId = 100L;
+        String userId = "100L";
 
         VoteDBProjection p = new VoteDBProjection() {
             @Override public Long getId() { return 1L; }
             @Override public Long getIncidenceId() { return 10L; }
-            @Override public Long getUserId() { return 100L; }
+            @Override public String getGoogleId() { return "100L"; }
             @Override public float getScore() { return 0.5f; }
             @Override public LocalDateTime getCreatedAt() { return LocalDateTime.now(); }
         };
 
-        when(voteRepository.findAllByUserId(userId)).thenReturn(List.of(p));
+        when(voteRepository.findAllByGoogleId(userId)).thenReturn(List.of(p));
 
         List<VoteResponseDTO> result = voteService.getUserVotes(userId);
 

@@ -12,9 +12,9 @@ import lombok.Data;
 public class VoteRequestDTO {
 
     @Valid
-    @NotNull(message = "El id del usuario es obligatorio")
+    @NotNull(message = "El google id del usuario es obligatorio")
     @Schema(description = "Identificador del usuario", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long userId;
+    private String googleId;
 
     @Valid
     @Max(1)

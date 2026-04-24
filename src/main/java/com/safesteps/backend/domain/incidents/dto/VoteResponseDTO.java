@@ -12,14 +12,14 @@ import java.time.LocalDateTime;
 public class VoteResponseDTO {
     private Long id;
     private Long incidenceId;
-    private Long userId;
+    private String googleId;
     private double score;
     private LocalDateTime createdAt;
 
     public VoteResponseDTO(Vote v) {
         this.id = v.getId();
         this.incidenceId = v.getIncidenceId();
-        this.userId = v.getUserId();
+        this.googleId = v.getGoogleId();
         this.score = v.getScore();
         this.createdAt = v.getCreatedAt();
     }
@@ -27,7 +27,7 @@ public class VoteResponseDTO {
     public VoteResponseDTO(VoteDBProjection v) {
         this.id = v.getId();
         this.incidenceId = v.getIncidenceId();
-        this.userId = v.getUserId();
+        this.googleId = v.getGoogleId();
         this.score = v.getScore();
         this.createdAt = v.getCreatedAt();
     }

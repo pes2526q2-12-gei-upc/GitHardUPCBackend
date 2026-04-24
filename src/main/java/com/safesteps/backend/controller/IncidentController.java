@@ -62,9 +62,9 @@ public class IncidentController {
         return ResponseEntity.ok(count);
     }
 
-    @GetMapping("/users/{userId}")
-    public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long userId) {
-        return ResponseEntity.ok(incidentService.getIncidentsByUserId(userId));
+    @GetMapping("/users/{googleId}")
+    public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable String googleId) {
+        return ResponseEntity.ok(incidentService.getIncidentsByUserId(googleId));
     }
 
 
@@ -83,15 +83,15 @@ public class IncidentController {
         return ResponseEntity.notFound().build();
     }
 
-    @DeleteMapping("/{incidenceId}/users/{userId}/vote")
-    public ResponseEntity<Void> deleteByUserAndIncidence(@PathVariable("incidenceId") Long incidenceId, @PathVariable("userId") Long userId) {
-        boolean deleteStatus = voteService.deleteByUserAndIncidence(incidenceId, userId);
+    @DeleteMapping("/{incidenceId}/users/{googleId}/vote")
+    public ResponseEntity<Void> deleteByUserAndIncidence(@PathVariable("incidenceId") Long incidenceId, @PathVariable("googleId") String googleId) {
+        boolean deleteStatus = voteService.deleteByUserAndIncidence(incidenceId, googleId);
         if (deleteStatus) return ResponseEntity.noContent().build();
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/votes/users/{userId}")
-    public ResponseEntity<List<VoteResponseDTO>> getUserVotes(@PathVariable Long userId) {
-        return ResponseEntity.ok(voteService.getUserVotes(userId));
+    @GetMapping("/votes/users/{googleId}")
+    public ResponseEntity<List<VoteResponseDTO>> getUserVotes(@PathVariable String googleId) {
+        return ResponseEntity.ok(voteService.getUserVotes(googleId));
     }
 }

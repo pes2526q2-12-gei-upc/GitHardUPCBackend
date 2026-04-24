@@ -28,7 +28,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.created_at AS created, 
                 i.updated_at AS updated
             FROM incidents i
-            JOIN users u ON i.user_id = u.id
+            JOIN users u ON i.google_id = u.google_id
             ORDER BY i.id
             """, nativeQuery = true)
     List<IncidentDBProjection> all();
@@ -48,7 +48,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.created_at AS created, 
                 i.updated_at AS updated
             FROM incidents i
-            JOIN users u ON i.user_id = u.id
+            JOIN users u ON i.google_id = u.google_id
             WHERE i.id = :id
             """, nativeQuery = true)
     Optional<IncidentDBProjection> findIncidentWithUserById(@Param("id") Long id);
@@ -68,11 +68,11 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.created_at AS created, 
                 i.updated_at AS updated
             FROM incidents i
-            JOIN users u ON i.user_id = u.id
-            WHERE i.user_id = :userId
+            JOIN users u ON i.google_id = u.google_id
+            WHERE i.google_id = :googleId
             ORDER BY i.id
             """, nativeQuery = true)
-    List<IncidentDBProjection> getAllByUserId(@Param("userId") Long userId);
+    List<IncidentDBProjection> getAllByUserId(@Param("googleId") String googleId);
 
     @Query(value = """
             SELECT 

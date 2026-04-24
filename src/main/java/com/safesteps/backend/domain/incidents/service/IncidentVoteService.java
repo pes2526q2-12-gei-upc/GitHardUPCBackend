@@ -40,7 +40,7 @@ public class IncidentVoteService {
 
         Vote v = new Vote();
         v.setIncidenceId(id);
-        v.setUserId(vote.getUserId());
+        v.setGoogleId(vote.getGoogleId());
         //AL TENIR EL MODEL D'USUARI POSAR LA SEVA FIABILITAT !!
         v.setReliability(1.0);
         v.setDataScore(scoreDay);
@@ -62,8 +62,8 @@ public class IncidentVoteService {
     }
 
     @Transactional
-    public boolean deleteByUserAndIncidence(Long incidenceId, Long userId){
-        return deleteVote(voteRepository.findByUserAndIncidence(incidenceId, userId));
+    public boolean deleteByUserAndIncidence(Long incidenceId, String googleId){
+        return deleteVote(voteRepository.findByUserAndIncidence(incidenceId, googleId));
     }
 
     @Transactional
@@ -75,8 +75,8 @@ public class IncidentVoteService {
         return true;
     }
 
-    public List<VoteResponseDTO> getUserVotes(Long userId) {
-        List<VoteDBProjection> votes = voteRepository.findAllByUserId(userId);
+    public List<VoteResponseDTO> getUserVotes(String googleId) {
+        List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(googleId);
         List<VoteResponseDTO> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {
             result.add(new VoteResponseDTO(v));

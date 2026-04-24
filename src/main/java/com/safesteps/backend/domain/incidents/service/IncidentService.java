@@ -33,7 +33,7 @@ public class IncidentService {
         @Transactional
         public IncidentResponseDTO createIncident(IncidentRequestDTO req) {
             Incident i = new Incident();
-            i.setUserId(req.getUserId());
+            i.setGoogleId(req.getGoogleId());
             i.setType(req.getType());
             i.setDescription(req.getDescription());
             i.setLocation(req.getCoordinates().toPoint());
@@ -69,8 +69,8 @@ public class IncidentService {
             return true;
         }
 
-        public List<IncidentResponseDTO> getIncidentsByUserId(Long userId) {
-            List<IncidentDBProjection> incidents = incidentRepo.getAllByUserId(userId);
+        public List<IncidentResponseDTO> getIncidentsByUserId(String googleId) {
+            List<IncidentDBProjection> incidents = incidentRepo.getAllByUserId(googleId);
             List<IncidentResponseDTO> response = new ArrayList<>();
             for (IncidentDBProjection incident : incidents)
                 response.add(new IncidentResponseDTO(incident));

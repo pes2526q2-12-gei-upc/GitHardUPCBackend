@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 public interface VoteDBProjection {
     Long getId();
     Long getIncidenceId();
-    Long getUserId();
+    String getGoogleId();
     float getScore();
     LocalDateTime getCreatedAt();
 }

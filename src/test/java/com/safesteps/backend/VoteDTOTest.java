@@ -34,7 +34,7 @@ class VoteDTOTest {
         VoteDBProjection p = new VoteDBProjection() {
             @Override public Long getId() { return 1L; }
             @Override public Long getIncidenceId() { return 10L; }
-            @Override public Long getUserId() { return 100L; }
+            @Override public String getGoogleId() { return "100L"; }
             @Override public float getScore() { return 1f; }
             @Override public LocalDateTime getCreatedAt() { return now; }
         };
@@ -42,7 +42,7 @@ class VoteDTOTest {
         VoteResponseDTO r = new VoteResponseDTO(p);
         assertEquals(1L, r.getId());
         assertEquals(10L, r.getIncidenceId());
-        assertEquals(100L, r.getUserId());
+        assertEquals("100L", r.getGoogleId());
         assertEquals(1f, r.getScore());
         assertEquals(now, r.getCreatedAt());
     }
@@ -52,7 +52,7 @@ class VoteDTOTest {
         Vote v =  new Vote();
         v.setId(1L);
         v.setIncidenceId(2L);
-        v.setUserId(3L);
+        v.setGoogleId("3L");
         v.setScore(-1f);
         LocalDateTime createdAt = LocalDateTime.now();
         v.setCreatedAt(createdAt);
@@ -60,7 +60,7 @@ class VoteDTOTest {
 
         assertEquals(1L, r.getId());
         assertEquals(2L, r.getIncidenceId());
-        assertEquals(3L, r.getUserId());
+        assertEquals("3L", r.getGoogleId());
         assertEquals(-1f, r.getScore());
         assertEquals(createdAt, r.getCreatedAt());
     }

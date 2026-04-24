@@ -52,7 +52,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -99,7 +99,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -119,7 +119,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setUserId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -155,14 +155,14 @@ class IncidentControllerTest {
     void getIncidentsByUserId() throws Exception {
         mockMvc.perform(get("/api/v1/incidents/users/1"))
                 .andExpect(status().isOk());
-        List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId(1L);
+        List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId("1L");
         assertNotNull(exp);
     }
 
     @Test
     void checkVoteNoValid() throws Exception {
         VoteRequestDTO exp = new VoteRequestDTO();
-        exp.setUserId(1L);
+        exp.setGoogleId("1L");
         exp.setVoteScore(10);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
@@ -174,7 +174,7 @@ class IncidentControllerTest {
     @Test
     void checkVoteValid1() throws Exception {
         VoteRequestDTO exp = new VoteRequestDTO();
-        exp.setUserId(1L);
+        exp.setGoogleId("1L");
         exp.setVoteScore(1);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
@@ -186,7 +186,7 @@ class IncidentControllerTest {
     @Test
     void checkVoteValid2() throws Exception {
         VoteRequestDTO exp = new VoteRequestDTO();
-        exp.setUserId(1L);
+        exp.setGoogleId("1L");
         exp.setVoteScore(-1);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
@@ -198,7 +198,7 @@ class IncidentControllerTest {
     @Test
     void checkVoteNull() throws Exception {
         VoteRequestDTO exp = new VoteRequestDTO();
-        exp.setUserId(1L);
+        exp.setGoogleId("1L");
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -239,7 +239,7 @@ class IncidentControllerTest {
 
     @Test
     void deleteByUserIncidence_OK() throws Exception {
-        when(voteService.deleteByUserAndIncidence(1L, 1L)).thenReturn(true);
+        when(voteService.deleteByUserAndIncidence(1L, "1")).thenReturn(true);
 
         mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
                 .andExpect(status().isNoContent());
@@ -247,7 +247,7 @@ class IncidentControllerTest {
 
     @Test
     void deleteByUserIncidence_NOTFOUND() throws Exception {
-        when(voteService.deleteByUserAndIncidence(1L, 1L)).thenReturn(false);
+        when(voteService.deleteByUserAndIncidence(1L, "1L")).thenReturn(false);
 
         mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
                 .andExpect(status().isNotFound());
