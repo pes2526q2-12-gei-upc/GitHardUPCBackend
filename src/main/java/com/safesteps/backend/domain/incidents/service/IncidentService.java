@@ -3,6 +3,7 @@ package com.safesteps.backend.domain.incidents.service;
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.model.Incident;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
 import com.safesteps.backend.domain.incidents.repository.IncidentRepository;
 import org.springframework.stereotype.Service;
@@ -34,8 +35,9 @@ public class IncidentService {
             i.setGoogleId(req.getGoogleId());
             i.setType(req.getType());
             i.setDescription(req.getDescription());
+            if (req.getCoordinates() == null) throw new IllegalArgumentException("Coordinates can't be null");
             i.setLocation(req.getCoordinates().toPoint());
-            i.setStatus("pending");
+            i.setStatus(IncidentStatusEnum.PENDING.name());
             i.setPositiveVotes(0);
             i.setNegativeVotes(0);
             i.setReliabilityIndex(0.0);
@@ -50,6 +52,7 @@ public class IncidentService {
             return new IncidentResponseDTO(incident.get());
         }
 
+        @Transactional
         public IncidentResponseDTO editIncidentById(Long id, IncidentRequestDTO req) {
             Optional<Incident> i = incidentRepo.findById(id);
             //Retornar exception
@@ -67,8 +70,8 @@ public class IncidentService {
             return true;
         }
 
-        public List<IncidentResponseDTO> getIncidentsByUserId(Long userId) {
-            List<IncidentDBProjection> incidents = incidentRepo.getAllByUserId(userId);
+        public List<IncidentResponseDTO> getIncidentsByUserId(String googleId) {
+            List<IncidentDBProjection> incidents = incidentRepo.getAllByUserId(googleId);
             List<IncidentResponseDTO> response = new ArrayList<>();
             for (IncidentDBProjection incident : incidents)
                 response.add(new IncidentResponseDTO(incident));

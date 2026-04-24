@@ -58,7 +58,7 @@ class IncidentServiceTest {
         Coord c = new Coord(); c.setLat(41.38); c.setLon(2.16);
 
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.OBRES);
         req.setDescription("test");
         req.setCoordinates(c);
@@ -84,7 +84,7 @@ class IncidentServiceTest {
         Coord c = new Coord(); c.setLat(41.38); c.setLon(2.16);
 
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.OBRES);
         req.setCoordinates(c);
 
@@ -130,7 +130,7 @@ class IncidentServiceTest {
     void editIncidentById_DTO() {
         Coord mockCoord = mock(Coord.class);
         IncidentRequestDTO req = new IncidentRequestDTO();
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.OBRES);
         req.setDescription("test");
         req.setCoordinates(mockCoord);
@@ -187,28 +187,28 @@ class IncidentServiceTest {
 
     @Test
     void getIncidentsByUserId_DTOS() {
-        Long userId = 1L;
+        String googleId = "1L";
         IncidentDBProjection mockProjection = mock(IncidentDBProjection.class);
 
-        when(incidentRepo.getAllByUserId(userId)).thenReturn(List.of(mockProjection));
+        when(incidentRepo.getAllByUserId(googleId)).thenReturn(List.of(mockProjection));
 
-        List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(userId);
+        List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(googleId);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(incidentRepo, times(1)).getAllByUserId(userId);
+        verify(incidentRepo, times(1)).getAllByUserId(googleId);
     }
 
     @Test
     void getIncidentsByUserId_EMPTY() {
-        Long userId = 99L;
+        String googleId = "99L";
 
-        when(incidentRepo.getAllByUserId(userId)).thenReturn(List.of());
+        when(incidentRepo.getAllByUserId(googleId)).thenReturn(List.of());
 
-        List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(userId);
+        List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(googleId);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(incidentRepo, times(1)).getAllByUserId(userId);
+        verify(incidentRepo, times(1)).getAllByUserId(googleId);
     }
 }

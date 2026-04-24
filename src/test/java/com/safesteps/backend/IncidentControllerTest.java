@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.*;
 
@@ -50,7 +49,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -97,7 +96,7 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
@@ -117,12 +116,11 @@ class IncidentControllerTest {
         c.setLat(41.3874);
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        req.setGoogleId(1L);
+        req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.ALTRES);
         req.setDescription("Test desc");
         req.setCoordinates(c);
 
-        IncidentResponseDTO exp = new IncidentResponseDTO();
         when(incidentService.editIncidentById(1L, req)).thenReturn(null);
         mockMvc.perform(put("/api/v1/incidents/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -154,7 +152,7 @@ class IncidentControllerTest {
     void getIncidentsByUserId() throws Exception {
         mockMvc.perform(get("/api/v1/incidents/users/1"))
                 .andExpect(status().isOk());
-        List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId(1L);
+        List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId("1L");
         assertNotNull(exp);
     }
 }

@@ -16,8 +16,8 @@ public class Incident {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private Long googleId;
+    @Column(name = "google_id")
+    private String googleId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -39,7 +39,7 @@ public class Incident {
     private Double reliabilityIndex = 0.0;
 
     @Column(length = 20)
-    private String status = "PENDING";
+    private String status = IncidentStatusEnum.PENDING.name();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -12,7 +12,7 @@ public class IncidentRequestDTO {
     @Valid
     @NotNull(message = "El id del usuario es obligatorio")
     @Schema(description = "Identificador del usuario", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long googleId;
+    private String googleId;
 
     @Valid
     @NotNull(message = "El tipo de incidencia es obligatorio")

@@ -52,8 +52,8 @@ public class IncidentController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/users/{userId}")
-    public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long userId) {
-        return ResponseEntity.ok(incidentService.getIncidentsByUserId(userId));
+    @GetMapping("/users/{googleId}")
+    public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable String googleId) {
+        return ResponseEntity.ok(incidentService.getIncidentsByUserId(googleId));
     }
 }
