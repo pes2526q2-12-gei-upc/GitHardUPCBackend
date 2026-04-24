@@ -5,6 +5,7 @@ import com.safesteps.backend.controller.AdminUserController;
 import com.safesteps.backend.domain.users.dto.AdminUserDTO;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.AdminUserService;
+import com.safesteps.backend.domain.incidents.service.IncidentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ public class AdminUserControllerTest {
 
     @MockBean
     private AdminUserService adminUserService;
+
+    @MockBean
+    private IncidentService incidentService;
 
     @Autowired
     private ObjectMapper objectMapper;

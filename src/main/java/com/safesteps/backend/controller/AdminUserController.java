@@ -9,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.safesteps.backend.domain.incidents.service.IncidentService;
+import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final IncidentService incidentService;
 
     @GetMapping
     public ResponseEntity<Page<AdminUserDTO>> searchUsers(
@@ -54,9 +57,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{id}/incidents")
-    public ResponseEntity<List<Object>> getUserIncidents(@PathVariable Long id) {
-        // TODO: Módulo de incidencias no integrado aún (feat/incidencies).
-        // Se deja especificado por requerimientos, pero retorna una lista vacía por ahora.
-        return ResponseEntity.ok(Collections.emptyList());
+    public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long id) {
+        return ResponseEntity.ok(incidentService.getIncidentsByUserId(id));
     }
 }

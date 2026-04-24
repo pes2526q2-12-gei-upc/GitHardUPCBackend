@@ -130,6 +130,7 @@ function updatePagination(pageData) {
 async function openModal(id) {
     selectedUserId = id;
     modalBody.innerHTML = `<p style="text-align:center; color: var(--text-secondary)">Cargando perfil...</p>`;
+    document.getElementById('incidentsContainer').classList.add('hidden');
     userModal.classList.remove('hidden');
 
     try {
@@ -190,6 +191,7 @@ function renderModalContent(user) {
 
 function closeModal() {
     userModal.classList.add('hidden');
+    document.getElementById('incidentsContainer').classList.add('hidden');
     selectedUserId = null;
 }
 
@@ -226,17 +228,49 @@ async function updateStatus(newStatus) {
 }
 
 async function viewIncidents(userId) {
+    const incidentsContainer = document.getElementById('incidentsContainer');
+    const incidentsList = document.getElementById('incidentsList');
+    
+    // Toggle visibility if already open
+    if (!incidentsContainer.classList.contains('hidden')) {
+        incidentsContainer.classList.add('hidden');
+        return;
+    }
+
     try {
+        incidentsList.innerHTML = `<p style="text-align:center; color: var(--text-secondary)">Cargando incidencias...</p>`;
+        incidentsContainer.classList.remove('hidden');
+
         const response = await fetch(`${API_BASE}/${userId}/incidents`);
+        if (!response.ok) throw new Error('Error de red');
         const incidents = await response.json();
         
         if (incidents.length === 0) {
-            showToast('Este usuario no tiene incidencias registradas.');
+            incidentsList.innerHTML = `<p style="text-align:center; color: var(--text-secondary); padding: 1rem;">Este usuario no tiene incidencias registradas.</p>`;
         } else {
-            showToast(`Se encontraron ${incidents.length} incidencias (Módulo en desarrollo).`);
+            incidentsList.innerHTML = incidents.map(inc => {
+                const date = new Date(inc.created).toLocaleDateString('es-ES', { 
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                });
+                
+                return `
+                    <div class="incident-card">
+                        <div class="incident-header">
+                            <span class="incident-type">${inc.type}</span>
+                            <span class="incident-date">${date}</span>
+                        </div>
+                        <p class="incident-desc">${inc.description || 'Sin descripción'}</p>
+                        <div class="incident-footer">
+                            <span class="incident-votes positive">👍 ${inc.positiveVotes}</span>
+                            <span class="incident-votes negative">👎 ${inc.negativeVotes}</span>
+                            <span style="margin-left: auto;">Fiabilidad: ${inc.reliabilityIndex}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
     } catch(err) {
-        showToast('Error al consultar incidencias', true);
+        incidentsList.innerHTML = `<p style="text-align:center; color: var(--danger)">Error al cargar las incidencias.</p>`;
     }
 }
 
