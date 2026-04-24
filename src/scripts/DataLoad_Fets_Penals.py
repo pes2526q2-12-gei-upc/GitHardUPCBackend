@@ -15,7 +15,7 @@ LOGS_DIR = os.path.join(BASE_DIR, "logs")
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
-# Configuració segura del Logger (Evita el Security Hotspot S4792)
+# Configuració segura del Logger
 log_filename = os.path.join(LOGS_DIR, f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_dataload-fets-penals.log")
 
 logger = logging.getLogger(__name__)
@@ -97,18 +97,66 @@ def main():
         # Llegim el CSV (Transparència Gencat sol anar en UTF-8)
         df = pd.read_csv(StringIO(r.text), sep=',', on_bad_lines='skip', engine='python')
 
-        # Neteja de columnes per a SQL (minúscules i sense espais)
-        df.columns = [str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
+        # Neteja forta de columnes (llevem espais, parèntesis i accents per evitar problemes amb Pandas)
+        df.columns = [
+            str(c).strip().lower()
+            .replace(' ', '_').replace('.', '').replace('(', '').replace(')', '')
+            .replace('à', 'a').replace('è', 'e').replace('é', 'e').replace('í', 'i').replace('ò', 'o').replace('ó', 'o').replace('ú', 'u')
+            for c in df.columns
+        ]
 
-        logger.info("Pujant %s files a la taula '%s'...", len(df), t_fets)
+        logger.info(f"Dades originals descarregades: {len(df)} files.")
+
+        # =====================================================================
+        # PAS 1: FILTRATGE I AGREGACIÓ (PANDAS)
+        # =====================================================================
+
+        # A. Filtrar pel últim any (evitem històrics que no reflecteixen la ciutat actual)
+        max_year = df['any'].max()
+        df = df[df['any'] == max_year]
+
+        # B. Filtrar només els districtes de Barcelona ciutat
+        bcn_abps = [
+            'ABP Sant Martí', 'ABP Ciutat Vella', 'ABP Eixample', 'ABP Sants-Montjuïc',
+            'ABP Les Corts', 'ABP Sarrià-Sant Gervasi', 'ABP Gràcia', 'ABP Horta-Guinardó',
+            'ABP Nou Barris', 'ABP Sant Andreu'
+        ]
+        df = df[df['area_basica_policial_abp'].isin(bcn_abps)]
+        logger.info(f"Després de filtrar per ABP (Barcelona): {len(df)} files.")
+
+        # C. Filtrar pels delictes que importen a un vianant (mitjançant expressions regulars)
+        paraules_clau_perill = 'violència|lesions|sexual|homicidi|amenaces|coaccions|robatori amb força|estrebada'
+        df = df[df['tipus_de_fet'].str.contains(paraules_clau_perill, case=False, na=False)]
+        logger.info(f"Després de filtrar per tipus de delicte: {len(df)} files.")
+
+        # D. Agrupar i sumar els fets coneguts per cada districte
+        df_agrupat = df.groupby('area_basica_policial_abp')['coneguts'].sum().reset_index()
+
+        # E. Formatejar les dades finals per facilitar el creuament amb els mapes
+        # Llevem el text "ABP " perquè ens quedi només "Eixample", "Ciutat Vella", etc.
+        df_agrupat['area_basica_policial_abp'] = df_agrupat['area_basica_policial_abp'].str.replace('ABP ', '', regex=False)
+
+        # Renombrem les columnes perquè la taula final sigui neta i explícita
+        df_agrupat = df_agrupat.rename(columns={
+            'area_basica_policial_abp': 'nom_districte',
+            'coneguts': 'total_delictes_vianants'
+        })
+
+        # =====================================================================
+
+        logger.info("Dades filtrades i agrupades. Pujant %s districtes a la taula '%s'...", len(df_agrupat), t_fets)
         with engine.begin() as conn:
             conn.execute(text(f'DROP TABLE IF EXISTS "{t_fets}" CASCADE;'))
 
-        df.to_sql(t_fets, engine, if_exists='replace', index=False)
-        logger.info("ÈXIT: Taula '%s' actualitzada correctament.", t_fets)
+        # Pugem el DataFrame AGRUPAT, no l'original
+        df_agrupat.to_sql(t_fets, engine, if_exists='replace', index=False)
+
+        logger.info("ÈXIT: Taula '%s' actualitzada correctament només amb els districtes de Barcelona i delictes rellevants.", t_fets)
 
     except Exception as e:
         logger.error("Error en el processament: %s", e)
+        import sys
+        sys.exit(1)  # ¡Le decimos a Java que ESTO HA FALLADO!
 
 if __name__ == "__main__":
     main()

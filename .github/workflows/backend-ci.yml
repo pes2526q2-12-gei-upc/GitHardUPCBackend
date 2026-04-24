@@ -31,6 +31,4 @@ jobs:
       - name: SonarQube Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          ./mvnw sonar:sonar \
-            -Dsonar.login=$SONAR_TOKEN
+        run: ./mvnw sonar:sonar -Dsonar.login=$SONAR_TOKEN -Dsonar.qualitygate.wait=true

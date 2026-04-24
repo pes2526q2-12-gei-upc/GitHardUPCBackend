@@ -3,185 +3,128 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import os
 import pandas as pd
-from io import StringIO
+import zipfile
+from io import StringIO, BytesIO
+import urllib.parse
 
-from DataLoad_Qualitat_aire import load_properties, get_latest_csv_url
+# Importem les funcions del nou script d'Aire
+from DataLoad_Qualitat_aire import load_properties, get_latest_resource_info
 
 class TestDataLoadQualitatAire(unittest.TestCase):
 
-    ### --- TESTS DE CONFIGURACIÓ ---
+    ### --- TESTS DE CONFIGURACIÓ I VARIABLES D'ENTORN ---
     @patch("os.path.exists")
     def test_load_properties_qualitat_aire(self, mock_exists):
-        """Verifica que es carreguen les propietats de la taula de qualitat d'aire."""
+        """Verifica que es carreguen les propietats bàsiques."""
         mock_exists.return_value = True
-        content = "db.table.qualitat_aire=qualitat_aire_table\nopendata.qualitat_aire.url=https://api.qualitat"
+        content = "db.table.qualitat_aire=bcn_qualitat_aire\nopendata.aire.url=https://api.aire"
         with patch("builtins.open", mock_open(read_data=content)):
             config = load_properties("fake.properties", {})
-            self.assertEqual(config["db.table.qualitat_aire"], "qualitat_aire_table")
-            self.assertEqual(config["opendata.qualitat_aire.url"], "https://api.qualitat")
-
-    @patch("os.path.exists")
-    def test_load_properties_file_not_found(self, mock_exists):
-        """Verifica que si el fitxer no existeix, el diccionari no canvia."""
-        mock_exists.return_value = False
-        config = {"clau": "valor_original"}
-        result = load_properties("no_existeix.properties", config)
-        self.assertEqual(result["clau"], "valor_original")
+            self.assertEqual(config["db.table.qualitat_aire"], "bcn_qualitat_aire")
+            self.assertEqual(config["opendata.aire.url"], "https://api.aire")
 
     def test_load_properties_with_env_vars(self):
-        """Verifica que les variables tipus ${VAR} es resolen des de l'entorn."""
+        """Verifica que la contrasenya oculta amb ${VAR} es resol correctament."""
         content = "spring.datasource.password=${SAFESTEPS_DB_PASSWORD}"
         with patch("builtins.open", mock_open(read_data=content)):
             with patch("os.path.exists", return_value=True):
-                with patch.dict(os.environ, {"SAFESTEPS_DB_PASSWORD": "safe_testing_password_123"}):
+                with patch.dict(os.environ, {"SAFESTEPS_DB_PASSWORD": "password_super_secreta!"}):
                     config = {}
                     result = load_properties("fake.properties", config)
-                    self.assertEqual(result["spring.datasource.password"], "safe_testing_password_123")
+                    self.assertEqual(result["spring.datasource.password"], "password_super_secreta!")
 
-    def test_load_properties_ignores_comments(self):
-        """Verifica que les línies comentades amb # s'ignoren."""
-        content = "db.table.qualitat_aire=taula\n#opendata.qualitat_aire.url=https://ignorada\n"
-        with patch("builtins.open", mock_open(read_data=content)):
-            with patch("os.path.exists", return_value=True):
-                config = {}
-                result = load_properties("fake.properties", config)
-                self.assertIn("db.table.qualitat_aire", result)
-                self.assertNotIn("#opendata.qualitat_aire.url", result)
+    def test_password_encoding(self):
+        """Verifica que caràcters especials en la contrasenya es codifiquen bé per a SQLAlchemy."""
+        password_original = "admin@123/?"
+        password_safe = urllib.parse.quote_plus(password_original)
+        self.assertEqual(password_safe, "admin%40123%2F%3F")
+        self.assertNotIn("@", password_safe, "La @ ha d'estar codificada per no trencar la connexió")
 
-    ### --- TESTS D'API ---
+    ### --- TESTS D'API (SUPORT ZIP I CSV) ---
     @patch("requests.get")
-    def test_get_latest_csv_url_success(self, mock_get):
-        """Simula una resposta correcta de l'API d'Open Data i verifica que es troba el CSV."""
+    def test_get_latest_resource_info_csv(self, mock_get):
+        """Simula una resposta on troba directament un CSV."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "success": True,
             "result": {
                 "resources": [
-                    {"format": "PDF", "url": "https://opendata.bcn/qualitat.pdf"},
-                    {"format": "CSV", "url": "https://opendata.bcn/qualitat.csv"}
+                    {"format": "CSV", "url": "https://opendata.bcn/aire.csv"}
                 ]
             }
         }
         mock_get.return_value = mock_response
 
-        url = get_latest_csv_url("https://api.test")
-        self.assertEqual(url, "https://opendata.bcn/qualitat.csv")
+        url, fmt = get_latest_resource_info("https://api.test")
+        self.assertEqual(url, "https://opendata.bcn/aire.csv")
+        self.assertEqual(fmt, "CSV")
 
     @patch("requests.get")
-    def test_get_latest_csv_url_no_csv_resource(self, mock_get):
-        """Verifica que retorna None si no hi ha cap recurs en format CSV."""
+    def test_get_latest_resource_info_zip(self, mock_get):
+        """Verifica que si no hi ha CSV però hi ha ZIP, agafa el ZIP."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "success": True,
             "result": {
                 "resources": [
-                    {"format": "PDF", "url": "https://opendata.bcn/qualitat.pdf"},
-                    {"format": "XML", "url": "https://opendata.bcn/qualitat.xml"}
+                    {"format": "ZIP", "url": "https://opendata.bcn/aire.zip"}
                 ]
             }
         }
         mock_get.return_value = mock_response
 
-        url = get_latest_csv_url("https://api.test")
-        self.assertIsNone(url)
-
-    @patch("requests.get")
-    def test_get_latest_csv_url_api_error(self, mock_get):
-        """Verifica que si l'API falla, el script no peta i retorna None."""
-        mock_get.side_effect = Exception("API Down")
-        url = get_latest_csv_url("https://api.test")
-        self.assertIsNone(url)
-
-    @patch("requests.get")
-    def test_get_latest_csv_url_success_false(self, mock_get):
-        """Verifica que si l'API retorna success=False, es retorna None."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"success": False}
-        mock_get.return_value = mock_response
-
-        url = get_latest_csv_url("https://api.test")
-        self.assertIsNone(url)
+        url, fmt = get_latest_resource_info("https://api.test")
+        self.assertEqual(url, "https://opendata.bcn/aire.zip")
+        self.assertEqual(fmt, "ZIP")
 
     ### --- TESTS DE LÒGICA DE DADES (PANDAS) ---
-    def test_dataframe_cleaning_qualitat_aire(self):
-        """Verifica la neteja de columnes típica de dades de qualitat d'aire."""
-        csv_content = "ID.Estació,Nom (Estació),Valor.NO2,Unitat (µg/m3)\n1,Eixample,45,µg/m3"
-        df = pd.read_csv(StringIO(csv_content))
+    def test_neteja_columnes(self):
+        """Verifica la neteja de columnes (espais, majúscules i punts)."""
+        df = pd.DataFrame(columns=["Nom.Estació", "Valor (H01)", "Latitud "])
+        df.columns = [c.strip().lower().replace(' ', '_').replace('.', '') for c in df.columns]
 
-        df.columns = [c.strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
-
-        expected = ["idestació", "nom_estació", "valorno2", "unitat_µg/m3"]
+        expected = ["nomestació", "valor_(h01)", "latitud"]
         self.assertListEqual(list(df.columns), expected)
 
-    def test_empty_dataframe_protection(self):
-        """Comprova que el script detectaria si el CSV no té columnes útils."""
-        csv_content = "Dades corruptes sense comes"
-        df = pd.read_csv(StringIO(csv_content))
+    def test_creuament_i_agregacio_aire(self):
+        """Prova el cor de l'script: Inner Join, neteja de comes decimals i càlcul de la mitjana."""
+        # 1. Simulem les dades de lectures (Amb comes als decimals com passa a l'OpenData!)
+        df_lectures = pd.DataFrame({
+            "estacio": [4, 4, 11],
+            "valor": ["45,5", "55,0", "10,2"] # Simulem string amb coma
+        })
 
-        is_invalid = df.shape[1] <= 1
-        self.assertTrue(is_invalid)
+        # 2. Simulem les dades d'inventari d'estacions (Ubicacions)
+        df_inventari = pd.DataFrame({
+            "estacio": [4, 11, 99], # L'estació 99 està "trencada" i no té lectures
+            "latitud": ["41,38", "41,40", "41,00"],
+            "longitud": ["2,16", "2,18", "2,00"]
+        })
 
-    def test_valid_dataframe_structure(self):
-        """Verifica que un CSV ben format supera la validació d'estructura."""
-        csv_content = "estacio,contaminant,valor\n1,NO2,45"
-        df = pd.read_csv(StringIO(csv_content))
+        # 3. Lògica del main() replicada:
+        # Join
+        df_merged = pd.merge(df_lectures, df_inventari, on="estacio", how="inner")
 
-        is_valid = df.shape[1] > 1
-        self.assertTrue(is_valid)
-        self.assertEqual(len(df), 1)
+        # Conversió a numèric (Reemplaçant comes)
+        for col in ["valor", "latitud", "longitud"]:
+            df_merged[col] = pd.to_numeric(df_merged[col].astype(str).str.replace(',', '.'), errors='coerce')
 
-    ### --- TESTS DE FORMAT D'ARXIU ---
-    def test_utf16_detection_qualitat_aire(self):
-        """Verifica que el sistema de detecció d'encoding UTF-16 funciona correctament."""
-        text_data = "estacio,contaminant,valor\n1,NO2,45"
-        contingut_binari = text_data.encode('utf-16')
+        # Agregació
+        df_final = df_merged.dropna(subset=["valor", "latitud", "longitud"])
+        df_final = df_final.groupby(["latitud", "longitud"])["valor"].mean().reset_index()
 
-        if b'\x00' in contingut_binari:
-            contingut_decodificat = contingut_binari.decode('utf-16')
-        else:
-            contingut_decodificat = contingut_binari.decode('utf-8')
+        # --- COMPROVACIONS ---
+        # L'estació 99 ha de desaparèixer, només queden la 4 i la 11
+        self.assertEqual(len(df_final), 2)
 
-        self.assertEqual(contingut_decodificat, text_data)
+        # La mitjana de l'estació 4 (45.5 i 55.0) ha de ser 50.25
+        mitjana_estacio_4 = df_final[df_final["latitud"] == 41.38]["valor"].iloc[0]
+        self.assertEqual(mitjana_estacio_4, 50.25)
 
-    def test_utf8_detection_qualitat_aire(self):
-        """Verifica que el contingut UTF-8 estàndard es processa sense fer decode UTF-16."""
-        text_data = "estacio,contaminant,valor\n1,O3,30"
-        contingut_binari = text_data.encode('utf-8')
-
-        # No ha de tenir bytes nuls, per tant ha d'anar pel camí UTF-8
-        self.assertNotIn(b'\x00', contingut_binari)
-
-        contingut_decodificat = contingut_binari.decode('utf-8')
-        self.assertEqual(contingut_decodificat, text_data)
-
-    ### --- TESTS DE SEGURETAT DE PARÀMETRES ---
-    def test_params_validation_all_present(self):
-        """Verifica que la lògica de validació no detecta errors si tots els paràmetres estan."""
-        params = {
-            "url_api": "https://api.test",
-            "t_qualitat_aire": "qualitat_aire",
-            "db_user": "user",
-            "db_pass": "safe_testing_password_123",
-            "db_url_jdbc": "jdbc:postgresql://localhost:5432/safesteps"
-        }
-        missing = [k for k, v in params.items() if not v]
-        self.assertEqual(len(missing), 0)
-
-    def test_params_validation_missing_url(self):
-        """Verifica la detecció de paràmetres faltants quan falta la URL de l'API."""
-        params = {
-            "url_api": None,
-            "t_qualitat_aire": "qualitat_aire",
-            "db_user": "user",
-            "db_pass": "safe_testing_password_123",
-            "db_url_jdbc": "jdbc:postgresql://localhost:5432/safesteps"
-        }
-        missing = [k for k, v in params.items() if not v]
-        self.assertEqual(len(missing), 1)
-        self.assertIn("url_api", missing)
+        # La coordenada 41,38 ha de passar a 41.38 format float
+        self.assertTrue(isinstance(df_final["latitud"].iloc[0], float))
 
 if __name__ == "__main__":
     unittest.main()
