@@ -104,6 +104,15 @@ class IncidentServiceTest {
         verify(incidentRepo, times(1)).findIncidentWithUserById(10L);
     }
 
+    @Test
+    void createIncident_NoCoordinatesDTO() {
+        IncidentRequestDTO req = new IncidentRequestDTO();
+        req.setGoogleId("1L");
+        req.setType(IncidentTypeEnum.OBRES);
+        req.setDescription("test");
+        assertThrows(IllegalArgumentException.class, () -> incidentService.createIncident(req));
+    }
+
 
 
     @Test

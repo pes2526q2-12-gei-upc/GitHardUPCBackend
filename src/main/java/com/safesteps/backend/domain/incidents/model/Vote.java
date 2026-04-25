@@ -1,13 +1,16 @@
 package com.safesteps.backend.domain.incidents.model;
 
+import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Data
+@NoArgsConstructor
 @Table(name = "votes")
 public class Vote {
 
@@ -34,6 +37,12 @@ public class Vote {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-
+    public Vote(VoteDBProjection v) {
+        this.id = v.getId();
+        this.incidenceId = v.getIncidenceId();
+        this.googleId = v.getGoogleId();
+        this.score = v.getScore();
+        this.createdAt = v.getCreatedAt();
+    }
 
 }

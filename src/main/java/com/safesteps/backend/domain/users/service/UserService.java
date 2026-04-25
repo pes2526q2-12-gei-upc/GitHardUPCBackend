@@ -1,5 +1,6 @@
 package com.safesteps.backend.domain.users.service;
 
+import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 @Service
@@ -118,6 +120,28 @@ public class UserService {
             user.setLanguage(language);
             return new UserResponseDTO(userRepository.save(user));
         }).orElse(null);
+    }
+
+    /*
+    Set isIncidentAccepted to true if the incidence reported has been validated to Accepted
+    If the user has voted the same as the result of incidence validation, increase reliability by 0.1, otherwise decrease it by 0.1
+    Ex: u1 -> acc., u2 -> deny, i1 -> acc. u1 will be rewarded, u2 will be penalized.
+    */
+    @Transactional
+    public void updateUserReliability(List<Vote> votes, boolean isIncidentAccepted) {
+        for (Vote v : votes) {
+            Optional<User> user = userRepository.findByGoogleId(v.getGoogleId());
+            if (user.isPresent()) {
+                User u = user.get();
+                if ((isIncidentAccepted && v.getScore() > 0) || (!isIncidentAccepted && v.getScore() < 0)) {
+                    u.setReputacio(u.getReputacio() + 0.01);
+                    u.setPoints(u.getPoints() + 10); // Pujar punts de nivell
+                } else {
+                    u.setReputacio(u.getReputacio() - 0.01);
+                }
+                userRepository.save(u);
+            }
+        }
     }
 
     /**

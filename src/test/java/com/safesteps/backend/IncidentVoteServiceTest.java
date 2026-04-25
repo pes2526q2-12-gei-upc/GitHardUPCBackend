@@ -3,11 +3,14 @@ package com.safesteps.backend;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
 import com.safesteps.backend.domain.incidents.repository.IncidentVoteRepository;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
+import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,9 +37,13 @@ class IncidentVoteServiceTest {
     @InjectMocks
     private IncidentVoteService voteService;
 
+    @Mock
+    private UserService userSv;
+
 
     @Test
     void createVote_OK() {
+        UserResponseDTO user = mock(UserResponseDTO.class);
         Long incidentId = 1L;
         VoteRequestDTO req = new VoteRequestDTO();
         req.setVoteScore(1);
@@ -45,9 +52,12 @@ class IncidentVoteServiceTest {
         // formula: 1 / (1 + (7/7)^4) = 1/2 = 0.5
         IncidentResponseDTO incident = new IncidentResponseDTO();
         incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
-
+        incident.setId(incidentId);
+        incident.setReliabilityIndex(1.0);
         when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
         when(voteRepository.save(any(Vote.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(userSv.getUserByGoogleId(any())).thenReturn(user);
+        when(user.getReputacio()).thenReturn(1.0);
 
         VoteResponseDTO result = voteService.createVote(incidentId, req);
 
@@ -61,6 +71,8 @@ class IncidentVoteServiceTest {
 
     @Test
     void createVote_ZERO() {
+        UserResponseDTO user = mock(UserResponseDTO.class);
+
         Long incidentId = 1L;
         VoteRequestDTO req = new VoteRequestDTO();
         req.setVoteScore(0); // Vot 0
@@ -70,6 +82,8 @@ class IncidentVoteServiceTest {
         incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
 
         when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+        when(userSv.getUserByGoogleId(any())).thenReturn(user);
+        when(user.getReputacio()).thenReturn(1.0);
 
         VoteResponseDTO r = voteService.createVote(incidentId, req);
 
@@ -93,7 +107,10 @@ class IncidentVoteServiceTest {
         vote.setScore(0.8);
 
         when(voteRepository.findById(voteId)).thenReturn(Optional.of(vote));
-
+        IncidentResponseDTO i = new IncidentResponseDTO();
+        i.setReliabilityIndex(1.0);
+        i.setStatus(IncidentStatusEnum.ACCEPTED.name());
+        when(incidentSv.findIncidentById(1L)).thenReturn(i);
         boolean result = voteService.deleteVoteByVoteId(voteId);
 
         assertTrue(result);
@@ -126,7 +143,10 @@ class IncidentVoteServiceTest {
         vote.setIncidenceId(1L);
         vote.setScore(0.8);
         when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.of(vote));
-
+        IncidentResponseDTO i = new IncidentResponseDTO();
+        i.setReliabilityIndex(1.0);
+        i.setStatus(IncidentStatusEnum.ACCEPTED.name());
+        when(incidentSv.findIncidentById(1L)).thenReturn(i);
         boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
 
         assertTrue(result);

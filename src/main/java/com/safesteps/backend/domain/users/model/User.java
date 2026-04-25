@@ -42,7 +42,7 @@ public class User {
     private Boolean isAnonymous = false;
 
     @Column(nullable = false)
-    private Integer reputacio = 1;
+    private double reputacio = 1;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

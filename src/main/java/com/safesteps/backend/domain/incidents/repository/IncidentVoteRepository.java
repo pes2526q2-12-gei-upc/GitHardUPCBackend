@@ -22,7 +22,7 @@ public interface IncidentVoteRepository extends JpaRepository<Vote, Long>  {
     Optional<Vote> findByUserAndIncidence(@Param("incidenceId") Long incidenceId, @Param("googleId") String googleId);
 
     @Query(value = """
-            SELECT 
+            SELECT
                 id AS id,
                 incidence_id AS incidenceId,
                 google_id AS googleId,
@@ -32,5 +32,17 @@ public interface IncidentVoteRepository extends JpaRepository<Vote, Long>  {
             WHERE google_id = :googleId
             """, nativeQuery = true)
     List<VoteDBProjection> findAllByGoogleId(@Param("googleId") String googleId);
+
+    @Query(value = """
+            SELECT
+                id AS id,
+                incidence_id AS incidenceId,
+                google_id AS googleId,
+                score AS score,
+                created_at AS createdAt
+            FROM votes
+            WHERE incidence_id = :incidenceId
+            """, nativeQuery = true)
+    List<VoteDBProjection> findAllByIncidenceId(@Param("incidenceId") Long incidenceId);
 
 }
