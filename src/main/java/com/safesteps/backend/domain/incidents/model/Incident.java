@@ -39,7 +39,7 @@ public class Incident {
     private Double reliabilityIndex = 0.0;
 
     @Column(length = 20)
-    private String status = "PENDING";
+    private String status = IncidentStatusEnum.PENDING.name();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

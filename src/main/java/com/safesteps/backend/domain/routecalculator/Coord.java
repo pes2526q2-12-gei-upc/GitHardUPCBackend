@@ -31,8 +31,10 @@ public class Coord {
     @Schema(description = "Longitud de la coordenada", example = "2.1686", requiredMode = Schema.RequiredMode.REQUIRED)
     private Double lon;
   
-  public Point toPoint() {
+    public Point toPoint() {
         GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         return geometryFactory.createPoint(new Coordinate(this.lon, this.lat));
     }
+
+    
 }

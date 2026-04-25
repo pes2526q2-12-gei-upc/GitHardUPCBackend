@@ -2,6 +2,7 @@ package com.safesteps.backend.domain.incidents.service;
 
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
 import com.safesteps.backend.domain.incidents.dto.VoteCountDTO;
 import com.safesteps.backend.domain.incidents.model.Incident;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
@@ -36,8 +37,9 @@ public class IncidentService {
             i.setGoogleId(req.getGoogleId());
             i.setType(req.getType());
             i.setDescription(req.getDescription());
+            if (req.getCoordinates() == null) throw new IllegalArgumentException("Coordinates can't be null");
             i.setLocation(req.getCoordinates().toPoint());
-            i.setStatus("pending");
+            i.setStatus(IncidentStatusEnum.PENDING.name());
             i.setPositiveVotes(0);
             i.setNegativeVotes(0);
             i.setReliabilityIndex(0.0);
@@ -52,6 +54,7 @@ public class IncidentService {
             return new IncidentResponseDTO(incident.get());
         }
 
+        @Transactional
         public IncidentResponseDTO editIncidentById(Long id, IncidentRequestDTO req) {
             Optional<Incident> i = incidentRepo.findById(id);
             //Retornar exception
