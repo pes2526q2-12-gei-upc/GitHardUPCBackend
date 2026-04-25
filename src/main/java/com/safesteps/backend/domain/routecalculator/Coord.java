@@ -24,15 +24,17 @@ public class Coord {
     @DecimalMax(value = BCN_LAT_MAX, message = "Latitud fuera de rango (Máx: " + BCN_LAT_MAX + "). El servicio solo cubre Barcelona.")
     @Schema(description = "Latitud de la coordenada", example = "41.3874", requiredMode = Schema.RequiredMode.REQUIRED)
     private Double lat;
-
+  
     @NotNull(message = "La longitud es obligatoria")
     @DecimalMin(value = BCN_LON_MIN, message = "Longitud fuera de rango (Mín: " + BCN_LON_MIN + "). El servicio solo cubre Barcelona.")
     @DecimalMax(value = BCN_LON_MAX, message = "Longitud fuera de rango (Máx: " + BCN_LON_MAX + "). El servicio solo cubre Barcelona.")
     @Schema(description = "Longitud de la coordenada", example = "2.1686", requiredMode = Schema.RequiredMode.REQUIRED)
     private Double lon;
-
+  
     public Point toPoint() {
         GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         return geometryFactory.createPoint(new Coordinate(this.lon, this.lat));
     }
+
+    
 }
