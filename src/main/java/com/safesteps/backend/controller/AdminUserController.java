@@ -58,6 +58,6 @@ public class AdminUserController {
 
     @GetMapping("/{id}/incidents")
     public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long id) {
-        return ResponseEntity.ok(incidentService.getIncidentsByUserId(id));
+        return ResponseEntity.ok(incidentService.getIncidentsByUserId(String.valueOf(id)));
     }
 }
