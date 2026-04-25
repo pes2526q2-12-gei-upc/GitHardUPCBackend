@@ -2,9 +2,11 @@ package com.safesteps.backend.domain.incidents.service;
 
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
-import com.safesteps.backend.domain.incidents.model.Incident;
 import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
+import com.safesteps.backend.domain.incidents.dto.VoteCountDTO;
+import com.safesteps.backend.domain.incidents.model.Incident;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
+import com.safesteps.backend.domain.incidents.projections.VoteCountDBProjection;
 import com.safesteps.backend.domain.incidents.repository.IncidentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,5 +78,38 @@ public class IncidentService {
             for (IncidentDBProjection incident : incidents)
                 response.add(new IncidentResponseDTO(incident));
             return response;
+        }
+
+        public VoteCountDTO getVoteCount(Long id) {
+            Optional<VoteCountDBProjection> voteDB = incidentRepo.getVoteCount(id);
+            //Retornar exception
+            if (voteDB.isEmpty()) return null;
+            return new VoteCountDTO(voteDB.get());
+        }
+
+        @Transactional
+        public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
+            Optional<Incident> i = incidentRepo.findById(incidentId);
+            if (i.isEmpty() || voteScore == 0) return;
+            Incident incident = i.get();
+
+            if (delete) {
+                if (voteScore > 0) {
+                    incident.setPositiveVotes(incident.getPositiveVotes() -1);
+                } else {
+                    incident.setNegativeVotes(incident.getNegativeVotes() - 1);
+                }
+                incident.setReliabilityIndex(incident.getReliabilityIndex() - voteScore);
+            } else {
+                if (voteScore > 0) {
+                    incident.setPositiveVotes(incident.getPositiveVotes() + 1);
+                } else {
+                    incident.setNegativeVotes(incident.getNegativeVotes() + 1);
+                }
+
+                incident.setReliabilityIndex(incident.getReliabilityIndex() + voteScore);
+            }
+
+            incidentRepo.save(incident);
         }
 }
