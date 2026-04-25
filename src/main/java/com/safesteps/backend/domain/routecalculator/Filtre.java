@@ -28,30 +28,38 @@ public class Filtre {
     private String googleId;
 
     //Seguretat
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double comissaries = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double fetsPenals = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double cameresSeguretat = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double infraccions = 0;
 
 
     //Confort
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double fontsAigua = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double bancs = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double contaminacioAcustica = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double escalesMecaniques = 0;
@@ -59,12 +67,15 @@ public class Filtre {
     //Clima
 
 
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double arbres = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double refugisClimatics = 0;
+    @Column(columnDefinition = "float8 default 0")
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double qualitatAire = 0;
