@@ -1,6 +1,7 @@
 package com.safesteps.backend.domain.routecalculator;
 
 import com.safesteps.backend.domain.routecalculator.projections.CoordDBProjection;
+import com.safesteps.backend.domain.routecalculator.projections.RouteAveragesDBProjection;
 import com.safesteps.backend.domain.routecalculator.projections.RouteDBProjection;
 import com.safesteps.backend.domain.routecalculator.projections.PoiDBProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,12 +23,22 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
             "SELECT di.node AS node, di.edge AS edge, di.seq AS seq, COALESCE(v.longitud, 0.0) AS cost " +
                     "FROM pgr_dijkstra(" +
                     "  'SELECT fid as id, source, target, " +
-                    "          (longitud * (1.0 " +
-                    "              + (' || :#{#filtre.seguretat} || ' * GREATEST(0, 1.0 - COALESCE(cnt_comissaries, 0.0))) " +    //Ponderacions de cada filtre
+                    "          (longitud * (1.0 " +                 //Ponderacions de cada filtre.
+                    "              + (' || :#{#filtre.comissaries} || ' * GREATEST(0, 1.0 - COALESCE(score_comissaries/100.0, 0.0))) " +
+                    "              + (' || :#{#filtre.fetsPenals} || ' * GREATEST(0, 1.0 - COALESCE(cnt_fets_delictius, 0.0))) " +
+                    "              + (' || :#{#filtre.cameresSeguretat} || ' * GREATEST(0, 1.0 - COALESCE(cnt_cameres, 0.0))) " +
+                    "              + (' || :#{#filtre.infraccions} || ' * GREATEST(0, 1.0 - COALESCE(cnt_infraccions, 0.0))) " +        //NOELTINC
+
                     "              + (' || :#{#filtre.fontsAigua}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_fonts, 0.0))) " +
-                    "              + (' || :#{#filtre.ombra}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_arbres, 0.0))) " +
-                    "              + (' || :#{#filtre.escalesMecaniques}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_escales, 0.0))) " +
                     "              + (' || :#{#filtre.bancs}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_bancs, 0.0))) " +
+                    "              + (' || :#{#filtre.contaminacioAcustica}     || ' * GREATEST(0, 1.0 - COALESCE(score_soroll/100.0, 0.0))) " +
+                    "              + (' || :#{#filtre.escalesMecaniques}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_escales, 0.0))) " +
+
+
+                    "              + (' || :#{#filtre.arbres}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_arbres, 0.0))) " +
+                    "              + (' || :#{#filtre.refugisClimatics}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_refugis_climatics, 0.0))) " +
+                    "              + (' || :#{#filtre.qualitatAire}     || ' * GREATEST(0, 1.0 - COALESCE(score_aire/100.0, 0.0))) " +
+
                     "          )) * " +
                     "          CASE WHEN fid = ANY(string_to_array(''' || :penalizedEdges || ''', '','')::bigint[]) " +
                     "               THEN 1.25 " + // Factor de penalitzacio per rutes repetides
@@ -188,4 +199,19 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "WHERE ST_DWithin(ST_SetSRID(ST_MakePoint(a.x_etrs89, a.y_etrs89), 25831), rg.geom, :radi)",
             nativeQuery = true)
     List<PoiDBProjection> findArbresZonaNearRoute(@Param("fids") Long[] fids, @Param("radi") Double radiMetres);
+
+    /*
+     * Avaluació externa de rutes: Agafem un LINESTRING (wkt_line), mirem quins trams
+     * de carrer intersequen a menys de 20m, i fem la mitjana de tots els seus scores.
+     */
+    @Query(value =
+            "SELECT " +
+                    "   COALESCE(AVG(cnt_fets_delictius), 0.0) as avgDelictes, " +
+                    "   COALESCE(AVG(cnt_cameres), 0.0) as avgCameres, " +
+                    "   COALESCE(AVG(score_comissaries), 0.0) as avgComissaries " +
+                    "FROM bcn_grafvial_trams " +
+                    "WHERE geom IS NOT NULL " +
+                    "AND ST_DWithin(geom, ST_Transform(ST_GeomFromText(:wktLine, 4326), 25831), 20)",
+            nativeQuery = true)
+    RouteAveragesDBProjection getRouteAveragesFromWKT(@Param("wktLine") String wktLine);
 }
