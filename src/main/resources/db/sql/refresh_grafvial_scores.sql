@@ -17,6 +17,7 @@ ADD COLUMN IF NOT EXISTS cnt_escales INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_arbres INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS cnt_infraccions NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_refugis_climatics INTEGER DEFAULT 0,
@@ -135,6 +136,12 @@ UPDATE bcn_grafvial_trams t
 SET cnt_fets_delictius = f.total_delictes_vianants
 FROM bcn_districtes_poligons p
 JOIN cat_fets_penals f ON f.nom_districte = p.nom
+WHERE ST_Intersects(t.geom, p.geom);
+
+UPDATE bcn_grafvial_trams t
+SET cnt_infraccions = i.nombre_fets_o_infraccions
+FROM bcn_districtes_poligons p
+JOIN cat_infraccions_joc i ON p.nom = i.nom_districte
 WHERE ST_Intersects(t.geom, p.geom);
 
 -- Apliquem una fórmula de mapatge:

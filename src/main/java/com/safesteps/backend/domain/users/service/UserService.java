@@ -1,35 +1,44 @@
 package com.safesteps.backend.domain.users.service;
 
+import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.User;
+import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final FilterRepository filterRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
+        this.filterRepository = filterRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<UserResponseDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(UserResponseDTO::new)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public UserResponseDTO getUserByGoogleId(String googleId) {
         return userRepository.findByGoogleId(googleId)
                 .map(UserResponseDTO::new)
                 .orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public UserResponseDTO getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(UserResponseDTO::new)
@@ -53,7 +62,14 @@ public class UserService {
         user.setLevel(1L);
         user.setReputacio(1);
 
-        return new UserResponseDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+
+        // Crear filtros por defecto para el nuevo usuario
+        UserFilter defaultFilter = new UserFilter();
+        defaultFilter.setGoogleId(savedUser.getGoogleId());
+        filterRepository.save(defaultFilter);
+
+        return new UserResponseDTO(savedUser);
     }
 
     @Transactional
@@ -70,8 +86,46 @@ public class UserService {
     @Transactional
     public boolean deleteUserByGoogleId(String googleId) {
         return userRepository.findByGoogleId(googleId).map(user -> {
+            filterRepository.deleteById(googleId);
             userRepository.delete(user);
             return true;
         }).orElse(false);
+    }
+
+    @Transactional
+    public UserFilter updateFilters(String googleId, FilterRequestDTO req) {
+        return filterRepository.findById(googleId).map(f -> {
+            // Actualización con los nuevos nombres en camelCase
+            updateIfPresent(req.getComissaries(), f::setComissaries);
+            updateIfPresent(req.getFetsPenals(), f::setFetsPenals);
+            updateIfPresent(req.getCameresSeguretat(), f::setCameresSeguretat);
+            updateIfPresent(req.getInfraccions(), f::setInfraccions);
+            updateIfPresent(req.getFontsAigua(), f::setFontsAigua);
+            updateIfPresent(req.getBancs(), f::setBancs);
+            updateIfPresent(req.getContaminacioAcustica(), f::setContaminacioAcustica);
+            updateIfPresent(req.getEscalesMecaniques(), f::setEscalesMecaniques);
+            updateIfPresent(req.getArbres(), f::setArbres);
+            updateIfPresent(req.getRefugisClimatics(), f::setRefugisClimatics);
+            updateIfPresent(req.getQualitatAire(), f::setQualitatAire);
+
+            return filterRepository.save(f);
+        }).orElse(null);
+    }
+
+    @Transactional
+    public UserResponseDTO updateLanguage(String googleId, String language) {
+        return userRepository.findByGoogleId(googleId).map(user -> {
+            user.setLanguage(language);
+            return new UserResponseDTO(userRepository.save(user));
+        }).orElse(null);
+    }
+
+    /**
+     * Helper para actualizar solo si el valor no es nulo (evita pisar datos con nulls del DTO)
+     */
+    private <T> void updateIfPresent(T value, Consumer<T> setter) {
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.safesteps.backend.domain.routecalculator.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -15,7 +16,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,15 +31,20 @@ class ApiAddressControllerTest {
     private RouteCalculatorService routeCalculatorService;
 
     @Mock
+    private FiltreService filtreService;
+
+    @InjectMocks
+    private ApiAddressController apiAddressController;
+    @Mock
     private RouteEvaluationSafetyService routeEvaluationSafetyService;
 
     @BeforeEach
     void setUp() {
+
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        ApiAddressController apiAddressController = new ApiAddressController(routeCalculatorService, routeEvaluationSafetyService);
-
+        // Construïm el MockMvc injectant-li el nostre controlador i el validador
         mockMvc = MockMvcBuilders.standaloneSetup(apiAddressController)
                 .setValidator(validator)
                 .build();
@@ -46,14 +52,10 @@ class ApiAddressControllerTest {
 
     @Test
     void calculateRoute_WithValidRequest() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        Filtre filtre = new Filtre();
-        request.setOrigin(org);
-        request.setDestination(dest);
-        request.setNRoutes(3);
-        request.setFiltre(filtre);
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
+        Filtre filtre = new Filtre(FiltreEnum.SEGURETAT);
+
+        when(filtreService.getFiltre(null, FiltreEnum.SEGURETAT)).thenReturn(filtre);
 
         when(routeCalculatorService.getBestRoute(any(), any(), anyInt(), any()))
                 .thenReturn(new RouteResponseDTO());
@@ -62,15 +64,13 @@ class ApiAddressControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.SEGURETAT);
     }
 
     @Test
     void calculateRoute_WithTooManyRoutes() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        request.setOrigin(org);
-        request.setDestination(dest);
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
         request.setNRoutes(10); // màxim 5
 
         mockMvc.perform(post("/api/v1/calculate-route")
@@ -81,11 +81,7 @@ class ApiAddressControllerTest {
 
     @Test
     void calculateRoute_WithTooFewRoutes() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        request.setOrigin(org);
-        request.setDestination(dest);
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
         request.setNRoutes(0); // minim 1
 
         mockMvc.perform(post("/api/v1/calculate-route")
@@ -93,18 +89,9 @@ class ApiAddressControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
-
     @Test
-    void calculateRoute_WithFiltreOverOne() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        Filtre filtre = new Filtre();
-        filtre.setSeguretat(1.5f); // màxim 1
-        request.setOrigin(org);
-        request.setDestination(dest);
-        request.setNRoutes(1); // minim 1
-        request.setFiltre(filtre);
+    void calculateRouteMissingFilter() throws Exception {
+        RouteRequestDTO request = buildValidRequest(null);
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -113,37 +100,103 @@ class ApiAddressControllerTest {
     }
 
     @Test
-    void calculateRoute_WithFiltreUnderZero() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        Filtre filtre = new Filtre();
-        filtre.setSeguretat(-1f); // màxim 1
-        request.setOrigin(org);
-        request.setDestination(dest);
-        request.setNRoutes(1); // minim 1
-        request.setFiltre(filtre);
+    void calculateRoutePersonalitzatNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.PERSONALITZAT);
+
+        when(filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT)).thenReturn(null);
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.PERSONALITZAT);
     }
 
     @Test
-    void calculateRoute_WithNoFilter() throws Exception {
-        RouteRequestDTO request = new RouteRequestDTO();
-        Coord org = new Coord(); org.setLat(41.38); org.setLon(2.16);
-        Coord dest = new Coord(); dest.setLat(41.40); dest.setLon(2.17);
-        request.setOrigin(org);
-        request.setDestination(dest);
-        request.setNRoutes(1); // minim 1
+    void calculateRouteClimaNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.CLIMA);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.CLIMA)).thenReturn(new Filtre(FiltreEnum.CLIMA));
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.CLIMA);
     }
+
+    @Test
+    void calculateRouteConfortNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.CONFORT);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.CONFORT)).thenReturn(new Filtre(FiltreEnum.CONFORT));
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.CONFORT);
+    }
+
+    @Test
+    void calculateRouteSeguretatNoGoogleId() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
+        request.setGoogleId(null);
+
+        when(filtreService.getFiltre(null, FiltreEnum.SEGURETAT)).thenReturn(new  Filtre(FiltreEnum.SEGURETAT));
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(filtreService).getFiltre(null, FiltreEnum.SEGURETAT);
+    }
+
+    @Test
+    void calculateRouteInvalidOriginLongitude() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
+        request.getOrigin().setLon(1.5);
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+    }
+
+    @Test
+    void calculateRouteInvalidDestinationLatitude() throws Exception {
+        RouteRequestDTO request = buildValidRequest(FiltreEnum.SEGURETAT);
+        request.getDestination().setLat(42.0);
+
+        mockMvc.perform(post("/api/v1/calculate-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+    }
+
+    private RouteRequestDTO buildValidRequest(FiltreEnum filtre) {
+        RouteRequestDTO request = new RouteRequestDTO();
+        Coord org = new Coord();
+        org.setLat(41.38);
+        org.setLon(2.16);
+        Coord dest = new Coord();
+        dest.setLat(41.40);
+        dest.setLon(2.17);
+        request.setOrigin(org);
+        request.setDestination(dest);
+        request.setNRoutes(3);
+        request.setFiltre(filtre);
+        return request;
+    }
+
 
     @Test
     void evaluateRouteSecurity_NullRoutePoints() throws Exception {

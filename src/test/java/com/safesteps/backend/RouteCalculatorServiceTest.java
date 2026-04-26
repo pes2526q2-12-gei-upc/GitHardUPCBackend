@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,7 +99,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.findEscalesNearRoute(any(), eq(50.0))).thenReturn(List.of(escalesMock));
 
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
 
         assertNotNull(response);
@@ -167,7 +168,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
 
         assertNotNull(response);
@@ -217,7 +218,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of(c1, c2));
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);
@@ -250,7 +251,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of(c1));
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin2, dest2, nRoutes, f);
 
         assertNotNull(response);
@@ -283,7 +284,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of());
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);
@@ -319,7 +320,7 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any()))
                 .thenReturn(List.of());
 
-        Filtre f = new Filtre();
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, dest, nRoutes, f);
 
         assertNotNull(response);

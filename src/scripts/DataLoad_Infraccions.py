@@ -25,16 +25,21 @@ logging.basicConfig(
 )
 
 def load_properties(file_path, current_config):
-    """Llegeix les propietats dels fitxers .properties"""
+    """Llegeix les propietats dels fitxers .properties i resol variables d'entorn"""
     if not os.path.exists(file_path):
         return current_config
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith("#"):
+                if "=" in line and not line.startswith("#"):
                     key, value = line.split("=", 1)
-                    current_config[key.strip()] = value.strip()
+                    val = value.strip()
+
+                    if val.startswith("${") and val.endswith("}"):
+                        var_name = val[2:-1].split(":")[0]
+                        val = os.environ.get(var_name, val)
+                    current_config[key.strip()] = val
     except Exception as e:
         logging.warning(f"No s'ha pogut llegir {file_path}: {e}")
     return current_config
@@ -52,7 +57,6 @@ if __name__ == "__main__":
     db_user = db_config.get("spring.datasource.username")
     db_pass = db_config.get("spring.datasource.password")
 
-    # Configuració específica del dataset (llegida del properties)
     url = db_config.get("opendata.infraccions_joc.url")
     t_infraccions = db_config.get("db.table.infraccions_joc", "cat_infraccions_joc")
 
@@ -72,24 +76,20 @@ if __name__ == "__main__":
     try:
         logging.info(f"Descarregant el fitxer CSV des de: {url}")
 
-        # Headers complets per simular un navegador i evitar l'error 403
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/csv,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'text/csv,*/*;q=0.8'
         }
 
         r = requests.get(url, headers=headers, timeout=60)
         r.raise_for_status()
 
-        # --- TRACTAMENT D'ENCODING ESPECIAL ---
+        # Tractament d'encoding
         if b'\x00' in r.content:
             logging.info("Format UTF-16 detectat. Decodificant...")
             contingut = r.content.decode('utf-16')
         else:
-            contingut = r.text
+            contingut = r.content.decode('utf-8', errors='replace')
 
         # Llegim el CSV
         csv_data = StringIO(contingut)
@@ -106,29 +106,47 @@ if __name__ == "__main__":
             .replace('.', '')
             .replace('(', '')
             .replace(')', '')
-            .replace('ó', 'o')
-            .replace('í', 'i')
-            .replace('á', 'a')
-            .replace('é', 'e')
-            .replace('ú', 'u')
-            .replace('à', 'a')
-            .replace('è', 'e')
-            .replace('ò', 'o')
+            .replace('ó', 'o').replace('í', 'i').replace('á', 'a')
+            .replace('é', 'e').replace('ú', 'u').replace('à', 'a')
+            .replace('è', 'e').replace('ò', 'o')
             for c in df.columns
         ]
 
+        logging.info(f"Dades originals: {len(df)} files.")
+
+        # =========================================================================
+        # TRACTAMENT DE DADES: FILTRATGE I AGRUPACIÓ PER ABP (DISTRICTES BCN)
+        # =========================================================================
+
+        # 1. Filtrar només per la Regió Policial de Barcelona
+        df = df[df['regio_policial_rp'].str.contains('Metropolitana Barcelona', case=False, na=False)]
+
+        # 2. Extreure el nom del districte traient el prefix "ABP "
+        df['nom_districte'] = df['area_basica_policial_abp'].str.replace('ABP ', '', case=False, regex=True).str.strip()
+
+        # 3. Eliminar columnes innecessàries (INCLOENT ANY I MES) per fer la BD més neta
+        # Eliminem tot allò que faria que les files no s'ajuntessin
+        columnes_a_eliminar = [
+            'regio_policial_rp', 'area_basica_policial_abp',
+            'codi_comarca', 'nom_comarca', 'codi_provincia', 'nom_provincia',
+            'any', 'mes', 'num_mes' # <-- Afegim les temporals aquí perquè desapareguin
+        ]
+        df = df.drop(columns=[col for col in columnes_a_eliminar if col in df.columns], errors='ignore')
+
+        # 4. Agrupar ÚNICAMENT per districte per tenir el total absolut
+        df = df.groupby(['nom_districte'], as_index=False).sum(numeric_only=True)
+
+        # =========================================================================
+
+        logging.info(f"Dades després de filtrar per Barcelona i agrupar per ABP: {len(df)} files.")
+
         # Actualització a la BD
-        logging.info(f"Pujant {len(df)} files a la taula '{t_infraccions}'...")
         with engine.begin() as conn:
-            # Eliminem la taula si existeix per reemplaçar-la
             conn.execute(text(f'DROP TABLE IF EXISTS "{t_infraccions}" CASCADE;'))
 
-        # Bolcat de dades
         df.to_sql(t_infraccions, engine, if_exists='replace', index=False)
 
-        logging.info("Procés completat amb èxit!")
+        logging.info(f"Procés completat amb èxit! Taula '{t_infraccions}' creada.")
 
-    except requests.exceptions.HTTPError as errh:
-        logging.error(f"Error HTTP: {errh}")
     except Exception as e:
         logging.error(f"S'ha produït un error durant el procés: {e}")

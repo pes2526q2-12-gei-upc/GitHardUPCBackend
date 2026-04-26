@@ -1,13 +1,14 @@
 package com.safesteps.backend.domain.users.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.OffsetDateTime;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
 public class User {
@@ -16,7 +17,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "google_id", length = 100, unique = true)
+    @Column(name = "google_id", length = 100, unique = true, nullable = false)
     private String googleId;
 
     @Column(nullable = false, unique = true, length = 100)
@@ -42,6 +43,10 @@ public class User {
 
     @Column(nullable = false)
     private Integer reputacio = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ACTIVE'")
+    private UserStatus status = UserStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

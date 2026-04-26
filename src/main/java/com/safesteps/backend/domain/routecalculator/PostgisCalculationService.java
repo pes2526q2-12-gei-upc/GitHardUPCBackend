@@ -17,8 +17,6 @@ public class PostgisCalculationService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    // Ejecuta ANALYZE fuera del bloque transaccional, ya que Postgres 
-    // no permite comandos de mantenimiento dentro de bloques transaccionales.
     public void executePreAnalysis() {
         logger.info("Executing Pre-Analysis statistics on newly downloaded tables...");
         try {
@@ -34,9 +32,6 @@ public class PostgisCalculationService {
         try {
             ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
             populator.addScript(new ClassPathResource("db/sql/refresh_grafvial_scores.sql"));
-            // ResourceDatabasePopulator reads and executes the statements sequentially
-            // Since we are wrapping it in @Transactional, if any block fails, everything
-            // rolls back.
             populator.execute(jdbcTemplate.getDataSource());
 
             logger.info("Finished database post-calculations successfully.");

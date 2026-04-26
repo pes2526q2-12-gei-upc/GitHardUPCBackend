@@ -16,11 +16,14 @@ import org.springframework.web.bind.annotation.*;
 public class ApiAddressController {
 
     private final RouteCalculatorService routeCalculatorService;
+    private final FiltreService filtreSv;
     private final RouteEvaluationSafetyService routeEvaluationSafetyService;
 
-    public ApiAddressController(RouteCalculatorService routeCalculatorService,
+    public ApiAddressController(RouteCalculatorService routeCalculatorService,  
+                                FiltreService filtreSv, 
                                 RouteEvaluationSafetyService routeEvaluationSafetyService) {
         this.routeCalculatorService = routeCalculatorService;
+        this.filtreSv = filtreSv;
         this.routeEvaluationSafetyService = routeEvaluationSafetyService;
     }
 
@@ -35,7 +38,9 @@ public class ApiAddressController {
     })
     @PostMapping("/calculate-route")
     public ResponseEntity<RouteResponseDTO> calculateRoute(@Valid @RequestBody RouteRequestDTO request) {
-        Filtre filtre = request.getFiltre() != null ? request.getFiltre() : new Filtre();
+        FiltreEnum f = request.getFiltre();
+        Filtre filtre = filtreSv.getFiltre(request.getGoogleId(), f);
+        if (filtre == null) return ResponseEntity.badRequest().build();
 
         RouteResponseDTO response = routeCalculatorService.getBestRoute(
                 request.getOrigin(),
