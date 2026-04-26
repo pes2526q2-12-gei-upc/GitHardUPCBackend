@@ -42,7 +42,7 @@ public class User {
     private Boolean isAnonymous = false;
 
     @Column(nullable = false)
-    private Integer reputacio = 1;
+    private double reputacio = 1;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ACTIVE'")

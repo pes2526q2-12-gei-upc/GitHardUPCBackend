@@ -3,9 +3,12 @@ package com.safesteps.backend.domain.incidents.service;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
 import com.safesteps.backend.domain.incidents.repository.*;
+import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.service.UserService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static java.lang.Math.abs;
 import static java.lang.Math.pow;
 
 
@@ -22,10 +26,13 @@ import static java.lang.Math.pow;
 public class IncidentVoteService {
     private final IncidentVoteRepository voteRepository;
     private final IncidentService incidentSv;
+    private final UserService userSv;
+    private static final int THRESHOLD = 10;
 
-    public IncidentVoteService(IncidentVoteRepository voteRepository,  IncidentService incidentSv) {
+    public IncidentVoteService(IncidentVoteRepository voteRepository,  IncidentService incidentSv, UserService userSv) {
         this.voteRepository = voteRepository;
         this.incidentSv = incidentSv;
+        this.userSv = userSv;
     }
 
     @Transactional
@@ -38,11 +45,13 @@ public class IncidentVoteService {
         diffDays = Math.max(0, diffDays);
         double scoreDay = 1.0 / (1.0 + pow(diffDays/7, 4));
 
+        UserResponseDTO u = userSv.getUserByGoogleId(vote.getGoogleId());
+
         Vote v = new Vote();
         v.setIncidenceId(id);
         v.setGoogleId(vote.getGoogleId());
         //AL TENIR EL MODEL D'USUARI POSAR LA SEVA FIABILITAT !!
-        v.setReliability(1.0);
+        v.setReliability(u.getReputacio());
         v.setDataScore(scoreDay);
 
         double score = v.getReliability() * v.getDataScore() * vote.getVoteScore();
@@ -51,6 +60,7 @@ public class IncidentVoteService {
         if (score != 0) {
             v = voteRepository.save(v);
             updateIncidentVoteCount(score, id, false);
+            checkValidation(id);
             return new VoteResponseDTO(v);
         }
         return new VoteResponseDTO();
@@ -72,6 +82,7 @@ public class IncidentVoteService {
         Vote vote = v.get();
         updateIncidentVoteCount(vote.getScore(), vote.getIncidenceId(), true);
         voteRepository.deleteById(v.get().getId());
+        checkValidation(vote.getIncidenceId());
         return true;
     }
 
@@ -84,8 +95,36 @@ public class IncidentVoteService {
         return result;
     }
 
+    public List<Vote> getVoters(Long incidentId) {
+        List<VoteDBProjection> votes = voteRepository.findAllByIncidenceId(incidentId);
+        List<Vote> result = new ArrayList<>();
+        for (VoteDBProjection v : votes) {
+            result.add(new Vote(v));
+        }
+        return result;
+    }
+
     @Transactional
     public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
         if (voteScore != 0) incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
+    }
+
+    //Checks if incidence has surpassed the validation threshold and updates its status if necessary
+    @Transactional
+    public void checkValidation(Long incidentId) {
+        IncidentResponseDTO i = incidentSv.findIncidentById(incidentId);
+        double iReliability = i.getReliabilityIndex();
+
+        if (abs(iReliability) >= THRESHOLD && i.getStatus().equals(IncidentStatusEnum.PENDING.name())) {
+            List<Vote> users = this.getVoters(incidentId);
+            boolean isAccepted = iReliability > 0;
+
+            String creatorGoogleId = incidentSv.getIncidentCreatorGoogleId(incidentId);
+
+            userSv.updateUserReliability(users, isAccepted, creatorGoogleId);
+
+            IncidentStatusEnum stat = isAccepted ? IncidentStatusEnum.ACCEPTED : IncidentStatusEnum.REJECTED;
+            incidentSv.updateIncidentStatus(incidentId, stat);
+        }
     }
 }

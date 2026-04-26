@@ -17,7 +17,7 @@ public class UserResponseDTO {
     private Integer points;
     private Long level;
     private Boolean isAnonymous;
-    private Integer reputacio;
+    private double reputacio;
     private OffsetDateTime createdAt;
 
     public UserResponseDTO(User user) {

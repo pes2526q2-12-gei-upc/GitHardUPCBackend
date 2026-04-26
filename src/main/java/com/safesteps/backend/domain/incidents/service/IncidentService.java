@@ -112,4 +112,17 @@ public class IncidentService {
 
             incidentRepo.save(incident);
         }
+
+        public void updateIncidentStatus(Long incidentId, IncidentStatusEnum status) {
+            Optional<Incident> i = incidentRepo.findById(incidentId);
+            if (i.isEmpty()) return;
+            Incident incident = i.get();
+            incident.setStatus(status.name());
+            incidentRepo.save(incident);
+        }
+
+        public String getIncidentCreatorGoogleId(Long id) {
+            Optional<Incident> incident = incidentRepo.findById(id);
+            return incident.map(Incident::getGoogleId).orElse(null);
+        }
 }
