@@ -11,6 +11,6 @@ public class AdminUserDTO {
     private String pictureUrl;
     private Integer points;
     private Long level;
-    private Integer reputacio;
+    private double reputacio;
     private UserStatus status;
 }
