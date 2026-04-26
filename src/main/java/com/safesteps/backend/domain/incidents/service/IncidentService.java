@@ -120,4 +120,9 @@ public class IncidentService {
             incident.setStatus(status.name());
             incidentRepo.save(incident);
         }
+
+        public String getIncidentCreatorGoogleId(Long id) {
+            Optional<Incident> incident = incidentRepo.findById(id);
+            return incident.map(Incident::getGoogleId).orElse(null);
+        }
 }

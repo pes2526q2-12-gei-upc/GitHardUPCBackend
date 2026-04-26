@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Modifying;
+import java.time.OffsetDateTime;
 
 import java.util.List;
 import java.util.Optional;
@@ -84,4 +86,11 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
             WHERE i.id = :id
             """, nativeQuery = true)
     Optional<VoteCountDBProjection> getVoteCount(@Param("id") Long id);
+
+    @Modifying
+    @Query(value = "DELETE FROM incidents WHERE created_at < :dateLimit", nativeQuery = true)
+    void deleteIncidentsOlderThan(@Param("dateLimit") OffsetDateTime dateLimit);
+
+    @Query(value = "SELECT * FROM incidents WHERE created_at < :limitDate", nativeQuery = true)
+    List<Incident> findIncidentsOlderThan(@Param("limitDate") OffsetDateTime limitDate);
 }

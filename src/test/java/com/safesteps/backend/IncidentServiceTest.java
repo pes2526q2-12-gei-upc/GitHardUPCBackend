@@ -3,6 +3,7 @@ package com.safesteps.backend;
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.model.Incident;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
 import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
 import com.safesteps.backend.domain.incidents.projections.VoteCountDBProjection;
@@ -339,5 +340,31 @@ class IncidentServiceTest {
         verify(incidentRepo, never()).save(any());
     }
 
+    @Test
+    void getIncidentCreatorGoogleId_Exists() {
+        Incident i = new Incident();
+        i.setGoogleId("creator123");
+        when(incidentRepo.findById(1L)).thenReturn(Optional.of(i));
 
+        String result = incidentService.getIncidentCreatorGoogleId(1L);
+        assertEquals("creator123", result);
+    }
+
+    @Test
+    void getIncidentCreatorGoogleId_NotExists() {
+        when(incidentRepo.findById(1L)).thenReturn(Optional.empty());
+        String result = incidentService.getIncidentCreatorGoogleId(1L);
+        assertNull(result);
+    }
+
+    @Test
+    void updateIncidentStatus() {
+        Incident i = new Incident();
+        when(incidentRepo.findById(1L)).thenReturn(Optional.of(i));
+
+        incidentService.updateIncidentStatus(1L, IncidentStatusEnum.ACCEPTED);
+
+        assertEquals(IncidentStatusEnum.ACCEPTED.name(), i.getStatus());
+        verify(incidentRepo).save(i);
+    }
 }

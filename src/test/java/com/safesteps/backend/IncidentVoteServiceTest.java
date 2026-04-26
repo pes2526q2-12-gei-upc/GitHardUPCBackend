@@ -192,4 +192,48 @@ class IncidentVoteServiceTest {
         voteService.updateIncidentVoteCount(0.0, 1L, false);
         verify(voteRepository, never()).save(any());
     }
+
+    @Test
+    void getVoters() {
+        VoteDBProjection v = mock(VoteDBProjection.class);
+        when(v.getGoogleId()).thenReturn("voter1");
+        when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(v));
+
+        List<Vote> result = voteService.getVoters(1L);
+        assertEquals(1, result.size());
+        assertEquals("voter1", result.get(0).getGoogleId());
+    }
+
+    @Test
+    void checkValidation_Accepted() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(15.0); // Supera el threshold de 10
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+        when(incidentSv.getIncidentCreatorGoogleId(1L)).thenReturn("creator1"); // Nuevo mock necesario
+
+        VoteDBProjection vp = mock(VoteDBProjection.class);
+        when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(vp));
+
+        voteService.checkValidation(1L);
+
+        verify(userSv).updateUserReliability(anyList(), eq(true), eq("creator1"));
+        verify(incidentSv).updateIncidentStatus(1L, IncidentStatusEnum.ACCEPTED);
+    }
+
+    @Test
+    void checkValidation_Rejected() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(-15.0); // Supera el threshold de |-10|
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+        when(incidentSv.getIncidentCreatorGoogleId(1L)).thenReturn("creator1");
+
+        voteService.checkValidation(1L);
+
+        verify(userSv).updateUserReliability(anyList(), eq(false), eq("creator1"));
+        verify(incidentSv).updateIncidentStatus(1L, IncidentStatusEnum.REJECTED);
+    }
 }

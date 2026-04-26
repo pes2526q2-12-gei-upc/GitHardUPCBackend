@@ -114,11 +114,16 @@ public class IncidentVoteService {
     public void checkValidation(Long incidentId) {
         IncidentResponseDTO i = incidentSv.findIncidentById(incidentId);
         double iReliability = i.getReliabilityIndex();
+
         if (abs(iReliability) >= THRESHOLD && i.getStatus().equals(IncidentStatusEnum.PENDING.name())) {
             List<Vote> users = this.getVoters(incidentId);
             boolean isAccepted = iReliability > 0;
-            userSv.updateUserReliability(users, isAccepted);
-            IncidentStatusEnum stat = isAccepted? IncidentStatusEnum.ACCEPTED : IncidentStatusEnum.REJECTED;
+
+            String creatorGoogleId = incidentSv.getIncidentCreatorGoogleId(incidentId);
+
+            userSv.updateUserReliability(users, isAccepted, creatorGoogleId);
+
+            IncidentStatusEnum stat = isAccepted ? IncidentStatusEnum.ACCEPTED : IncidentStatusEnum.REJECTED;
             incidentSv.updateIncidentStatus(incidentId, stat);
         }
     }

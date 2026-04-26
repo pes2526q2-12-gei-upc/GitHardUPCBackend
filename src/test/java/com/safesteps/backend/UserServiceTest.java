@@ -1,5 +1,6 @@
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
@@ -231,5 +232,42 @@ class UserServiceTest {
         assertFalse(deleted);
         verify(filterRepository, never()).deleteById(anyString());
         verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe actualizar reputación y puntos de votantes y del creador al aceptar")
+    void updateUserReliability_Accepted_WithCreator() {
+        Vote v = new Vote(); v.setGoogleId("voter1"); v.setScore(0.5f);
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setReputacio(1.0); voter.setPoints(0);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setReputacio(1.0); creator.setPoints(0);
+
+        when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
+        when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
+
+        // Simulamos que la incidencia es aceptada y le pasamos el ID del creador
+        userService.updateUserReliability(List.of(v), true, "creator1");
+
+        assertEquals(1.01, voter.getReputacio(), 0.001);
+        assertEquals(10, voter.getPoints());
+        assertEquals(1.01, creator.getReputacio(), 0.001);
+        assertEquals(10, creator.getPoints());
+        verify(userRepository, times(2)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe dar puntos por incidencia expirada a votantes y creador")
+    void rewardForExpiredIncident_Success() {
+        Vote v = new Vote(); v.setGoogleId("voter1");
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setPoints(0);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setPoints(0);
+
+        when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
+        when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
+
+        userService.rewardForExpiredIncident(List.of(v), "creator1");
+
+        assertEquals(10, voter.getPoints());
+        assertEquals(10, creator.getPoints());
+        verify(userRepository, times(2)).save(any(User.class));
     }
 }

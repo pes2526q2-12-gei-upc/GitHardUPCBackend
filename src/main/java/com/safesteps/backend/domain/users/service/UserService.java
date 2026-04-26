@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 @Service
@@ -122,26 +121,57 @@ public class UserService {
         }).orElse(null);
     }
 
-    /*
-    Set isIncidentAccepted to true if the incidence reported has been validated to Accepted
-    If the user has voted the same as the result of incidence validation, increase reliability by 0.1, otherwise decrease it by 0.1
-    Ex: u1 -> acc., u2 -> deny, i1 -> acc. u1 will be rewarded, u2 will be penalized.
-    */
     @Transactional
-    public void updateUserReliability(List<Vote> votes, boolean isIncidentAccepted) {
+    public void updateUserReliability(List<Vote> votes, boolean isIncidentAccepted, String creatorGoogleId) {
         for (Vote v : votes) {
-            Optional<User> user = userRepository.findByGoogleId(v.getGoogleId());
-            if (user.isPresent()) {
-                User u = user.get();
-                if ((isIncidentAccepted && v.getScore() > 0) || (!isIncidentAccepted && v.getScore() < 0)) {
-                    u.setReputacio(u.getReputacio() + 0.01);
-                    u.setPoints(u.getPoints() + 10); // Pujar punts de nivell
-                } else {
-                    u.setReputacio(u.getReputacio() - 0.01);
-                }
-                userRepository.save(u);
-            }
+            userRepository.findByGoogleId(v.getGoogleId())
+                    .ifPresent(user -> processUserReliability(user, v, isIncidentAccepted));
         }
+
+        if (creatorGoogleId != null) {
+            userRepository.findByGoogleId(creatorGoogleId)
+                    .ifPresent(creator -> processCreatorReliability(creator, isIncidentAccepted));
+        }
+    }
+
+    @Transactional
+    public void rewardForExpiredIncident(List<Vote> votes, String creatorGoogleId) {
+        for (Vote v : votes) {
+            userRepository.findByGoogleId(v.getGoogleId()).ifPresent(u -> {
+                u.setPoints(u.getPoints() + 10);
+                userRepository.save(u);
+            });
+        }
+        if (creatorGoogleId != null) {
+            userRepository.findByGoogleId(creatorGoogleId).ifPresent(c -> {
+                c.setPoints(c.getPoints() + 10);
+                userRepository.save(c);
+            });
+        }
+    }
+
+    // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    private void processUserReliability(User user, Vote vote, boolean isIncidentAccepted) {
+        boolean isVoteCorrect = (isIncidentAccepted && vote.getScore() > 0) || (!isIncidentAccepted && vote.getScore() < 0);
+
+        if (isVoteCorrect) {
+            user.setReputacio(user.getReputacio() + 0.01);
+            user.setPoints(user.getPoints() + 10);
+        } else {
+            user.setReputacio(user.getReputacio() - 0.01);
+        }
+        userRepository.save(user);
+    }
+
+    private void processCreatorReliability(User creator, boolean isIncidentAccepted) {
+        if (isIncidentAccepted) {
+            creator.setReputacio(creator.getReputacio() + 0.01);
+            creator.setPoints(creator.getPoints() + 10);
+        } else {
+            creator.setReputacio(creator.getReputacio() - 0.01);
+        }
+        userRepository.save(creator);
     }
 
     /**
