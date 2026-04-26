@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 

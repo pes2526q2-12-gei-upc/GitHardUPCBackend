@@ -35,6 +35,8 @@ class ApiAddressControllerTest {
 
     @InjectMocks
     private ApiAddressController apiAddressController;
+    @Mock
+    private RouteEvaluationSafetyService routeEvaluationSafetyService;
 
     @BeforeEach
     void setUp() {
@@ -193,5 +195,47 @@ class ApiAddressControllerTest {
         request.setNRoutes(3);
         request.setFiltre(filtre);
         return request;
+    }
+
+
+    @Test
+    void evaluateRouteSecurity_NullRoutePoints() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints2() throws Exception {
+        String s = "{\"routePoints\": null}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}" +
+                "]}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_OK() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}, " +
+                "{\"lon\": 2.17, \"lat\": 41.38}" +
+                "]}";
+
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isOk());
     }
 }

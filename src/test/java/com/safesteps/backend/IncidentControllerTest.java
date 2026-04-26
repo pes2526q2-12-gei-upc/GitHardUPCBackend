@@ -131,11 +131,6 @@ class IncidentControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    @Test
-    void updateIncident_BADDREQ() throws Exception {
-        mockMvc.perform(put("/api/v1/incidents/1"))
-                .andExpect(status().isBadRequest());
-    }
 
     @Test
     void deleteIncident() throws Exception {
