@@ -21,6 +21,7 @@ ADD COLUMN IF NOT EXISTS cnt_infraccions NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS cnt_refugis_climatics INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS cnt_incidents INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
 
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
@@ -97,6 +98,10 @@ CREATE INDEX IF NOT EXISTS idx_aire_geom ON bcn_qualitat_aire USING GIST(geom);
 ALTER TABLE bcn_refugis_climatics ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_refugis_climatics SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(geo_epgs_4326_lon::numeric, geo_epgs_4326_lat::numeric), 4326), 25831) WHERE geo_epgs_4326_lon IS NOT NULL AND geo_epgs_4326_lat IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_refugis_geom ON bcn_refugis_climatics USING GIST(geom);
+
+-- Incidents (tabla dinámica generada por la app, siempre en EPSG:4326)
+-- Creamos un índice espacial sobre la geometría transformada a EPSG:25831 para acelerar el cruce espacial
+CREATE INDEX IF NOT EXISTS idx_incidents_geom_25831 ON incidents USING GIST(ST_Transform(location, 25831));
 
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
@@ -177,6 +182,18 @@ SET cnt_refugis_climatics = (
     WHERE r.geom IS NOT NULL
     AND ST_DWithin(t.geom, r.geom, 50) -- Un radi de 50m sembla adient
 );
+
+-- Incidencias aceptadas cerca del tramo (radio: 50m)
+-- Contem quantes incidències ACCEPTED hi ha a menys de 50m de cada tram.
+-- El resultat es guarda a cnt_incidents i s'usa per penalitzar la ruta.
+UPDATE bcn_grafvial_trams t
+SET cnt_incidents = (
+    SELECT COUNT(*)
+    FROM incidents i
+    WHERE i.status = 'ACCEPTED'
+    AND t.geom IS NOT NULL
+    AND ST_DWithin(t.geom, ST_Transform(i.location, 25831), 50)
+);
 -- =========================================================================================
 -- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
 -- =========================================================================================
@@ -201,7 +218,8 @@ AS SELECT t."FID" AS fid,
           t.cnt_fets_delictius,
           t.score_soroll,
           t.score_aire,
-          t.cnt_refugis_climatics
+          t.cnt_refugis_climatics,
+          t.cnt_incidents
    FROM bcn_grafvial_trams t
             JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
             JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
