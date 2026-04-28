@@ -52,7 +52,7 @@ public class AdminUserControllerTest {
         mockUserDTO.setId(1L);
         mockUserDTO.setEmail("test@example.com");
         mockUserDTO.setUsername("testuser");
-        mockUserDTO.setPoints(100);
+        mockUserDTO.setPoints(100L);
         mockUserDTO.setLevel(2L);
         mockUserDTO.setReputacio(5);
         mockUserDTO.setStatus(UserStatus.ACTIVE);

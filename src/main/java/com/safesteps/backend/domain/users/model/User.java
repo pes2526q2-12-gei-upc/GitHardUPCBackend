@@ -33,7 +33,7 @@ public class User {
     private String language;
 
     @Column(nullable = false)
-    private Integer points = 0;
+    private Long points = 0L;
 
     @Column(nullable = false)
     private Long level = 1L;
@@ -55,4 +55,7 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name="pending_rewards")
+    private Long recompenses;
 }
