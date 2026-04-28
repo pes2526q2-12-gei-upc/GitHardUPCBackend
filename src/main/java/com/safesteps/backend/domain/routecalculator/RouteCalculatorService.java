@@ -21,6 +21,8 @@ public class RouteCalculatorService {
     }
 
     public RouteResponseDTO getBestRoute(Coord org, Coord dest, int nRoutes, Filtre filtre) {
+        // La validación automática con @InsideBarcelona se encarga de verificar que las coordenadas estén dentro de Barcelona
+
         // Com ens arriba en lat i long, ho hem de passar als identificadors dels carrers mes propers
         Long start = carrerRepository.findNearestNode(org.getLat(), org.getLon());
         Long end = carrerRepository.findNearestNode(dest.getLat(), dest.getLon());

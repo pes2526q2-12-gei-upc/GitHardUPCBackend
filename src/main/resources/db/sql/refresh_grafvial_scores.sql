@@ -212,3 +212,17 @@ AS SELECT t."FID" AS fid,
 CREATE UNIQUE INDEX idx_vtrams_fid ON public.v_trams_nodes USING btree (fid);
 CREATE INDEX idx_vtrams_source ON public.v_trams_nodes USING btree (source);
 CREATE INDEX idx_vtrams_target ON public.v_trams_nodes USING btree (target);
+
+-- =========================================================================================
+-- FASE D: CREACIÓN DEL POLÍGONO DE LÍMITES DE BARCELONA (SSOT)
+-- =========================================================================================
+
+-- 1. Vista materializada para el límite de Barcelona usando ST_ConcaveHull
+CREATE MATERIALIZED VIEW IF NOT EXISTS barcelona_boundary AS
+SELECT ST_Transform(ST_ConcaveHull(ST_Collect(geom), 0.90), 4326) AS boundary_geom
+FROM bcn_grafvial_trams
+WHERE geom IS NOT NULL
+WITH DATA;
+
+-- 2. Índice para acelerar consultas
+CREATE INDEX IF NOT EXISTS idx_barcelona_boundary_geom ON barcelona_boundary USING GIST(boundary_geom);
