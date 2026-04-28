@@ -119,7 +119,7 @@ public class IncidentService {
 
         public void updateIncidentStatus(Long incidentId, IncidentStatusEnum status) {
             Optional<Incident> i = incidentRepo.findById(incidentId);
-            if (i.isEmpty()) throw new BadRequestException("Incidencia no trobada amb id " + incidentId);
+            if (i.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id " + incidentId);
             Incident incident = i.get();
             incident.setStatus(status.name());
             incidentRepo.save(incident);
