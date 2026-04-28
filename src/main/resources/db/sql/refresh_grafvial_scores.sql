@@ -197,7 +197,10 @@ SET cnt_incidents = (
 -- =========================================================================================
 -- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
 -- =========================================================================================
--- 1. Por si acaso, la borramos (aunque Python ya lo haya hecho por cascade)
+-- 1. Eliminar v_trams_nodes independientemente de su tipo actual en BD.
+--    Puede existir como TABLE (ejecuciones antiguas), VIEW o MATERIALIZED VIEW.
+--    Cubrimos los tres casos para garantizar idempotencia.
+DROP TABLE IF EXISTS public.v_trams_nodes CASCADE;
 DROP VIEW IF EXISTS public.v_trams_nodes CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_trams_nodes CASCADE;
 
@@ -219,7 +222,8 @@ AS SELECT t."FID" AS fid,
           t.score_soroll,
           t.score_aire,
           t.cnt_refugis_climatics,
-          t.cnt_incidents
+          t.cnt_incidents,
+          t.cnt_cameres
    FROM bcn_grafvial_trams t
             JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
             JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
