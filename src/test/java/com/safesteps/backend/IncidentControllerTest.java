@@ -6,7 +6,9 @@ import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
+import com.safesteps.backend.domain.routecalculator.BarcelonaBoundaryService;
 import com.safesteps.backend.domain.routecalculator.Coord;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,6 +18,7 @@ import org.springframework.test.web.servlet.*;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import org.springframework.http.MediaType;
 
@@ -36,8 +39,17 @@ class IncidentControllerTest {
     @MockBean
     private IncidentVoteService voteService;
 
+    @MockBean
+    private BarcelonaBoundaryService barcelonaBoundaryService;
+
     @Autowired
     private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        // Coordenadas usadas en los tests están dentro de Barcelona
+        when(barcelonaBoundaryService.isWithinBarcelona(anyDouble(), anyDouble())).thenReturn(true);
+    }
 
     @Test
     void getIncidents() throws Exception {
