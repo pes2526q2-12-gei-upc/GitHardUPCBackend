@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
@@ -44,6 +45,11 @@ public class Filtre {
     @Min(value = 0, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     @Max(value = 1, message = "El valor del filtro tiene que ser un valor entre 0 y 1.")
     private double infraccions = 0;
+
+    // Pes fix per a les incidències ACCEPTED. No és configurable per l'usuari
+    // ni es guarda a la BD: s'aplica sempre a totes les rutes.
+    @Transient
+    private double incidencies = 0.5;
 
 
     //Confort
@@ -111,6 +117,7 @@ public class Filtre {
         this.arbres = (fPj.getArbres() == null)? 0.5: fPj.getArbres();
         this.refugisClimatics = (fPj.getRefugisClimatics() == null)? 0.5: fPj.getRefugisClimatics();
         this.qualitatAire = (fPj.getQualitatAire() == null)? 0.5: fPj.getQualitatAire();
+        this.incidencies = 0.5; // Sempre actiu, independentment del filtre personalitzat
     }
 
 }

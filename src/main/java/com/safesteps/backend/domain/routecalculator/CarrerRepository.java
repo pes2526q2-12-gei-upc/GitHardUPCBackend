@@ -39,6 +39,10 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "              + (' || :#{#filtre.refugisClimatics}     || ' * GREATEST(0, 1.0 - COALESCE(cnt_refugis_climatics, 0.0))) " +
                     "              + (' || :#{#filtre.qualitatAire}     || ' * GREATEST(0, 1.0 - COALESCE(score_aire/100.0, 0.0))) " +
 
+                    // Penalitzaci\u00f3 per incid\u00e8ncies: pes fix 0.5, actiu sempre.
+                    // LEAST(1, cnt_incidents) evita que m\u00faltiples incid\u00e8ncies amplifiquin el cost m\u00e9s enll\u00e0 del pes definit.
+                    "              + (' || :#{#filtre.incidencies} || ' * LEAST(1.0, COALESCE(cnt_incidents, 0.0))) " +
+
                     "          )) * " +
                     "          CASE WHEN fid = ANY(string_to_array(''' || :penalizedEdges || ''', '','')::bigint[]) " +
                     "               THEN 1.25 " + // Factor de penalitzacio per rutes repetides
