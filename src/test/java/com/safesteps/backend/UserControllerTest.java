@@ -7,6 +7,7 @@ import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.GlobalExceptionHandler;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -220,6 +221,20 @@ class UserControllerTest {
         mockMvc.perform(patch("/api/v1/users/none/language")
                         .param("lang", "es"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/open-prize - Usuario existe (OK)")
+    void requestPrize_OK() throws Exception {
+        PremiDTO p = new PremiDTO();
+        p.setId("prize-123");
+        p.setUrl("http://example.com/prize.png");
+
+        when(userService.openPrize("googleId")).thenReturn(p);
+
+        mockMvc.perform(get("/api/v1/users/googleId/open-prize")
+                        .param("lang", "en"))
+                .andExpect(status().isOk());
     }
 
     // --- HELPER METHOD ---

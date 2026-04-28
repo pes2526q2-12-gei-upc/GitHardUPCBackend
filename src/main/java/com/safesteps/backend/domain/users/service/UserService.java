@@ -4,8 +4,10 @@ import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
@@ -160,7 +162,42 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public PremiDTO openPrize(String googleId) {
+        UserResponseDTO u = this.getUserByGoogleId(googleId);
+        if (u.getRecompenses() <= 0) throw new BadRequestException("No rewards available to open.");
+        List<Premi> premis = userRepository.getUserAvailablePrizes(googleId);
+        u.setRecompenses(u.getRecompenses() - 1);
+
+        PremiDTO p = pickRandomPrize(premis);
+        userRepository.insertUserPrize(u.getGoogleId(), p.getId());
+        userRepository.decrementPendingRewards(u.getGoogleId());
+        return p;
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    private PremiDTO pickRandomPrize(List<Premi> premis) {
+        double totalWeight = 0;
+        for (Premi p : premis) totalWeight += p.getProbability();
+
+        double r = Math.random() * totalWeight;
+
+        double sum = 0.0;
+
+        Premi result = null;
+
+        for (Premi p : premis) {
+            sum += p.getProbability();
+            if (r <= sum) {
+                result = p;
+                break;
+            }
+        }
+        if (!premis.isEmpty() && result == null) result = premis.getFirst();
+        if (result == null) throw new BadRequestException("No prizes available to open.");
+        return new PremiDTO(result);
+    }
 
     private void processUserReliability(User user, Vote vote, boolean isIncidentAccepted) {
         boolean isVoteCorrect = (isIncidentAccepted && vote.getScore() > 0) || (!isIncidentAccepted && vote.getScore() < 0);

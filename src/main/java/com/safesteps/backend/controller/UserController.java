@@ -1,6 +1,7 @@
 package com.safesteps.backend.controller;
 
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -78,5 +79,13 @@ public class UserController {
             @RequestParam String lang) {
         UserResponseDTO updated = userService.updateLanguage(googleId, lang);
         return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{googleId}/open-prize")
+    @Operation(summary = "Obre una de les recompenses disponibles actualment de l'usuari.")
+    public ResponseEntity<PremiDTO> openPrize(
+            @PathVariable String googleId) {
+        PremiDTO premi = userService.openPrize(googleId);
+        return ResponseEntity.ok(premi);
     }
 }
