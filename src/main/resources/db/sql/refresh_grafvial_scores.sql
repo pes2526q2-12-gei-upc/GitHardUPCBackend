@@ -200,7 +200,6 @@ SET cnt_incidents = (
 -- 1. Eliminar v_trams_nodes independientemente de su tipo actual en BD.
 --    Puede existir como TABLE (ejecuciones antiguas), VIEW o MATERIALIZED VIEW.
 --    Cubrimos los tres casos para garantizar idempotencia.
-DROP TABLE IF EXISTS public.v_trams_nodes CASCADE;
 DROP VIEW IF EXISTS public.v_trams_nodes CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_trams_nodes CASCADE;
 
@@ -218,12 +217,13 @@ AS SELECT t."FID" AS fid,
           t.cnt_bancs,
           t.cnt_arbres,
           t.cnt_escales,
+          t.cnt_cameres,
           t.cnt_fets_delictius,
+          t.cnt_infraccions,
           t.score_soroll,
           t.score_aire,
           t.cnt_refugis_climatics,
-          t.cnt_incidents,
-          t.cnt_cameres
+          t.cnt_incidents
    FROM bcn_grafvial_trams t
             JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
             JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
