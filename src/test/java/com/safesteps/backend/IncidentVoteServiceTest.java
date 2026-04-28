@@ -70,39 +70,6 @@ class IncidentVoteServiceTest {
         verify(incidentSv).updateIncidentVoteCount(0.5, incidentId, false);
     }
 
-    @Test
-    void createVote_NoIncident() {
-        Long incidentId = 1L;
-        VoteRequestDTO req = new VoteRequestDTO();
-        req.setVoteScore(1);
-        req.setGoogleId("100L");
-
-        when(incidentSv.findIncidentById(incidentId)).thenReturn(null);
-
-        assertThrows(ResourceNotFoundException.class, () -> voteService.createVote(incidentId, req));
-        verify(voteRepository, never()).save(any());
-        verify(userSv, never()).getUserByGoogleId(any());
-    }
-
-    @Test
-    void createVote_NoUser() {
-        Long incidentId = 1L;
-        VoteRequestDTO req = new VoteRequestDTO();
-        req.setVoteScore(1);
-        req.setGoogleId("a");
-
-        IncidentResponseDTO incident = new IncidentResponseDTO();
-        incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
-        incident.setId(incidentId);
-        incident.setReliabilityIndex(1.0);
-
-        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
-        when(userSv.getUserByGoogleId("a")).thenReturn(null);
-
-        assertThrows(ResourceNotFoundException.class, () -> voteService.createVote(incidentId, req));
-        verify(voteRepository, never()).save(any());
-        verify(incidentSv, never()).updateIncidentVoteCount(anyDouble(), anyLong(), anyBoolean());
-    }
 
     @Test
     void createVote_ZERO() {

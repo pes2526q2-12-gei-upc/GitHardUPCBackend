@@ -22,6 +22,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
 
+    private static final String USER_NOT_FOUND = "User not found for Google ID: ";
+
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
@@ -38,7 +40,7 @@ public class UserService {
     public UserResponseDTO getUserByGoogleId(String googleId) {
         return userRepository.findByGoogleId(googleId)
                 .map(UserResponseDTO::new)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found for Google ID: " + googleId));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional(readOnly = true)
@@ -83,13 +85,13 @@ public class UserService {
             user.setLanguage(req.getLanguage());
             user.setIsAnonymous(req.getIsAnonymous());
             return new UserResponseDTO(userRepository.save(user));
-        }).orElseThrow(() -> new ResourceNotFoundException("User not found for Google ID: " + googleId));
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional
     public void deleteUserByGoogleId(String googleId) {
         User user = userRepository.findByGoogleId(googleId)
-                .orElseThrow(() -> new BadRequestException("User not found for Google ID: " + googleId));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
 
         filterRepository.deleteById(googleId);
         userRepository.delete(user);
@@ -112,7 +114,7 @@ public class UserService {
             updateIfPresent(req.getQualitatAire(), f::setQualitatAire);
 
             return filterRepository.save(f);
-        }).orElseThrow(() -> new BadRequestException("User filters not found for Google ID: " + googleId));
+        }).orElseThrow(() -> new ResourceNotFoundException("User filters not found for Google ID: " + googleId));
     }
 
     @Transactional
@@ -120,7 +122,7 @@ public class UserService {
         return userRepository.findByGoogleId(googleId).map(user -> {
             user.setLanguage(language);
             return new UserResponseDTO(userRepository.save(user));
-        }).orElseThrow(() -> new BadRequestException("User not found for Google ID: " + googleId));
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional

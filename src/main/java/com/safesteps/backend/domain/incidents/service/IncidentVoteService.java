@@ -39,7 +39,6 @@ public class IncidentVoteService {
     @Transactional
     public VoteResponseDTO createVote(Long id, VoteRequestDTO vote) {
         IncidentResponseDTO i = incidentSv.findIncidentById(id);
-        if (i == null) throw new ResourceNotFoundException("Incidencia no trobada amb id: " + id);
         LocalDateTime now = LocalDateTime.now();
 
         double diffDays = ChronoUnit.DAYS.between(i.getCreatedAt().toLocalDate(), now.toLocalDate());
@@ -47,7 +46,6 @@ public class IncidentVoteService {
         double scoreDay = 1.0 / (1.0 + pow(diffDays/7, 4));
 
         UserResponseDTO u = userSv.getUserByGoogleId(vote.getGoogleId());
-        if (u == null) throw new ResourceNotFoundException("Usuari no trobat amb google id: " + vote.getGoogleId());
         Vote v = new Vote();
         v.setIncidenceId(id);
         v.setGoogleId(vote.getGoogleId());

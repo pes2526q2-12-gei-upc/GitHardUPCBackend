@@ -22,6 +22,7 @@ import java.util.Optional;
 public class IncidentService {
         private final IncidentRepository incidentRepo;
         private final UserRepository userRepo;
+        private static final String INCIDENCE_NOT_FOUND = "Incidencia no trobada amb id ";
 
         public IncidentService(IncidentRepository incidentRepository, UserRepository userRepo) {
             this.incidentRepo = incidentRepository;
@@ -54,14 +55,14 @@ public class IncidentService {
 
         public IncidentResponseDTO findIncidentById(Long id){
             Optional<IncidentDBProjection> incident = incidentRepo.findIncidentWithUserById(id);
-            if (incident.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id: " + id);
+            if (incident.isEmpty()) throw new ResourceNotFoundException(INCIDENCE_NOT_FOUND + id);
             return new IncidentResponseDTO(incident.get());
         }
 
         @Transactional
         public IncidentResponseDTO editIncidentById(Long id, IncidentRequestDTO req) {
             Optional<Incident> i = incidentRepo.findById(id);
-            if (i.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id: " + id);
+            if (i.isEmpty()) throw new ResourceNotFoundException(INCIDENCE_NOT_FOUND + id);
             Incident incident = i.get();
             incident.setType(req.getType());
             if (req.getDescription() != null) incident.setDescription(req.getDescription());
@@ -87,14 +88,14 @@ public class IncidentService {
 
         public VoteCountDTO getVoteCount(Long id) {
             Optional<VoteCountDBProjection> voteDB = incidentRepo.getVoteCount(id);
-            if (voteDB.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id " + id);
+            if (voteDB.isEmpty()) throw new ResourceNotFoundException(INCIDENCE_NOT_FOUND + id);
             return new VoteCountDTO(voteDB.get());
         }
 
         @Transactional
         public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
             Optional<Incident> i = incidentRepo.findById(incidentId);
-            if (i.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id " + incidentId);
+            if (i.isEmpty()) throw new ResourceNotFoundException(INCIDENCE_NOT_FOUND + incidentId);
             Incident incident = i.get();
 
             if (delete) {
@@ -119,7 +120,7 @@ public class IncidentService {
 
         public void updateIncidentStatus(Long incidentId, IncidentStatusEnum status) {
             Optional<Incident> i = incidentRepo.findById(incidentId);
-            if (i.isEmpty()) throw new ResourceNotFoundException("Incidencia no trobada amb id " + incidentId);
+            if (i.isEmpty()) throw new ResourceNotFoundException(INCIDENCE_NOT_FOUND + incidentId);
             Incident incident = i.get();
             incident.setStatus(status.name());
             incidentRepo.save(incident);

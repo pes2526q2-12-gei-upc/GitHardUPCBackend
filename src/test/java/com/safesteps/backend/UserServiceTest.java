@@ -192,12 +192,14 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe lanzar BadRequestException al actualizar filtros de usuario que no existe")
-    void updateFilters_WhenNotExists_ThrowsBadRequestException() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al actualizar filtros de usuario que no existe")
+    void updateFilters_WhenNotExists_ThrowsResourceNotFoundException() {
         when(filterRepository.findById("none")).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class,
-                () -> userService.updateFilters("none", new FilterRequestDTO()));
+        FilterRequestDTO request = new FilterRequestDTO();
+        String userId = "none";
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.updateFilters(userId, request));
     }
 
     @Test
@@ -214,11 +216,11 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe lanzar BadRequestException al intentar actualizar idioma de usuario inexistente")
-    void updateLanguage_WhenNotExists_ThrowsBadRequestException() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar actualizar idioma de usuario inexistente")
+    void updateLanguage_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.updateLanguage("none", "en"));
 
     }
@@ -237,11 +239,11 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe lanzar BadRequestException al intentar borrar un usuario inexistente")
-    void deleteUser_WhenNotExists_ThrowsBadRequestException() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar borrar un usuario inexistente")
+    void deleteUser_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.deleteUserByGoogleId("none"));
         verify(filterRepository, never()).deleteById(anyString());
         verify(userRepository, never()).delete(any(User.class));
