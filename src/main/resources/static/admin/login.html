@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSteps - Admin Login</title>
+    <meta name="description" content="Acceso restringido al panel de administración de SafeSteps. Solo para el equipo técnico.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+    <style>
+        /* Login page specific styles */
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem;
+            animation: fadeInUp 0.4s ease both;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+
+        .login-logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .login-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group .input-wrapper {
+            position: relative;
+        }
+
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 12px 44px 12px 16px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input[type="password"]:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .toggle-pass {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+            transition: color 0.2s;
+        }
+        .toggle-pass:hover { color: var(--text-primary); }
+        .toggle-pass svg { width: 18px; height: 18px; display: block; }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--accent-color), #6d4aff);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-family: var(--font-main);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-login:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+        .btn-login:active { transform: translateY(0); }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .login-error {
+            display: none;
+            margin-top: 1rem;
+            padding: 10px 14px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: var(--danger);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        .login-error.visible { display: block; animation: shake 0.35s ease; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%       { transform: translateX(-6px); }
+            60%       { transform: translateX(6px); }
+        }
+
+        .lock-icon {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .lock-icon svg {
+            width: 40px;
+            height: 40px;
+            color: var(--accent-color);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-card glass-panel">
+            <!-- Logo -->
+            <div class="login-logo">
+                <div class="login-logo-icon"></div>
+                <h1>SafeSteps</h1>
+            </div>
+
+            <!-- Lock icon -->
+            <div class="lock-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+
+            <h2 class="login-title">Acceso Restringido</h2>
+            <p class="login-subtitle">Solo para el equipo técnico de SafeSteps</p>
+
+            <form id="loginForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="adminPassword">Contraseña de Administrador</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="password"
+                            id="adminPassword"
+                            name="adminPassword"
+                            placeholder="Introduce la contraseña..."
+                            required
+                            autofocus
+                        >
+                        <button type="button" class="toggle-pass" id="togglePass" title="Mostrar/ocultar contraseña">
+                            <!-- Eye icon -->
+                            <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="btnLogin">Acceder al Panel</button>
+
+                <div class="login-error" id="loginError">
+                    Contraseña incorrecta. Inténtalo de nuevo.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form       = document.getElementById('loginForm');
+        const passInput  = document.getElementById('adminPassword');
+        const btnLogin   = document.getElementById('btnLogin');
+        const errorBox   = document.getElementById('loginError');
+        const toggleBtn  = document.getElementById('togglePass');
+        const eyeIcon    = document.getElementById('eyeIcon');
+
+        // Toggle password visibility
+        toggleBtn.addEventListener('click', () => {
+            const isText = passInput.type === 'text';
+            passInput.type = isText ? 'password' : 'text';
+            eyeIcon.innerHTML = isText
+                ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+                : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        });
+
+        // Submit handler
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorBox.classList.remove('visible');
+            btnLogin.textContent = 'Verificando...';
+            btnLogin.disabled = true;
+
+            try {
+                const res = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: passInput.value })
+                });
+
+                if (res.ok) {
+                    btnLogin.textContent = '✓ Acceso concedido';
+                    window.location.href = '/admin/index.html';
+                } else {
+                    showError();
+                }
+            } catch (err) {
+                showError('Error de conexión. Comprueba que el servidor está activo.');
+            } finally {
+                if (btnLogin.textContent !== '✓ Acceso concedido') {
+                    btnLogin.textContent = 'Acceder al Panel';
+                    btnLogin.disabled = false;
+                }
+            }
+        });
+
+        function showError(msg) {
+            errorBox.textContent = msg || 'Contraseña incorrecta. Inténtalo de nuevo.';
+            errorBox.classList.remove('visible');
+            // Force reflow to restart animation
+            errorBox.offsetWidth;
+            errorBox.classList.add('visible');
+            passInput.value = '';
+            passInput.focus();
+        }
+
+        // Submit with Enter key
+        passInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') form.requestSubmit();
+        });
+    </script>
+</body>
+</html>

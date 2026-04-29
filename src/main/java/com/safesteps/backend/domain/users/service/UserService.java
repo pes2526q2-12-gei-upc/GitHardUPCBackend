@@ -2,6 +2,7 @@ package com.safesteps.backend.domain.users.service;
 
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
@@ -10,6 +11,7 @@ import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -45,9 +47,23 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponseDTO getUserByGoogleId(String googleId) {
-        return userRepository.findByGoogleId(googleId)
-                .map(UserResponseDTO::new)
+        User user = userRepository.findByGoogleId(googleId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new UserForbiddenException(
+                    "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
+                    "USER_BANNED"
+            );
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UserForbiddenException(
+                    "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
+                    "USER_SUSPENDED"
+            );
+        }
+
+        return new UserResponseDTO(user);
     }
 
     @Transactional(readOnly = true)

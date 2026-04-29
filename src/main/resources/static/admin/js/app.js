@@ -23,10 +23,35 @@ const btnSuspend = document.getElementById('btnSuspend');
 const btnBan = document.getElementById('btnBan');
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Comprovem si hi ha sessio activa. Si no, redirigim al login.
+    try {
+        const authRes = await fetch('/admin/check-auth', { headers: { 'Accept': 'application/json' } });
+        if (!authRes.ok) {
+            window.location.href = '/admin/login.html';
+            return;
+        }
+    } catch (err) {
+        window.location.href = '/admin/login.html';
+        return;
+    }
+
     fetchUsers();
     setupEventListeners();
+    setupLogout();
 });
+
+function setupLogout() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (!logoutBtn) return;
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await fetch('/admin/logout', { method: 'POST' });
+        } finally {
+            window.location.href = '/admin/login.html';
+        }
+    });
+}
 
 function setupEventListeners() {
     let timeout;
