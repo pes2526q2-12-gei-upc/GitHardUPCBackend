@@ -5,6 +5,7 @@ import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.Premi;
@@ -286,6 +287,50 @@ class UserServiceTest {
         assertEquals(1010, voter.getPoints());
         assertEquals(10, creator.getPoints());
         verify(userRepository, times(3)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe sumar minutos estimados de ruta como puntos y recalcular nivel")
+    void completeRoute_AddsRoutePointsAndUpdatesLevel() {
+        user.setPoints(99L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 75.0);
+
+        assertEquals(1L, result.getPointsAdded());
+        assertEquals(100L, result.getTotalPoints());
+        assertEquals(2L, result.getLevel());
+        assertTrue(result.isLevelUpdated());
+        assertEquals(1L, result.getRecompenses());
+        verify(userRepository, times(2)).save(user);
+    }
+
+    @Test
+    @DisplayName("Debe rechazar metros negativos al completar ruta")
+    void completeRoute_NegativeMeters_ThrowsBadRequestException() {
+        assertThrows(BadRequestException.class, () -> userService.completeRoute("g-123", -1.0));
+        verify(userRepository, never()).findByGoogleId(anyString());
+    }
+
+    @Test
+    @DisplayName("Debe devolver 0 puntos si la ruta completada tiene 0 metros")
+    void completeRoute_ZeroMeters_AddsNoPoints() {
+        user.setPoints(0L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 0.0);
+
+        assertEquals(0L, result.getPointsAdded());
+        assertEquals(0L, result.getTotalPoints());
+        assertEquals(1L, result.getLevel());
+        assertFalse(result.isLevelUpdated());
+        verify(userRepository).save(user);
     }
 
 
