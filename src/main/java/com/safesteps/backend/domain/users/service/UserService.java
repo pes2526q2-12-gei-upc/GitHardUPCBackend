@@ -1,5 +1,7 @@
 package com.safesteps.backend.domain.users.service;
 
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
@@ -14,11 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static java.lang.Math.sqrt;
+
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
+
+    private static final String USER_NOT_FOUND = "User not found for Google ID: ";
+    private static final int XP_VOTED_INC = 10;
+    private static final int XP_REPORTED_INC = 10;
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
@@ -36,20 +44,20 @@ public class UserService {
     public UserResponseDTO getUserByGoogleId(String googleId) {
         return userRepository.findByGoogleId(googleId)
                 .map(UserResponseDTO::new)
-                .orElse(null);
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional(readOnly = true)
     public UserResponseDTO getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(UserResponseDTO::new)
-                .orElse(null);
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));
     }
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO req) {
         if (userRepository.existsByEmail(req.getEmail()) || userRepository.existsByGoogleId(req.getGoogleId())) {
-            return null;
+            throw new BadRequestException("User already exists with the provided email or Google ID.");
         }
 
         User user = new User();
@@ -59,7 +67,7 @@ public class UserService {
         user.setPictureUrl(req.getPictureUrl());
         user.setLanguage(req.getLanguage());
         user.setIsAnonymous(req.getIsAnonymous());
-        user.setPoints(0);
+        user.setPoints(0L);
         user.setLevel(1L);
         user.setReputacio(1);
 
@@ -81,16 +89,16 @@ public class UserService {
             user.setLanguage(req.getLanguage());
             user.setIsAnonymous(req.getIsAnonymous());
             return new UserResponseDTO(userRepository.save(user));
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional
-    public boolean deleteUserByGoogleId(String googleId) {
-        return userRepository.findByGoogleId(googleId).map(user -> {
-            filterRepository.deleteById(googleId);
-            userRepository.delete(user);
-            return true;
-        }).orElse(false);
+    public void deleteUserByGoogleId(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        filterRepository.deleteById(googleId);
+        userRepository.delete(user);
     }
 
     @Transactional
@@ -110,7 +118,7 @@ public class UserService {
             updateIfPresent(req.getQualitatAire(), f::setQualitatAire);
 
             return filterRepository.save(f);
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException("User filters not found for Google ID: " + googleId));
     }
 
     @Transactional
@@ -118,7 +126,7 @@ public class UserService {
         return userRepository.findByGoogleId(googleId).map(user -> {
             user.setLanguage(language);
             return new UserResponseDTO(userRepository.save(user));
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional
@@ -138,14 +146,16 @@ public class UserService {
     public void rewardForExpiredIncident(List<Vote> votes, String creatorGoogleId) {
         for (Vote v : votes) {
             userRepository.findByGoogleId(v.getGoogleId()).ifPresent(u -> {
-                u.setPoints(u.getPoints() + 10);
+                u.setPoints(u.getPoints() + XP_VOTED_INC);
                 userRepository.save(u);
+                calculateLevel(u);
             });
         }
         if (creatorGoogleId != null) {
             userRepository.findByGoogleId(creatorGoogleId).ifPresent(c -> {
-                c.setPoints(c.getPoints() + 10);
+                c.setPoints(c.getPoints() + XP_REPORTED_INC);
                 userRepository.save(c);
+                calculateLevel(c);
             });
         }
     }
@@ -157,21 +167,40 @@ public class UserService {
 
         if (isVoteCorrect) {
             user.setReputacio(user.getReputacio() + 0.01);
-            user.setPoints(user.getPoints() + 10);
+            user.setPoints(user.getPoints() + XP_VOTED_INC);
         } else {
             user.setReputacio(user.getReputacio() - 0.01);
         }
         userRepository.save(user);
+        calculateLevel(user);
     }
 
     private void processCreatorReliability(User creator, boolean isIncidentAccepted) {
         if (isIncidentAccepted) {
             creator.setReputacio(creator.getReputacio() + 0.01);
-            creator.setPoints(creator.getPoints() + 10);
+            creator.setPoints(creator.getPoints() + XP_REPORTED_INC);
         } else {
             creator.setReputacio(creator.getReputacio() - 0.01);
         }
         userRepository.save(creator);
+        calculateLevel(creator);
+    }
+
+    private void calculateLevel(User u) {
+        int lvl = u.getLevel().intValue();
+        Long points = u.getPoints();
+        Long currLvl = getLevelByPoints(points);
+        if (currLvl > lvl) {
+            long diff = currLvl - lvl;
+            long rew = u.getRecompenses() == null? 0L : u.getRecompenses();
+            u.setLevel(currLvl);
+            u.setRecompenses(rew+diff);
+            userRepository.save(u);
+        }
+    }
+
+    private Long getLevelByPoints(Long points) {
+        return (long) (0.1*sqrt(points) + 1);
     }
 
     /**

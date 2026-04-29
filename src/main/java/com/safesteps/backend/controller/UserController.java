@@ -33,34 +33,33 @@ public class UserController {
     @GetMapping("/{googleId}")
     public ResponseEntity<UserResponseDTO> getByGoogleId(@PathVariable String googleId) {
         UserResponseDTO user = userService.getUserByGoogleId(googleId);
-        return (user != null) ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/search")
     public ResponseEntity<UserResponseDTO> getByEmail(@RequestParam String email) {
         UserResponseDTO user = userService.getUserByEmail(email);
-        return (user != null) ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     @PostMapping
     @Operation(summary = "Crear usuario y sus filtros por defecto")
     public ResponseEntity<UserResponseDTO> create(@Valid @RequestBody UserRequestDTO req) {
         UserResponseDTO created = userService.createUser(req);
-        if (created == null) return ResponseEntity.status(HttpStatus.CONFLICT).build();
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{googleId}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable String googleId, @Valid @RequestBody UserRequestDTO req) {
         UserResponseDTO updated = userService.updateUser(googleId, req);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{googleId}")
     @Operation(summary = "Eliminar usuario y sus filtros")
     public ResponseEntity<Void> delete(@PathVariable String googleId) {
-        boolean deleted = userService.deleteUserByGoogleId(googleId);
-        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        userService.deleteUserByGoogleId(googleId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{googleId}/filters")
@@ -69,7 +68,7 @@ public class UserController {
             @PathVariable String googleId,
             @RequestBody FilterRequestDTO req) {
         UserFilter updated = userService.updateFilters(googleId, req);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{googleId}/language")
@@ -78,6 +77,6 @@ public class UserController {
             @PathVariable String googleId,
             @RequestParam String lang) {
         UserResponseDTO updated = userService.updateLanguage(googleId, lang);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 }

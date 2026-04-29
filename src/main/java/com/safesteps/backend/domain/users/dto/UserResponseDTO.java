@@ -14,7 +14,7 @@ public class UserResponseDTO {
     private String googleId;
     private String pictureUrl;
     private String language;
-    private Integer points;
+    private Long points;
     private Long level;
     private Boolean isAnonymous;
     private double reputacio;

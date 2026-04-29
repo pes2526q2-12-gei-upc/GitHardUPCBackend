@@ -1,5 +1,8 @@
+
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.dto.IncidentRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.model.Incident;
@@ -9,6 +12,7 @@ import com.safesteps.backend.domain.incidents.projections.IncidentDBProjection;
 import com.safesteps.backend.domain.incidents.projections.VoteCountDBProjection;
 import com.safesteps.backend.domain.incidents.repository.IncidentRepository;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
+import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.routecalculator.Coord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +32,9 @@ class IncidentServiceTest {
 
     @Mock
     private IncidentRepository incidentRepo;
+
+    @Mock
+    private UserRepository userRepo;
 
     @InjectMocks
     private IncidentService incidentService;
@@ -111,7 +118,7 @@ class IncidentServiceTest {
         req.setGoogleId("1L");
         req.setType(IncidentTypeEnum.OBRES);
         req.setDescription("test");
-        assertThrows(IllegalArgumentException.class, () -> incidentService.createIncident(req));
+        assertThrows(BadRequestException.class, () -> incidentService.createIncident(req));
     }
 
 
@@ -130,9 +137,7 @@ class IncidentServiceTest {
     void findIncidentById_Null() {
         when(incidentRepo.findIncidentWithUserById(99L)).thenReturn(Optional.empty());
 
-        IncidentResponseDTO result = incidentService.findIncidentById(99L);
-
-        assertNull(result);
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.findIncidentById(99L));
     }
 
 
@@ -168,9 +173,7 @@ class IncidentServiceTest {
         when(incidentRepo.findById(99L)).thenReturn(Optional.empty());
         IncidentRequestDTO req = new IncidentRequestDTO();
 
-        IncidentResponseDTO result = incidentService.editIncidentById(99L, req);
-
-        assertNull(result);
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.editIncidentById(99L, req));
         verify(incidentRepo, never()).save(any());
     }
 
@@ -180,9 +183,8 @@ class IncidentServiceTest {
     void deleteIncidentById_TRUE() {
         when(incidentRepo.existsById(1L)).thenReturn(true);
 
-        boolean result = incidentService.deleteIncidentById(1L);
+        incidentService.deleteIncidentById(1L);
 
-        assertTrue(result);
         verify(incidentRepo, times(1)).deleteById(1L);
     }
 
@@ -190,9 +192,7 @@ class IncidentServiceTest {
     void deleteIncidentById_FALSE() {
         when(incidentRepo.existsById(99L)).thenReturn(false);
 
-        boolean result = incidentService.deleteIncidentById(99L);
-
-        assertFalse(result);
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.deleteIncidentById(99L));
         verify(incidentRepo, never()).deleteById(anyLong());
     }
 
@@ -201,6 +201,7 @@ class IncidentServiceTest {
         String googleId = "1L";
         IncidentDBProjection mockProjection = mock(IncidentDBProjection.class);
 
+        when(userRepo.existsByGoogleId(googleId)).thenReturn(true);
         when(incidentRepo.getAllByUserId(googleId)).thenReturn(List.of(mockProjection));
 
         List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(googleId);
@@ -214,6 +215,7 @@ class IncidentServiceTest {
     void getIncidentsByUserId_EMPTY() {
         String googleId = "99L";
 
+        when(userRepo.existsByGoogleId(googleId)).thenReturn(true);
         when(incidentRepo.getAllByUserId(googleId)).thenReturn(List.of());
 
         List<IncidentResponseDTO> result = incidentService.getIncidentsByUserId(googleId);
@@ -221,6 +223,14 @@ class IncidentServiceTest {
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(incidentRepo, times(1)).getAllByUserId(googleId);
+    }
+
+    @Test
+    void getIncidentsByUserId_NotFound() {
+        when(userRepo.existsByGoogleId("missing-user")).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.getIncidentsByUserId("missing-user"));
+        verify(incidentRepo, never()).getAllByUserId(anyString());
     }
 
     @Test
@@ -237,7 +247,7 @@ class IncidentServiceTest {
         Long userId = 99L;
         when(incidentRepo.getVoteCount(userId)).thenReturn(Optional.empty());
 
-        assertNull(incidentService.getVoteCount(userId));
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.getVoteCount(userId));
     }
 
     @Test
@@ -320,8 +330,8 @@ class IncidentServiceTest {
     void updateIncidentVoteCount_NOTFOUND() {
         when(incidentRepo.findById(anyLong())).thenReturn(Optional.empty());
 
-        incidentService.updateIncidentVoteCount(1.0, 99L, false);
-
+        assertThrows(ResourceNotFoundException.class,
+                () -> incidentService.updateIncidentVoteCount(1.0, 99L, false));
         verify(incidentRepo, never()).save(any());
     }
 
@@ -337,7 +347,10 @@ class IncidentServiceTest {
 
         incidentService.updateIncidentVoteCount(0.0, 1L, false);
 
-        verify(incidentRepo, never()).save(any());
+        assertEquals(6, incident.getPositiveVotes());
+        assertEquals(3, incident.getNegativeVotes());
+        assertEquals(8.0, incident.getReliabilityIndex());
+        verify(incidentRepo).save(incident);
     }
 
     @Test
@@ -353,8 +366,8 @@ class IncidentServiceTest {
     @Test
     void getIncidentCreatorGoogleId_NotExists() {
         when(incidentRepo.findById(1L)).thenReturn(Optional.empty());
-        String result = incidentService.getIncidentCreatorGoogleId(1L);
-        assertNull(result);
+
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.getIncidentCreatorGoogleId(1L));
     }
 
     @Test

@@ -3,6 +3,9 @@ package com.safesteps.backend;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.safesteps.backend.controller.UserController;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.GlobalExceptionHandler;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
@@ -20,9 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -42,7 +45,9 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         objectMapper.registerModule(new JavaTimeModule());
-        mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(userController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     // --- TESTS PARA GET ALL ---
@@ -70,7 +75,8 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/v1/users/{googleId} - No existe (Not Found)")
     void getByGoogleId_WhenNotExists_ReturnsNotFound() throws Exception {
-        when(userService.getUserByGoogleId("none")).thenReturn(null);
+        when(userService.getUserByGoogleId("none"))
+                .thenThrow(new ResourceNotFoundException("User not found for Google ID: none"));
 
         mockMvc.perform(get("/api/v1/users/none"))
                 .andExpect(status().isNotFound());
@@ -89,7 +95,8 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/v1/users/search - Email no existe (Not Found)")
     void getByEmail_WhenNotExists_ReturnsNotFound() throws Exception {
-        when(userService.getUserByEmail("none@test.com")).thenReturn(null);
+        when(userService.getUserByEmail("none@test.com"))
+                .thenThrow(new ResourceNotFoundException("User not found for email: none@test.com"));
 
         mockMvc.perform(get("/api/v1/users/search").param("email", "none@test.com"))
                 .andExpect(status().isNotFound());
@@ -109,15 +116,16 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/users - Conflicto de email o id (Conflict)")
-    void create_WhenConflict_ReturnsConflict() throws Exception {
+    @DisplayName("POST /api/v1/users - Conflicto de email o id (Bad Request)")
+    void create_WhenConflict_ReturnsBadRequest() throws Exception {
         UserRequestDTO request = createValidRequest("existing@test.com", "user");
-        when(userService.createUser(any(UserRequestDTO.class))).thenReturn(null);
+        when(userService.createUser(any(UserRequestDTO.class)))
+                .thenThrow(new BadRequestException("User already exists with the provided email or Google ID."));
 
         mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
     }
 
     // --- TESTS PARA UPDATE (GENERAL) ---
@@ -137,7 +145,8 @@ class UserControllerTest {
     @DisplayName("PUT /api/v1/users/{googleId} - Usuario no existe (Not Found)")
     void update_WhenUserNotExists_ReturnsNotFound() throws Exception {
         UserRequestDTO request = createValidRequest("test@test.com", "updatedName");
-        when(userService.updateUser(eq("none"), any(UserRequestDTO.class))).thenReturn(null);
+        when(userService.updateUser(eq("none"), any(UserRequestDTO.class)))
+                .thenThrow(new ResourceNotFoundException("User not found for Google ID: none"));
 
         mockMvc.perform(put("/api/v1/users/none")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -149,16 +158,15 @@ class UserControllerTest {
     @Test
     @DisplayName("DELETE /api/v1/users/{googleId} - Borrado exitoso (No Content)")
     void delete_WhenUserExists_ReturnsNoContent() throws Exception {
-        when(userService.deleteUserByGoogleId("g-123")).thenReturn(true);
-
         mockMvc.perform(delete("/api/v1/users/g-123"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/users/{googleId} - Usuario no existe (Not Found)")
-    void delete_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
-        when(userService.deleteUserByGoogleId("none")).thenReturn(false);
+    @DisplayName("DELETE /api/v1/users/{googleId} - Usuario no existe (Bad Request)")
+    void delete_WhenUserDoesNotExist_ReturnsBadRequest() throws Exception {
+        doThrow(new ResourceNotFoundException("User not found for Google ID: none"))
+                .when(userService).deleteUserByGoogleId("none");
 
         mockMvc.perform(delete("/api/v1/users/none"))
                 .andExpect(status().isNotFound());
@@ -181,9 +189,10 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/v1/users/{googleId}/filters - Usuario no existe (Not Found)")
-    void updateFilters_WhenUserNotExists_ReturnsNotFound() throws Exception {
-        when(userService.updateFilters(eq("none"), any(FilterRequestDTO.class))).thenReturn(null);
+    @DisplayName("PUT /api/v1/users/{googleId}/filters - Usuario no existe (Bad Request)")
+    void updateFilters_WhenUserNotExists_ReturnsBadRequest() throws Exception {
+        when(userService.updateFilters(eq("none"), any(FilterRequestDTO.class)))
+                .thenThrow(new ResourceNotFoundException("User filters not found for Google ID: none"));
 
         mockMvc.perform(put("/api/v1/users/none/filters")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -203,9 +212,10 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /api/v1/users/{googleId}/language - Usuario no existe (Not Found)")
-    void updateLanguage_WhenUserDoesNotExist_ReturnsNotFound() throws Exception {
-        when(userService.updateLanguage("none", "es")).thenReturn(null);
+    @DisplayName("PATCH /api/v1/users/{googleId}/language - Usuario no existe (Bad Request)")
+    void updateLanguage_WhenUserDoesNotExist_ReturnsBadRequest() throws Exception {
+        when(userService.updateLanguage("none", "es"))
+                .thenThrow(new ResourceNotFoundException("User not found for Google ID: none"));
 
         mockMvc.perform(patch("/api/v1/users/none/language")
                         .param("lang", "es"))
