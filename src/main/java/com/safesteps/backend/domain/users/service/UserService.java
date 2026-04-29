@@ -6,6 +6,7 @@ import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.Premi;
@@ -32,6 +33,7 @@ public class UserService {
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
     private static final int XP_REPORTED_INC = 10;
+    private static final int WALKING_METERS_PER_MINUTE = 75;
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
@@ -190,6 +192,30 @@ public class UserService {
         return p;
     }
 
+    @Transactional
+    public RouteCompletionResponseDTO completeRoute(String googleId, double meters) {
+        if (!Double.isFinite(meters) || meters < 0) {
+            throw new BadRequestException("Route meters must be zero or greater.");
+        }
+
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        Long previousLevel = user.getLevel();
+        Long pointsAdded = calculateRoutePoints(meters);
+        user.setPoints(user.getPoints() + pointsAdded);
+        userRepository.save(user);
+        calculateLevel(user);
+
+        return new RouteCompletionResponseDTO(
+                user.getLevel(),
+                user.getLevel() > previousLevel,
+                pointsAdded,
+                user.getPoints(),
+                user.getRecompenses()
+        );
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
     private PremiDTO pickRandomPrize(List<Premi> premis) {
@@ -254,6 +280,12 @@ public class UserService {
 
     private Long getLevelByPoints(Long points) {
         return (long) (0.1*sqrt(points) + 1);
+    }
+
+    private Long calculateRoutePoints(double meters) {
+        long estimatedMinutes = Math.round(meters / WALKING_METERS_PER_MINUTE);
+        if (estimatedMinutes == 0 && meters > 0) return 1L;
+        return estimatedMinutes;
     }
 
     /**

@@ -8,6 +8,7 @@ import com.safesteps.backend.domain.common.exception.GlobalExceptionHandler;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -237,6 +238,31 @@ class UserControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value("prize-123"))
                 .andExpect(jsonPath("$.url").value("http://example.com/prize.png"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/complete-route - Suma puntos y devuelve nivel")
+    void completeRoute_OK() throws Exception {
+        RouteCompletionResponseDTO response = new RouteCompletionResponseDTO(2L, true, 2L, 101L, 1L);
+
+        when(userService.completeRoute("googleId", 150.0)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/users/googleId/complete-route")
+                        .param("meters", "150"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.level").value(2))
+                .andExpect(jsonPath("$.levelUpdated").value(true))
+                .andExpect(jsonPath("$.pointsAdded").value(2))
+                .andExpect(jsonPath("$.totalPoints").value(101))
+                .andExpect(jsonPath("$.recompenses").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/complete-route - Falta distancia")
+    void completeRoute_MissingMeters_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/users/googleId/complete-route"))
+                .andExpect(status().isBadRequest());
     }
 
     // --- HELPER METHOD ---
