@@ -125,4 +125,18 @@ public class IncidentService {
             Optional<Incident> incident = incidentRepo.findById(id);
             return incident.map(Incident::getGoogleId).orElse(null);
         }
+
+        @Transactional
+        public void updateExpirationIndex(double score, Long incidentId) {
+            Incident incident = incidentRepo.findById(incidentId)
+                    .orElseThrow(() -> new RuntimeException("Incidente no encontrado"));
+
+            incident.setExpirationIndex(incident.getExpirationIndex() + score);
+
+            if (incident.getExpirationIndex() <= -10.0) {
+                incident.setStatus(IncidentStatusEnum.RESOLVED.name());
+            }
+
+            incidentRepo.save(incident);
+        }
 }

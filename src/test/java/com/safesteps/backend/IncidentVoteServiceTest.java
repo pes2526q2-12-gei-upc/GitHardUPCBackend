@@ -99,23 +99,61 @@ class IncidentVoteServiceTest {
 
 
     @Test
-    void deleteVoteByVoteId_TRUE() {
-        Long voteId = 10L;
+    void deleteVoteByVoteId_Pending() {
         Vote vote = new Vote();
-        vote.setId(voteId);
-        vote.setIncidenceId(1L);
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
         vote.setScore(0.8);
 
-        when(voteRepository.findById(voteId)).thenReturn(Optional.of(vote));
-        IncidentResponseDTO i = new IncidentResponseDTO();
-        i.setReliabilityIndex(1.0);
-        i.setStatus(IncidentStatusEnum.ACCEPTED.name());
-        when(incidentSv.findIncidentById(1L)).thenReturn(i);
-        boolean result = voteService.deleteVoteByVoteId(voteId);
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteVoteByVoteId(1L);
 
         assertTrue(result);
-        verify(incidentSv).updateIncidentVoteCount(0.8, 1L, true);
-        verify(voteRepository).deleteById(voteId);
+        verify(incidentSv).updateIncidentVoteCount(0.8, 2L, true);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteVoteByVoteId_Accepted() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(0.8);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteVoteByVoteId(1L);
+
+        assertTrue(result);
+        verify(incidentSv).updateExpirationIndex(-0.8, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteVoteByVoteId_Resolved_ReturnsFalse() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.RESOLVED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteVoteByVoteId(1L);
+
+        assertFalse(result);
+        verify(voteRepository, never()).deleteById(any());
     }
 
     @Test
@@ -136,22 +174,61 @@ class IncidentVoteServiceTest {
     }
 
     @Test
-    void deleteByUserAndIncidence_TRUE() {
-        Long voteId = 10L;
+    void deleteByUserAndIncidence_Pending() {
         Vote vote = new Vote();
-        vote.setId(voteId);
-        vote.setIncidenceId(1L);
-        vote.setScore(0.8);
-        when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.of(vote));
-        IncidentResponseDTO i = new IncidentResponseDTO();
-        i.setReliabilityIndex(1.0);
-        i.setStatus(IncidentStatusEnum.ACCEPTED.name());
-        when(incidentSv.findIncidentById(1L)).thenReturn(i);
-        boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(1.5);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteByUserAndIncidence(2L, "googleId");
 
         assertTrue(result);
-        verify(incidentSv).updateIncidentVoteCount(0.8, 1L, true);
-        verify(voteRepository).deleteById(voteId);
+        verify(incidentSv).updateIncidentVoteCount(1.5, 2L, true);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_Accepted() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(1.5);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        assertTrue(result);
+        verify(incidentSv).updateExpirationIndex(-1.5, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_Resolved_ReturnsFalse() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.RESOLVED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        assertFalse(result);
+        verify(voteRepository, never()).deleteById(any());
     }
 
     @Test
@@ -235,5 +312,45 @@ class IncidentVoteServiceTest {
 
         verify(userSv).updateUserReliability(anyList(), eq(false), eq("creator1"));
         verify(incidentSv).updateIncidentStatus(1L, IncidentStatusEnum.REJECTED);
+    }
+
+    @Test
+    void deleteVoteByVoteId_AcceptedIncident() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(5.0); // Voto positivo que restó vida
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteVoteByVoteId(1L);
+
+        assertTrue(result);
+        verify(incidentSv).updateExpirationIndex(-5.0, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_AcceptedIncident() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(5.0);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        boolean result = voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        assertTrue(result);
+        verify(incidentSv).updateExpirationIndex(-5.0, 2L);
+        verify(voteRepository).deleteById(1L);
     }
 }
