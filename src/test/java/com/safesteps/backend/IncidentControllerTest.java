@@ -3,6 +3,7 @@ package com.safesteps.backend;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.IncidentController;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
@@ -44,6 +45,9 @@ class IncidentControllerTest {
 
     @MockBean
     private BarcelonaBoundaryService barcelonaBoundaryService;
+
+    @MockBean
+    private AdminMetricsService adminMetricsService;
 
     @Autowired
     private ObjectMapper objectMapper;

@@ -1,6 +1,7 @@
 package com.safesteps.backend.controller;
 
 import com.safesteps.backend.domain.routecalculator.*;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,14 +22,17 @@ public class ApiAddressController {
     private final RouteCalculatorService routeCalculatorService;
     private final FiltreService filtreSv;
     private final RouteEvaluationSafetyService routeEvaluationSafetyService;
+    private final AdminMetricsService adminMetricsService;
     private static final Logger logger = LoggerFactory.getLogger(ApiAddressController.class);
 
     public ApiAddressController(RouteCalculatorService routeCalculatorService,  
                                 FiltreService filtreSv, 
-                                RouteEvaluationSafetyService routeEvaluationSafetyService) {
+                                RouteEvaluationSafetyService routeEvaluationSafetyService,
+                                AdminMetricsService adminMetricsService) {
         this.routeCalculatorService = routeCalculatorService;
         this.filtreSv = filtreSv;
         this.routeEvaluationSafetyService = routeEvaluationSafetyService;
+        this.adminMetricsService = adminMetricsService;
     }
 
     @Operation(
@@ -42,17 +46,25 @@ public class ApiAddressController {
     })
     @PostMapping("/calculate-route")
     public ResponseEntity<RouteResponseDTO> calculateRoute(@Valid @RequestBody RouteRequestDTO request) {
-        FiltreEnum f = request.getFiltre();
-        Filtre filtre = filtreSv.getFiltre(request.getGoogleId(), f);
+        long startNanos = System.nanoTime();
+        boolean success = false;
+        try {
+            FiltreEnum f = request.getFiltre();
+            Filtre filtre = filtreSv.getFiltre(request.getGoogleId(), f);
 
-        RouteResponseDTO response = routeCalculatorService.getBestRoute(
-                request.getOrigin(),
-                request.getDestination(),
-                request.getNRoutes(),
-                filtre
-        );
+            RouteResponseDTO response = routeCalculatorService.getBestRoute(
+                    request.getOrigin(),
+                    request.getDestination(),
+                    request.getNRoutes(),
+                    filtre
+            );
 
-        return ResponseEntity.ok(response);
+            success = true;
+            return ResponseEntity.ok(response);
+        } finally {
+            long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
+            adminMetricsService.recordRouteRequest(request, durationMs, success);
+        }
     }
 
     @Operation(

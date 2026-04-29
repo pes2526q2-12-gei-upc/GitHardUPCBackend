@@ -2,6 +2,7 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.ApiAddressController;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.routecalculator.*;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +34,9 @@ class ApiAddressControllerTest {
 
     @Mock
     private FiltreService filtreService;
+
+    @Mock
+    private AdminMetricsService adminMetricsService;
 
     @InjectMocks
     private ApiAddressController apiAddressController;

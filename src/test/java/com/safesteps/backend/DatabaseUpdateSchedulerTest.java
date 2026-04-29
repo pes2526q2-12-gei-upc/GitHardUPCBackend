@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,9 @@ class DatabaseUpdateSchedulerTest {
 
     @Mock
     private PostgisCalculationService postgisCalculationService;
+
+    @Mock
+    private AdminMetricsService adminMetricsService;
 
     @InjectMocks
     private DatabaseUpdateScheduler scheduler;
