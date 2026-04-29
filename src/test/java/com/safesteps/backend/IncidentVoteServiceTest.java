@@ -273,14 +273,16 @@ class IncidentVoteServiceTest {
     @Test
     void getVoters() {
         VoteDBProjection v = mock(VoteDBProjection.class);
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setId(1L);
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
         when(v.getGoogleId()).thenReturn("voter1");
         when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(v));
 
         List<Vote> result = voteService.getVoters(1L);
         assertEquals(1, result.size());
-        assertEquals("voter1", result.get(0).getGoogleId());
+        assertEquals("voter1", result.getFirst().getGoogleId());
     }
-
     @Test
     void checkValidation_Accepted() {
         IncidentResponseDTO incident = new IncidentResponseDTO();

@@ -1,5 +1,6 @@
 package com.safesteps.backend.domain.incidents.service;
 
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
@@ -36,11 +37,13 @@ public class IncidentVoteService {
     @Transactional
     public VoteResponseDTO createVote(Long id, VoteRequestDTO vote) {
         IncidentResponseDTO incident = incidentSv.findIncidentById(id);
+        LocalDateTime now = LocalDateTime.now();
+
+        double diffDays = ChronoUnit.DAYS.between(incident.getCreatedAt().toLocalDate(), now.toLocalDate());
+        diffDays = Math.max(0, diffDays); // Extraído de develop: protege contra días negativos
+        double timeFactor = 1.0 / (1.0 + Math.pow(diffDays / 7.0, 4));
+
         UserResponseDTO user = userSv.getUserByGoogleId(vote.getGoogleId());
-
-        long days = ChronoUnit.DAYS.between(incident.getCreatedAt().toLocalDate(), LocalDateTime.now().toLocalDate());
-        double timeFactor = 1.0 / (1.0 + Math.pow(days / 7.0, 4));
-
         Vote v = new Vote();
         v.setIncidenceId(id);
         v.setGoogleId(vote.getGoogleId());
@@ -53,6 +56,7 @@ public class IncidentVoteService {
         if (score != 0) {
             v = voteRepository.save(v);
             this.updateIncidentVoteCount(score, id, false);
+            checkValidation(id); // Extraído de develop: vital para que funcione el cambio de estado
             return new VoteResponseDTO(v);
         }
 
@@ -100,8 +104,9 @@ public class IncidentVoteService {
         return false;
     }
 
-    public List<VoteResponseDTO> getUserVotes(String userId) {
-        List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(userId);
+    public List<VoteResponseDTO> getUserVotes(String googleId) {
+        userSv.getUserByGoogleId(googleId); // Extraído de develop: verifica que el usuario existe
+        List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(googleId);
         List<VoteResponseDTO> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {
             result.add(new VoteResponseDTO(v));
@@ -110,6 +115,8 @@ public class IncidentVoteService {
     }
 
     public List<Vote> getVoters(Long incidentId) {
+        IncidentResponseDTO i =  incidentSv.findIncidentById(incidentId);
+        if (i == null) throw new  ResourceNotFoundException("Incidencia no trobada amb id: " + incidentId);
         List<VoteDBProjection> votes = voteRepository.findAllByIncidenceId(incidentId);
         List<Vote> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {
@@ -120,7 +127,7 @@ public class IncidentVoteService {
 
     @Transactional
     public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
-        if (voteScore != 0) incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
+        incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
     }
 
     //Checks if incidence has surpassed the validation threshold and updates its status if necessary
