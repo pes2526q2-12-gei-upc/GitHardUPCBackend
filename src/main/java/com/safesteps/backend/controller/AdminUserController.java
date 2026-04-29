@@ -13,6 +13,7 @@ import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import java.util.List;
 import java.util.Map;
+import com.safesteps.backend.domain.users.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -21,6 +22,7 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
     private final IncidentService incidentService;
+    private final UserRepository userRepository;
 
     @GetMapping
     public ResponseEntity<Page<AdminUserDTO>> searchUsers(
@@ -57,6 +59,8 @@ public class AdminUserController {
 
     @GetMapping("/{id}/incidents")
     public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long id) {
-        return ResponseEntity.ok(incidentService.getIncidentsByUserId(String.valueOf(id)));
+        return userRepository.findById(id)
+                .map(user -> ResponseEntity.ok(incidentService.getIncidentsByUserId(user.getGoogleId())))
+                .orElse(ResponseEntity.notFound().build());
     }
 }
