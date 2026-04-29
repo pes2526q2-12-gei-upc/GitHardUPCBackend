@@ -19,6 +19,7 @@ public class UserResponseDTO {
     private Boolean isAnonymous;
     private double reputacio;
     private OffsetDateTime createdAt;
+    private Long recompenses;
 
     public UserResponseDTO(User user) {
         if (user == null) return;
@@ -33,5 +34,6 @@ public class UserResponseDTO {
         this.isAnonymous = user.getIsAnonymous();
         this.reputacio = user.getReputacio();
         this.createdAt = user.getCreatedAt();
+        this.recompenses = user.getRecompenses();
     }
 }

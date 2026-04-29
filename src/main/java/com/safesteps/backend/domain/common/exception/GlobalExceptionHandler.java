@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.safesteps.backend.domain.common.exception.UserForbiddenException;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +33,14 @@ public class GlobalExceptionHandler {
         logger.warn("Resource not found at {} - {}", req.getRequestURI(), ex.getMessage());
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), req);
     }
+
+    // usuari baneijat o suspes -> 403 Forbidden
+    @ExceptionHandler(UserForbiddenException.class)
+    public ResponseEntity<ApiErrorResponse> handleUserForbidden(UserForbiddenException ex, HttpServletRequest req) {
+        logger.warn("Forbidden access attempt at {} - {} [{}]", req.getRequestURI(), ex.getMessage(), ex.getErrorCode());
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), req);
+    }
+
     // bad request
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiErrorResponse> handleBadRequestException(BadRequestException ex, HttpServletRequest req) {

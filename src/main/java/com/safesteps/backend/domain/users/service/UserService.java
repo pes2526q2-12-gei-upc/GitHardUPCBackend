@@ -2,17 +2,23 @@ package com.safesteps.backend.domain.users.service;
 
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -27,6 +33,7 @@ public class UserService {
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
     private static final int XP_REPORTED_INC = 10;
+    private static final int WALKING_METERS_PER_MINUTE = 75;
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
@@ -42,9 +49,23 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponseDTO getUserByGoogleId(String googleId) {
-        return userRepository.findByGoogleId(googleId)
-                .map(UserResponseDTO::new)
+        User user = userRepository.findByGoogleId(googleId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new UserForbiddenException(
+                    "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
+                    "USER_BANNED"
+            );
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UserForbiddenException(
+                    "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
+                    "USER_SUSPENDED"
+            );
+        }
+
+        return new UserResponseDTO(user);
     }
 
     @Transactional(readOnly = true)
@@ -160,7 +181,65 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public PremiDTO openPrize(String googleId) {
+        this.getUserByGoogleId(googleId);
+        int rowsAffected = userRepository.decrementPendingRewards(googleId);
+        if (rowsAffected == 0) throw new BadRequestException("No rewards available to open.");
+        List<Premi> premis = userRepository.getUserAvailablePrizes(googleId);
+        PremiDTO p = pickRandomPrize(premis);
+        userRepository.insertUserPrize(googleId, p.getId());
+        return p;
+    }
+
+    @Transactional
+    public RouteCompletionResponseDTO completeRoute(String googleId, double meters) {
+        if (!Double.isFinite(meters) || meters < 0) {
+            throw new BadRequestException("Route meters must be zero or greater.");
+        }
+
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        Long previousLevel = user.getLevel();
+        Long pointsAdded = calculateRoutePoints(meters);
+        user.setPoints(user.getPoints() + pointsAdded);
+        userRepository.save(user);
+        calculateLevel(user);
+
+        return new RouteCompletionResponseDTO(
+                user.getLevel(),
+                user.getLevel() > previousLevel,
+                pointsAdded,
+                user.getPoints(),
+                user.getRecompenses()
+        );
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    private PremiDTO pickRandomPrize(List<Premi> premis) {
+        double totalWeight = 0;
+        for (Premi p : premis) totalWeight += p.getProbability();
+
+        SecureRandom sr = new SecureRandom();
+        double r = sr.nextDouble() * totalWeight;
+
+        double sum = 0.0;
+
+        Premi result = null;
+
+        for (Premi p : premis) {
+            sum += p.getProbability();
+            if (r <= sum) {
+                result = p;
+                break;
+            }
+        }
+        if (!premis.isEmpty() && result == null) result = premis.getFirst();
+        if (result == null) throw new BadRequestException("No prizes available to open.");
+        return new PremiDTO(result);
+    }
 
     private void processUserReliability(User user, Vote vote, boolean isIncidentAccepted) {
         boolean isVoteCorrect = (isIncidentAccepted && vote.getScore() > 0) || (!isIncidentAccepted && vote.getScore() < 0);
@@ -201,6 +280,12 @@ public class UserService {
 
     private Long getLevelByPoints(Long points) {
         return (long) (0.1*sqrt(points) + 1);
+    }
+
+    private Long calculateRoutePoints(double meters) {
+        long estimatedMinutes = Math.round(meters / WALKING_METERS_PER_MINUTE);
+        if (estimatedMinutes == 0 && meters > 0) return 1L;
+        return estimatedMinutes;
     }
 
     /**

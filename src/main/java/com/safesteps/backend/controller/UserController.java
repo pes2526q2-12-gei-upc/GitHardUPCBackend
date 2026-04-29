@@ -1,6 +1,9 @@
 package com.safesteps.backend.controller;
 
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -78,5 +81,27 @@ public class UserController {
             @RequestParam String lang) {
         UserResponseDTO updated = userService.updateLanguage(googleId, lang);
         return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{googleId}/open-prize")
+    @Operation(summary = "Obre una de les recompenses disponibles actualment de l'usuari.")
+    public ResponseEntity<PremiDTO> openPrize(
+            @PathVariable String googleId) {
+        PremiDTO premi = userService.openPrize(googleId);
+        return ResponseEntity.ok(premi);
+    }
+
+    @GetMapping("/{googleId}/complete-route")
+    @Operation(summary = "Completar una ruta y sumar los puntos recorridos")
+    public ResponseEntity<RouteCompletionResponseDTO> completeRoute(
+            @PathVariable String googleId,
+            @RequestParam(required = false) Double meters,
+            @RequestParam(required = false) Double metros) {
+        Double distanceMeters = meters != null ? meters : metros;
+        if (distanceMeters == null) {
+            throw new BadRequestException("Missing route meters.");
+        }
+        RouteCompletionResponseDTO response = userService.completeRoute(googleId, distanceMeters);
+        return ResponseEntity.ok(response);
     }
 }
