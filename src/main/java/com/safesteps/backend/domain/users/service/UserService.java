@@ -15,6 +15,7 @@ import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -181,7 +182,8 @@ public class UserService {
         double totalWeight = 0;
         for (Premi p : premis) totalWeight += p.getProbability();
 
-        double r = Math.random() * totalWeight;
+        SecureRandom sr = new SecureRandom();
+        double r = sr.nextDouble() * totalWeight;
 
         double sum = 0.0;
 
