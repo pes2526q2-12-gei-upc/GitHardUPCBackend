@@ -6,6 +6,9 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.safesteps.backend.security.AdminSessionInterceptor;
+import com.safesteps.backend.security.ExternalApiAuthInterceptor;
+
 @Configuration
 @EnableSpringDataWebSupport
 public class WebMvcConfig implements WebMvcConfigurer {
