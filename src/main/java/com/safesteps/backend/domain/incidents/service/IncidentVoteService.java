@@ -1,5 +1,6 @@
 package com.safesteps.backend.domain.incidents.service;
 
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
@@ -38,7 +39,6 @@ public class IncidentVoteService {
     @Transactional
     public VoteResponseDTO createVote(Long id, VoteRequestDTO vote) {
         IncidentResponseDTO i = incidentSv.findIncidentById(id);
-
         LocalDateTime now = LocalDateTime.now();
 
         double diffDays = ChronoUnit.DAYS.between(i.getCreatedAt().toLocalDate(), now.toLocalDate());
@@ -46,34 +46,29 @@ public class IncidentVoteService {
         double scoreDay = 1.0 / (1.0 + pow(diffDays/7, 4));
 
         UserResponseDTO u = userSv.getUserByGoogleId(vote.getGoogleId());
-
         Vote v = new Vote();
         v.setIncidenceId(id);
         v.setGoogleId(vote.getGoogleId());
-        //AL TENIR EL MODEL D'USUARI POSAR LA SEVA FIABILITAT !!
         v.setReliability(u.getReputacio());
         v.setDataScore(scoreDay);
 
         double score = v.getReliability() * v.getDataScore() * vote.getVoteScore();
         v.setScore(score);
 
-        if (score != 0) {
-            v = voteRepository.save(v);
-            updateIncidentVoteCount(score, id, false);
-            checkValidation(id);
-            return new VoteResponseDTO(v);
-        }
-        return new VoteResponseDTO();
+        v = voteRepository.save(v);
+        updateIncidentVoteCount(score, id, false);
+        checkValidation(id);
+        return new VoteResponseDTO(v);
     }
 
     @Transactional
-    public boolean deleteVoteByVoteId(Long id){
-        return deleteVote(voteRepository.findById(id));
+    public void deleteVoteByVoteId(Long id){
+        if (!deleteVote(voteRepository.findById(id))) throw new ResourceNotFoundException("Vot no trobat amb id: " + id);
     }
 
     @Transactional
-    public boolean deleteByUserAndIncidence(Long incidenceId, String googleId){
-        return deleteVote(voteRepository.findByUserAndIncidence(incidenceId, googleId));
+    public void deleteByUserAndIncidence(Long incidenceId, String googleId){
+        if (!deleteVote(voteRepository.findByUserAndIncidence(incidenceId, googleId)))  throw new ResourceNotFoundException("Vot no trobat amb incidenceId: " + incidenceId + " googleId: " + googleId);
     }
 
     @Transactional
@@ -87,6 +82,8 @@ public class IncidentVoteService {
     }
 
     public List<VoteResponseDTO> getUserVotes(String googleId) {
+        UserResponseDTO u = userSv.getUserByGoogleId(googleId);
+        if (u == null) throw new ResourceNotFoundException("Usuari no trobat amb google id: " + googleId);
         List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(googleId);
         List<VoteResponseDTO> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {
@@ -96,6 +93,8 @@ public class IncidentVoteService {
     }
 
     public List<Vote> getVoters(Long incidentId) {
+        IncidentResponseDTO i =  incidentSv.findIncidentById(incidentId);
+        if (i == null) throw new  ResourceNotFoundException("Incidencia no trobada amb id: " + incidentId);
         List<VoteDBProjection> votes = voteRepository.findAllByIncidenceId(incidentId);
         List<Vote> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {
@@ -106,7 +105,7 @@ public class IncidentVoteService {
 
     @Transactional
     public void updateIncidentVoteCount(double voteScore, Long incidentId, boolean delete) {
-        if (voteScore != 0) incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
+        incidentSv.updateIncidentVoteCount(voteScore, incidentId, delete);
     }
 
     //Checks if incidence has surpassed the validation threshold and updates its status if necessary

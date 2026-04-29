@@ -1,5 +1,7 @@
 package com.safesteps.backend.domain.users.service;
 
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
@@ -20,6 +22,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
 
+    private static final String USER_NOT_FOUND = "User not found for Google ID: ";
+
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
@@ -36,20 +40,20 @@ public class UserService {
     public UserResponseDTO getUserByGoogleId(String googleId) {
         return userRepository.findByGoogleId(googleId)
                 .map(UserResponseDTO::new)
-                .orElse(null);
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional(readOnly = true)
     public UserResponseDTO getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(UserResponseDTO::new)
-                .orElse(null);
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));
     }
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO req) {
         if (userRepository.existsByEmail(req.getEmail()) || userRepository.existsByGoogleId(req.getGoogleId())) {
-            return null;
+            throw new BadRequestException("User already exists with the provided email or Google ID.");
         }
 
         User user = new User();
@@ -81,16 +85,16 @@ public class UserService {
             user.setLanguage(req.getLanguage());
             user.setIsAnonymous(req.getIsAnonymous());
             return new UserResponseDTO(userRepository.save(user));
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional
-    public boolean deleteUserByGoogleId(String googleId) {
-        return userRepository.findByGoogleId(googleId).map(user -> {
-            filterRepository.deleteById(googleId);
-            userRepository.delete(user);
-            return true;
-        }).orElse(false);
+    public void deleteUserByGoogleId(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        filterRepository.deleteById(googleId);
+        userRepository.delete(user);
     }
 
     @Transactional
@@ -110,7 +114,7 @@ public class UserService {
             updateIfPresent(req.getQualitatAire(), f::setQualitatAire);
 
             return filterRepository.save(f);
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException("User filters not found for Google ID: " + googleId));
     }
 
     @Transactional
@@ -118,7 +122,7 @@ public class UserService {
         return userRepository.findByGoogleId(googleId).map(user -> {
             user.setLanguage(language);
             return new UserResponseDTO(userRepository.save(user));
-        }).orElse(null);
+        }).orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
     }
 
     @Transactional

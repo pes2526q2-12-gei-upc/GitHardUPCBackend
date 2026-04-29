@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -18,6 +21,7 @@ public class ApiAddressController {
     private final RouteCalculatorService routeCalculatorService;
     private final FiltreService filtreSv;
     private final RouteEvaluationSafetyService routeEvaluationSafetyService;
+    private static final Logger logger = LoggerFactory.getLogger(ApiAddressController.class);
 
     public ApiAddressController(RouteCalculatorService routeCalculatorService,  
                                 FiltreService filtreSv, 
@@ -40,7 +44,6 @@ public class ApiAddressController {
     public ResponseEntity<RouteResponseDTO> calculateRoute(@Valid @RequestBody RouteRequestDTO request) {
         FiltreEnum f = request.getFiltre();
         Filtre filtre = filtreSv.getFiltre(request.getGoogleId(), f);
-        if (filtre == null) return ResponseEntity.badRequest().build();
 
         RouteResponseDTO response = routeCalculatorService.getBestRoute(
                 request.getOrigin(),
@@ -70,7 +73,8 @@ public class ApiAddressController {
     public ResponseEntity<ExternalSafetyResponseDTO> evaluateRouteSecurity(@RequestBody ExternalRouteRequestDTO request) {
 
         if (request.getRoutePoints() == null || request.getRoutePoints().size() < 2) {
-            return ResponseEntity.badRequest().build(); // Necessitem almenys 2 punts per fer una ruta
+            logger.warn("evaluateRouteSecurity bad request: insufficient route points: {}", request.getRoutePoints() == null ? 0 : request.getRoutePoints().size());
+            throw new BadRequestException("Necessitem almenys 2 punts per fer una ruta"); // Necessitem almenys 2 punts per fer una ruta
         }
 
         // Cridem al servei per avaluar la llista de coordenades

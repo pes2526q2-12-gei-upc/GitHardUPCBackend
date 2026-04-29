@@ -1,5 +1,7 @@
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
@@ -68,7 +70,7 @@ class UserServiceTest {
         when(userRepository.findAll()).thenReturn(Arrays.asList(user));
         List<UserResponseDTO> result = userService.getAllUsers();
         assertEquals(1, result.size());
-        assertEquals("testuser", result.get(0).getUsername());
+        assertEquals("testuser", result.getFirst().getUsername());
     }
 
     @Test
@@ -81,10 +83,12 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null si el usuario no existe por GoogleId")
-    void getUserByGoogleId_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException si el usuario no existe por GoogleId")
+    void getUserByGoogleId_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        assertNull(userService.getUserByGoogleId("none"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserByGoogleId("none"));
     }
 
     @Test
@@ -97,10 +101,13 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null si el usuario no existe por Email")
-    void getUserByEmail_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException si el usuario no existe por Email")
+    void getUserByEmail_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByEmail("none@test.com")).thenReturn(Optional.empty());
-        assertNull(userService.getUserByEmail("none@test.com"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserByEmail("none@test.com"));
+
     }
 
     // --- TESTS DE CREACIÓN ---
@@ -127,13 +134,13 @@ class UserServiceTest {
 
     @Test
     @DisplayName("No debe crear un usuario si el email o googleId ya existen")
-    void createUser_WhenExists_ReturnsNull() {
+    void createUser_WhenExists_ThrowsBadRequestException() {
         when(userRepository.existsByEmail("test@test.com")).thenReturn(true);
-        assertNull(userService.createUser(userRequestDTO));
+        assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByGoogleId("g-123")).thenReturn(true);
-        assertNull(userService.createUser(userRequestDTO));
+        assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
         verify(userRepository, never()).save(any());
     }
@@ -155,11 +162,13 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al intentar actualizar un usuario que no existe")
-    void updateUser_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar actualizar un usuario que no existe")
+    void updateUser_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        UserResponseDTO result = userService.updateUser("none", userRequestDTO);
-        assertNull(result);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.updateUser("none", userRequestDTO));
+
     }
 
     @Test
@@ -183,11 +192,14 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al actualizar filtros de usuario que no existe")
-    void updateFilters_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al actualizar filtros de usuario que no existe")
+    void updateFilters_WhenNotExists_ThrowsResourceNotFoundException() {
         when(filterRepository.findById("none")).thenReturn(Optional.empty());
-        UserFilter result = userService.updateFilters("none", new FilterRequestDTO());
-        assertNull(result);
+
+        FilterRequestDTO request = new FilterRequestDTO();
+        String userId = "none";
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.updateFilters(userId, request));
     }
 
     @Test
@@ -204,10 +216,13 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al intentar actualizar idioma de usuario inexistente")
-    void updateLanguage_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar actualizar idioma de usuario inexistente")
+    void updateLanguage_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        assertNull(userService.updateLanguage("none", "en"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.updateLanguage("none", "en"));
+
     }
 
     // --- TESTS DE BORRADO ---
@@ -217,19 +232,19 @@ class UserServiceTest {
     void deleteUser_Success_VerifiesCascadeDelete() {
         when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
 
-        boolean deleted = userService.deleteUserByGoogleId("g-123");
+        userService.deleteUserByGoogleId("g-123");
 
-        assertTrue(deleted);
         verify(filterRepository).deleteById("g-123");
         verify(userRepository).delete(user);
     }
 
     @Test
-    @DisplayName("Debe retornar false al intentar borrar un usuario inexistente")
-    void deleteUser_WhenNotExists_ReturnsFalse() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar borrar un usuario inexistente")
+    void deleteUser_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        boolean deleted = userService.deleteUserByGoogleId("none");
-        assertFalse(deleted);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.deleteUserByGoogleId("none"));
         verify(filterRepository, never()).deleteById(anyString());
         verify(userRepository, never()).delete(any(User.class));
     }
@@ -271,3 +286,4 @@ class UserServiceTest {
         verify(userRepository, times(2)).save(any(User.class));
     }
 }
+

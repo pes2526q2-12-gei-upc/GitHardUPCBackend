@@ -1,5 +1,6 @@
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
 import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
@@ -69,6 +70,7 @@ class IncidentVoteServiceTest {
         verify(incidentSv).updateIncidentVoteCount(0.5, incidentId, false);
     }
 
+
     @Test
     void createVote_ZERO() {
         UserResponseDTO user = mock(UserResponseDTO.class);
@@ -80,21 +82,22 @@ class IncidentVoteServiceTest {
 
         IncidentResponseDTO incident = new IncidentResponseDTO();
         incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
+        incident.setReliabilityIndex(0.0);
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+        incident.setId(incidentId);
 
         when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+        when(voteRepository.save(any(Vote.class))).thenAnswer(i -> i.getArguments()[0]);
         when(userSv.getUserByGoogleId(any())).thenReturn(user);
         when(user.getReputacio()).thenReturn(1.0);
 
         VoteResponseDTO r = voteService.createVote(incidentId, req);
 
-        verify(voteRepository, never()).save(any());
+        verify(voteRepository).save(any(Vote.class));
+        verify(incidentSv).updateIncidentVoteCount(0.0, incidentId, false);
 
         assertNotNull(r);
         assertEquals(0.0, r.getScore(), 0.001);
-        assertNull(r.getCreatedAt());
-        assertNull(r.getIncidenceId());
-        assertNull(r.getGoogleId());
-        assertNull(r.getId());
     }
 
 
@@ -111,28 +114,22 @@ class IncidentVoteServiceTest {
         i.setReliabilityIndex(1.0);
         i.setStatus(IncidentStatusEnum.ACCEPTED.name());
         when(incidentSv.findIncidentById(1L)).thenReturn(i);
-        boolean result = voteService.deleteVoteByVoteId(voteId);
 
-        assertTrue(result);
+        voteService.deleteVoteByVoteId(voteId);
+
         verify(incidentSv).updateIncidentVoteCount(0.8, 1L, true);
         verify(voteRepository).deleteById(voteId);
     }
 
     @Test
-    void deleteVoteByVoteId_EMPTY() {
+    void deleteVoteByVoteId_EMPTY_ThrowsResourceNotFoundException() {
         Long voteId = 10L;
-        Vote vote = new Vote();
-        vote.setId(voteId);
-        vote.setIncidenceId(1L);
-        vote.setScore(0.0);
-
         when(voteRepository.findById(voteId)).thenReturn(Optional.empty());
 
-        boolean result = voteService.deleteVoteByVoteId(voteId);
+        assertThrows(ResourceNotFoundException.class, () -> voteService.deleteVoteByVoteId(voteId));
 
-        assertFalse(result);
         verify(voteRepository, never()).deleteById(any());
-        verify(incidentSv, never()).updateIncidentVoteCount(0.8, 1L, true);
+        verify(incidentSv, never()).updateIncidentVoteCount(anyDouble(), anyLong(), anyBoolean());
     }
 
     @Test
@@ -147,28 +144,29 @@ class IncidentVoteServiceTest {
         i.setReliabilityIndex(1.0);
         i.setStatus(IncidentStatusEnum.ACCEPTED.name());
         when(incidentSv.findIncidentById(1L)).thenReturn(i);
-        boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
 
-        assertTrue(result);
+        voteService.deleteByUserAndIncidence(1L, "100L");
+
         verify(incidentSv).updateIncidentVoteCount(0.8, 1L, true);
         verify(voteRepository).deleteById(voteId);
     }
 
     @Test
-    void deleteByUserAndIncidence_EMPTY() {
+    void deleteByUserAndIncidence_EMPTY_ThrowsResourceNotFoundException() {
         when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.empty());
 
-        boolean result = voteService.deleteByUserAndIncidence(1L, "100L");
+        assertThrows(ResourceNotFoundException.class,
+                () -> voteService.deleteByUserAndIncidence(1L, "100L"));
 
-        assertFalse(result);
         verify(voteRepository, never()).deleteById(any());
-        verify(incidentSv, never()).updateIncidentVoteCount(0.8, 1L, true);
+        verify(incidentSv, never()).updateIncidentVoteCount(anyDouble(), anyLong(), anyBoolean());
     }
 
 
     @Test
     void getUserVotes_DTO() {
         String userId = "100L";
+        UserResponseDTO user = mock(UserResponseDTO.class);
 
         VoteDBProjection p = new VoteDBProjection() {
             @Override public Long getId() { return 1L; }
@@ -178,6 +176,7 @@ class IncidentVoteServiceTest {
             @Override public LocalDateTime getCreatedAt() { return LocalDateTime.now(); }
         };
 
+        when(userSv.getUserByGoogleId(userId)).thenReturn(user);
         when(voteRepository.findAllByGoogleId(userId)).thenReturn(List.of(p));
 
         List<VoteResponseDTO> result = voteService.getUserVotes(userId);
@@ -188,20 +187,40 @@ class IncidentVoteServiceTest {
     }
 
     @Test
+    void getUserVotes_NoUser_ThrowsResourceNotFoundException() {
+        when(userSv.getUserByGoogleId("a")).thenReturn(null);
+
+        assertThrows(ResourceNotFoundException.class, () -> voteService.getUserVotes("a"));
+        verify(voteRepository, never()).findAllByGoogleId(anyString());
+    }
+
+    @Test
     void updateIncidentVoteCount_Zero() {
         voteService.updateIncidentVoteCount(0.0, 1L, false);
+        verify(incidentSv).updateIncidentVoteCount(0.0, 1L, false);
         verify(voteRepository, never()).save(any());
     }
 
     @Test
     void getVoters() {
         VoteDBProjection v = mock(VoteDBProjection.class);
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setId(1L);
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
         when(v.getGoogleId()).thenReturn("voter1");
         when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(v));
 
         List<Vote> result = voteService.getVoters(1L);
         assertEquals(1, result.size());
-        assertEquals("voter1", result.get(0).getGoogleId());
+        assertEquals("voter1", result.getFirst().getGoogleId());
+    }
+
+    @Test
+    void getVoters_NoIncident() {
+        when(incidentSv.findIncidentById(99L)).thenReturn(null);
+
+        assertThrows(ResourceNotFoundException.class, () -> voteService.getVoters(99L));
+        verify(voteRepository, never()).findAllByIncidenceId(anyLong());
     }
 
     @Test
