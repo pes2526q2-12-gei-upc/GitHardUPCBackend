@@ -191,9 +191,10 @@ public class UserService {
         Long points = u.getPoints();
         Long currLvl = getLevelByPoints(points);
         if (currLvl > lvl) {
-            long diff = lvl - currLvl;
+            long diff = currLvl - lvl;
+            long rew = u.getRecompenses() == null? 0L : u.getRecompenses();
             u.setLevel(currLvl);
-            u.setRecompenses(u.getRecompenses()+diff);
+            u.setRecompenses(rew+diff);
             userRepository.save(u);
         }
     }

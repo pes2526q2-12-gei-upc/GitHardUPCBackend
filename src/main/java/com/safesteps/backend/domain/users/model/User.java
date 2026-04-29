@@ -57,5 +57,5 @@ public class User {
     private OffsetDateTime updatedAt;
 
     @Column(name="pending_rewards")
-    private Long recompenses;
+    private Long recompenses = 0L;
 }
