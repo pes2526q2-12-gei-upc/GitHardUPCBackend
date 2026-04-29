@@ -9,7 +9,7 @@ public class AdminUserDTO {
     private String email;
     private String username;
     private String pictureUrl;
-    private Integer points;
+    private Long points;
     private Long level;
     private double reputacio;
     private UserStatus status;

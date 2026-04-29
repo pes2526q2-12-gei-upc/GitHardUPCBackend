@@ -253,8 +253,8 @@ class UserServiceTest {
     @DisplayName("Debe actualizar reputación y puntos de votantes y del creador al aceptar")
     void updateUserReliability_Accepted_WithCreator() {
         Vote v = new Vote(); v.setGoogleId("voter1"); v.setScore(0.5f);
-        User voter = new User(); voter.setGoogleId("voter1"); voter.setReputacio(1.0); voter.setPoints(0);
-        User creator = new User(); creator.setGoogleId("creator1"); creator.setReputacio(1.0); creator.setPoints(0);
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setReputacio(1.0); voter.setPoints(0L);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setReputacio(1.0); creator.setPoints(0L);
 
         when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
         when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
@@ -273,17 +273,17 @@ class UserServiceTest {
     @DisplayName("Debe dar puntos por incidencia expirada a votantes y creador")
     void rewardForExpiredIncident_Success() {
         Vote v = new Vote(); v.setGoogleId("voter1");
-        User voter = new User(); voter.setGoogleId("voter1"); voter.setPoints(0);
-        User creator = new User(); creator.setGoogleId("creator1"); creator.setPoints(0);
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setPoints(1000L); voter.setRecompenses(0L);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setPoints(0L);
 
         when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
         when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
 
         userService.rewardForExpiredIncident(List.of(v), "creator1");
 
-        assertEquals(10, voter.getPoints());
+        assertEquals(1010, voter.getPoints());
         assertEquals(10, creator.getPoints());
-        verify(userRepository, times(2)).save(any(User.class));
+        verify(userRepository, times(3)).save(any(User.class));
     }
 }
 

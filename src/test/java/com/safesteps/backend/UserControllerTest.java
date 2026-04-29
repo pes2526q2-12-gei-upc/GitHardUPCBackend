@@ -165,11 +165,11 @@ class UserControllerTest {
     @Test
     @DisplayName("DELETE /api/v1/users/{googleId} - Usuario no existe (Bad Request)")
     void delete_WhenUserDoesNotExist_ReturnsBadRequest() throws Exception {
-        doThrow(new BadRequestException("User not found for Google ID: none"))
+        doThrow(new ResourceNotFoundException("User not found for Google ID: none"))
                 .when(userService).deleteUserByGoogleId("none");
 
         mockMvc.perform(delete("/api/v1/users/none"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // --- TESTS PARA FILTROS ---
@@ -192,12 +192,12 @@ class UserControllerTest {
     @DisplayName("PUT /api/v1/users/{googleId}/filters - Usuario no existe (Bad Request)")
     void updateFilters_WhenUserNotExists_ReturnsBadRequest() throws Exception {
         when(userService.updateFilters(eq("none"), any(FilterRequestDTO.class)))
-                .thenThrow(new BadRequestException("User filters not found for Google ID: none"));
+                .thenThrow(new ResourceNotFoundException("User filters not found for Google ID: none"));
 
         mockMvc.perform(put("/api/v1/users/none/filters")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new FilterRequestDTO())))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // --- TESTS PARA IDIOMA ---
@@ -215,11 +215,11 @@ class UserControllerTest {
     @DisplayName("PATCH /api/v1/users/{googleId}/language - Usuario no existe (Bad Request)")
     void updateLanguage_WhenUserDoesNotExist_ReturnsBadRequest() throws Exception {
         when(userService.updateLanguage("none", "es"))
-                .thenThrow(new BadRequestException("User not found for Google ID: none"));
+                .thenThrow(new ResourceNotFoundException("User not found for Google ID: none"));
 
         mockMvc.perform(patch("/api/v1/users/none/language")
                         .param("lang", "es"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // --- HELPER METHOD ---

@@ -106,7 +106,7 @@ public class GlobalExceptionHandler {
     // errors no controlats
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleException(Exception ex, HttpServletRequest req) {
-        logger.error("Critical error at: {}" , req.getRequestURI(), ex);
+        logger.error("Critical error at: " + req.getRequestURI(), ex);
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred. Try again later.", req);
     }
 

@@ -82,8 +82,7 @@ public class IncidentVoteService {
     }
 
     public List<VoteResponseDTO> getUserVotes(String googleId) {
-        UserResponseDTO u = userSv.getUserByGoogleId(googleId);
-        if (u == null) throw new ResourceNotFoundException("Usuari no trobat amb google id: " + googleId);
+        userSv.getUserByGoogleId(googleId);
         List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(googleId);
         List<VoteResponseDTO> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {

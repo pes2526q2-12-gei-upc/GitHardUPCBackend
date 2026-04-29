@@ -188,7 +188,7 @@ class IncidentVoteServiceTest {
 
     @Test
     void getUserVotes_NoUser_ThrowsResourceNotFoundException() {
-        when(userSv.getUserByGoogleId("a")).thenReturn(null);
+        when(userSv.getUserByGoogleId("a")).thenThrow(new ResourceNotFoundException("User not found with googleId: a"));
 
         assertThrows(ResourceNotFoundException.class, () -> voteService.getUserVotes("a"));
         verify(voteRepository, never()).findAllByGoogleId(anyString());
