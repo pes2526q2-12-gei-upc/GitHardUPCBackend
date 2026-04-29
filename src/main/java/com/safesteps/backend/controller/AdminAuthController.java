@@ -21,6 +21,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminAuthController {
 
+    private static final String STATUS = "status";
+    private static final String MESSAGE = "message";
+
     @Value("${admin.password}")
     private String adminPassword;
 
@@ -44,11 +47,11 @@ public class AdminAuthController {
             }
             HttpSession session = request.getSession(true);
             session.setAttribute(AdminSessionInterceptor.SESSION_ATTR, true);
-            return ResponseEntity.ok(Map.of("status", "OK", "message", "Login correcte"));
+            return ResponseEntity.ok(Map.of(STATUS, "OK", MESSAGE, "Login correcte"));
         }
 
         return ResponseEntity.status(401)
-                .body(Map.of("status", "ERROR", "message", "Contrasenya incorrecta"));
+                .body(Map.of(STATUS, "ERROR", MESSAGE, "Contrasenya incorrecta"));
     }
 
     /**
@@ -61,7 +64,7 @@ public class AdminAuthController {
         if (session != null) {
             session.invalidate();
         }
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "Sessio tancada correctament"));
+        return ResponseEntity.ok(Map.of(STATUS, "OK", MESSAGE, "Sessio tancada correctament"));
     }
 
     /**
@@ -73,9 +76,9 @@ public class AdminAuthController {
     public ResponseEntity<Map<String, String>> checkAuth(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null && Boolean.TRUE.equals(session.getAttribute(AdminSessionInterceptor.SESSION_ATTR))) {
-            return ResponseEntity.ok(Map.of("status", "OK"));
+            return ResponseEntity.ok(Map.of(STATUS, "OK"));
         }
         return ResponseEntity.status(401)
-                .body(Map.of("status", "UNAUTHORIZED"));
+                .body(Map.of(STATUS, "UNAUTHORIZED"));
     }
 }

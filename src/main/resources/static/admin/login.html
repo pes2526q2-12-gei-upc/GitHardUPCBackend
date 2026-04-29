@@ -271,7 +271,7 @@
             errorBox.textContent = msg || 'Contraseña incorrecta. Inténtalo de nuevo.';
             errorBox.classList.remove('visible');
             // Force reflow to restart animation
-            void errorBox.offsetWidth;
+            errorBox.offsetWidth;
             errorBox.classList.add('visible');
             passInput.value = '';
             passInput.focus();
