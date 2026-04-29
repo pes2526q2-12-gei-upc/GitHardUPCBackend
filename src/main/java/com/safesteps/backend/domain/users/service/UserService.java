@@ -165,14 +165,12 @@ public class UserService {
 
     @Transactional
     public PremiDTO openPrize(String googleId) {
-        UserResponseDTO u = this.getUserByGoogleId(googleId);
-        if (u.getRecompenses() <= 0) throw new BadRequestException("No rewards available to open.");
+        this.getUserByGoogleId(googleId);
+        int rowsAffected = userRepository.decrementPendingRewards(googleId);
+        if (rowsAffected == 0) throw new BadRequestException("No rewards available to open.");
         List<Premi> premis = userRepository.getUserAvailablePrizes(googleId);
-        u.setRecompenses(u.getRecompenses() - 1);
-
         PremiDTO p = pickRandomPrize(premis);
-        userRepository.insertUserPrize(u.getGoogleId(), p.getId());
-        userRepository.decrementPendingRewards(u.getGoogleId());
+        userRepository.insertUserPrize(googleId, p.getId());
         return p;
     }
 

@@ -5,6 +5,7 @@ import com.safesteps.backend.domain.users.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -37,13 +38,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
                   AND up.google_id = :googleId
             )
             """, nativeQuery = true)
-    List<Premi> getUserAvailablePrizes(String googleId);
+    List<Premi> getUserAvailablePrizes(@Param("googleId") String googleId);
 
     @Modifying
     @Query(value = "INSERT INTO user_prizes (id, google_id) VALUES (:pId, :googleId)", nativeQuery = true)
-    void insertUserPrize(String googleId, String pId);
+    void insertUserPrize(@Param("googleId") String googleId, @Param("pId") String pId);
 
     @Modifying
-    @Query(value = "UPDATE users SET pending_rewards = pending_rewards - 1 WHERE google_id = :googleId", nativeQuery = true)
-    void decrementPendingRewards(String googleId);
+    @Query(value = "UPDATE users SET pending_rewards = COALESCE(pending_rewards, 0) - 1 WHERE google_id = :googleId AND COALESCE(pending_rewards, 0) > 0", nativeQuery = true)
+    int decrementPendingRewards(@Param("googleId") String googleId);
 }

@@ -291,20 +291,36 @@ class UserServiceTest {
 
     @Test
     void openPrize_OK() {
+        String googleId = user.getGoogleId();
         Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setProbability(0.1);
-        Premi p2  = new Premi(); p2.setId("p2"); p2.setUrl("url2"); p1.setProbability(0.5);
+        Premi p2  = new Premi(); p2.setId("p2"); p2.setUrl("url2"); p2.setProbability(0.5);
         List<Premi> lp = List.of(p1, p2);
         user.setRecompenses(1L);
 
-        when(userRepository.getUserAvailablePrizes(user.getGoogleId())).thenReturn(lp);
-        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getUserAvailablePrizes(googleId)).thenReturn(lp);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
         PremiDTO p = userService.openPrize(user.getGoogleId());
         assertNotNull(p);
+        assertTrue(lp.stream().anyMatch(pr -> pr.getId().equals(p.getId())));
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository).insertUserPrize(googleId, p.getId());
     }
 
     @Test
     void openPrize_NOK() {
         assertThrows(ResourceNotFoundException.class, () -> userService.openPrize("voter1"));
+    }
+
+    @Test
+    void openPrize_ERROR() {
+        String googleId = user.getGoogleId();
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(0);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
     }
 }
 
