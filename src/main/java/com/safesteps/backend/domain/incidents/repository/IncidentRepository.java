@@ -26,6 +26,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.positive_votes AS positiveVotes, 
                 i.negative_votes AS negativeVotes, 
                 i.reliability_index AS reliabilityIndex, 
+                i.expiration_index AS expirationIndex, 
                 i.status AS status, 
                 i.created_at AS created, 
                 i.updated_at AS updated
@@ -46,6 +47,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.positive_votes AS positiveVotes, 
                 i.negative_votes AS negativeVotes, 
                 i.reliability_index AS reliabilityIndex, 
+                i.expiration_index AS expirationIndex, 
                 i.status AS status, 
                 i.created_at AS created, 
                 i.updated_at AS updated
@@ -66,6 +68,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
                 i.positive_votes AS positiveVotes, 
                 i.negative_votes AS negativeVotes, 
                 i.reliability_index AS reliabilityIndex, 
+                i.expiration_index AS expirationIndex, 
                 i.status AS status, 
                 i.created_at AS created, 
                 i.updated_at AS updated

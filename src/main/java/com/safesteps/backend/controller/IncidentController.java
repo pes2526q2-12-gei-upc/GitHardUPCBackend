@@ -87,4 +87,17 @@ public class IncidentController {
     public ResponseEntity<List<VoteResponseDTO>> getUserVotes(@PathVariable String googleId) {
         return ResponseEntity.ok(voteService.getUserVotes(googleId));
     }
+
+    @PostMapping("/{id}/resolution-votes")
+    public ResponseEntity<VoteResponseDTO> newResolutionVote(
+            @PathVariable("id") Long incidenceId,
+            @Valid @RequestBody VoteRequestDTO voteRequest) {
+
+        VoteResponseDTO vote = voteService.createResolutionVote(incidenceId, voteRequest);
+        if (vote.getId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return ResponseEntity.ok(vote);
+    }
 }

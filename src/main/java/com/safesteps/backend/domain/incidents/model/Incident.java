@@ -38,6 +38,10 @@ public class Incident {
     @Column(name = "reliability_index")
     private Double reliabilityIndex = 0.0;
 
+    // En Incident.java
+    @Column(name = "expiration_index")
+    private Double expirationIndex = 0.0;
+
     @Column(length = 20)
     private String status = IncidentStatusEnum.PENDING.name();
 

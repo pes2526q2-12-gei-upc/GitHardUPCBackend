@@ -15,6 +15,7 @@ public interface IncidentDBProjection {
     Long getPositiveVotes();
     Long getNegativeVotes();
     Double getReliabilityIndex();
+    Double getExpirationIndex();
     String getStatus();
     LocalDateTime getCreated();
     LocalDateTime getUpdated();
