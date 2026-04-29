@@ -4,8 +4,10 @@ import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
@@ -13,6 +15,7 @@ import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -160,7 +163,41 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public PremiDTO openPrize(String googleId) {
+        this.getUserByGoogleId(googleId);
+        int rowsAffected = userRepository.decrementPendingRewards(googleId);
+        if (rowsAffected == 0) throw new BadRequestException("No rewards available to open.");
+        List<Premi> premis = userRepository.getUserAvailablePrizes(googleId);
+        PremiDTO p = pickRandomPrize(premis);
+        userRepository.insertUserPrize(googleId, p.getId());
+        return p;
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    private PremiDTO pickRandomPrize(List<Premi> premis) {
+        double totalWeight = 0;
+        for (Premi p : premis) totalWeight += p.getProbability();
+
+        SecureRandom sr = new SecureRandom();
+        double r = sr.nextDouble() * totalWeight;
+
+        double sum = 0.0;
+
+        Premi result = null;
+
+        for (Premi p : premis) {
+            sum += p.getProbability();
+            if (r <= sum) {
+                result = p;
+                break;
+            }
+        }
+        if (!premis.isEmpty() && result == null) result = premis.getFirst();
+        if (result == null) throw new BadRequestException("No prizes available to open.");
+        return new PremiDTO(result);
+    }
 
     private void processUserReliability(User user, Vote vote, boolean isIncidentAccepted) {
         boolean isVoteCorrect = (isIncidentAccepted && vote.getScore() > 0) || (!isIncidentAccepted && vote.getScore() < 0);

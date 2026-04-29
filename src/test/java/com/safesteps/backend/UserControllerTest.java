@@ -7,6 +7,7 @@ import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.GlobalExceptionHandler;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -22,7 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Arrays;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doThrow;
@@ -54,7 +55,7 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/v1/users - Retorna lista vacía o llena (OK)")
     void getAll_ReturnsList() throws Exception {
-        when(userService.getAllUsers()).thenReturn(Arrays.asList(new UserResponseDTO()));
+        when(userService.getAllUsers()).thenReturn(List.of(new UserResponseDTO()));
 
         mockMvc.perform(get("/api/v1/users"))
                 .andExpect(status().isOk())
@@ -220,6 +221,22 @@ class UserControllerTest {
         mockMvc.perform(patch("/api/v1/users/none/language")
                         .param("lang", "es"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/open-prize - Usuario existe (OK)")
+    void requestPrize_OK() throws Exception {
+        PremiDTO p = new PremiDTO();
+        p.setId("prize-123");
+        p.setUrl("http://example.com/prize.png");
+
+        when(userService.openPrize("googleId")).thenReturn(p);
+
+        mockMvc.perform(get("/api/v1/users/googleId/open-prize"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value("prize-123"))
+                .andExpect(jsonPath("$.url").value("http://example.com/prize.png"));
     }
 
     // --- HELPER METHOD ---

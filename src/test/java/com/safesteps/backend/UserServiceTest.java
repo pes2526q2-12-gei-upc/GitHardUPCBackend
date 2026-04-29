@@ -4,8 +4,10 @@ import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
@@ -284,6 +286,41 @@ class UserServiceTest {
         assertEquals(1010, voter.getPoints());
         assertEquals(10, creator.getPoints());
         verify(userRepository, times(3)).save(any(User.class));
+    }
+
+
+    @Test
+    void openPrize_OK() {
+        String googleId = user.getGoogleId();
+        Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setProbability(0.1);
+        Premi p2  = new Premi(); p2.setId("p2"); p2.setUrl("url2"); p2.setProbability(0.5);
+        List<Premi> lp = List.of(p1, p2);
+        user.setRecompenses(1L);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getUserAvailablePrizes(googleId)).thenReturn(lp);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(user.getGoogleId());
+        assertNotNull(p);
+        assertTrue(lp.stream().anyMatch(pr -> pr.getId().equals(p.getId())));
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository).insertUserPrize(googleId, p.getId());
+    }
+
+    @Test
+    void openPrize_NOK() {
+        assertThrows(ResourceNotFoundException.class, () -> userService.openPrize("voter1"));
+    }
+
+    @Test
+    void openPrize_ERROR() {
+        String googleId = user.getGoogleId();
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(0);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
     }
 }
 
