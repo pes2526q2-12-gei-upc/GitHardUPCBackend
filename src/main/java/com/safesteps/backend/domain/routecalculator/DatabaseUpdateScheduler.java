@@ -24,6 +24,9 @@ public class DatabaseUpdateScheduler {
     @Value("${backend.scheduler.scripts.path:src/scripts/}")
     private String scriptsDir;
 
+    @Value("${backend.scheduler.enabled:true}")
+    private boolean schedulerEnabled;
+
     private static final List<String> PYTHON_SCRIPTS = List.of(
             "DataLoad_GrafViari.py",
             "DataLoad_Comisaries.py",
@@ -45,10 +48,15 @@ public class DatabaseUpdateScheduler {
 
     // DISPARADOR DE PRUEBA: Si descomentas esta línea, se ejecutará UNA ÚNICA VEZ
     // justo al arrancar el servidor.
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     // Restaurado a "una vez al día" para prevenir solapes y fallos de lock
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
+        if (!schedulerEnabled) {
+            logger.info("El scheduler está deshabilitado. Saliendo del método updateDatabaseAndCalculations.");
+            return;
+        }
+
         logger.info("Iniciando pipeline nocturno de actualización de OpenData BCN");
         try {
             boolean dataLoadSuccess = executePythonDataLoad();

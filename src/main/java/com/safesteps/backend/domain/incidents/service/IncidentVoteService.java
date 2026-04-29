@@ -36,11 +36,11 @@ public class IncidentVoteService {
 
     @Transactional
     public VoteResponseDTO createVote(Long id, VoteRequestDTO vote) {
-        IncidentResponseDTO incident = incidentSv.findIncidentById(id);
+        IncidentResponseDTO i = incidentSv.findIncidentById(id);
         LocalDateTime now = LocalDateTime.now();
 
-        double diffDays = ChronoUnit.DAYS.between(incident.getCreatedAt().toLocalDate(), now.toLocalDate());
-        diffDays = Math.max(0, diffDays); // Extraído de develop: protege contra días negativos
+        double diffDays = ChronoUnit.DAYS.between(i.getCreatedAt().toLocalDate(), now.toLocalDate());
+        diffDays = Math.max(0, diffDays);
         double timeFactor = 1.0 / (1.0 + Math.pow(diffDays / 7.0, 4));
 
         UserResponseDTO user = userSv.getUserByGoogleId(vote.getGoogleId());
@@ -53,59 +53,41 @@ public class IncidentVoteService {
         double score = v.getReliability() * v.getDataScore() * vote.getVoteScore();
         v.setScore(score);
 
-        if (score != 0) {
-            v = voteRepository.save(v);
-            this.updateIncidentVoteCount(score, id, false);
-            checkValidation(id); // Extraído de develop: vital para que funcione el cambio de estado
-            return new VoteResponseDTO(v);
-        }
-
-        return new VoteResponseDTO();
+        v = voteRepository.save(v);
+        this.updateIncidentVoteCount(score, id, false);
+        checkValidation(id);
+        return new VoteResponseDTO(v);
     }
 
     @Transactional
-    public boolean deleteVoteByVoteId(Long voteId) {
-        Optional<Vote> vote = voteRepository.findById(voteId);
-
-        if (vote.isPresent()) {
-            Vote v = vote.get();
-            IncidentResponseDTO incident = incidentSv.findIncidentById(v.getIncidenceId());
-
-            if (incident.getStatus().equals(IncidentStatusEnum.PENDING.name())) {
-                this.updateIncidentVoteCount(v.getScore(), v.getIncidenceId(), true);
-                voteRepository.deleteById(voteId);
-                return true;
-            } else if (incident.getStatus().equals(IncidentStatusEnum.ACCEPTED.name())) {
-                incidentSv.updateExpirationIndex(-v.getScore(), v.getIncidenceId());
-                voteRepository.deleteById(voteId);
-                return true;
-            }
-        }
-        return false;
+    public void deleteVoteByVoteId(Long id) {
+        if (!deleteVote(voteRepository.findById(id))) throw new ResourceNotFoundException("Vot no trobat amb id: " + id);
     }
 
     @Transactional
-    public boolean deleteByUserAndIncidence(Long incidenceId, String googleId) {
-        Optional<Vote> vote = voteRepository.findByUserAndIncidence(incidenceId, googleId);
-
-        if (vote.isPresent()) {
-            Vote v = vote.get();
-            IncidentResponseDTO incident = incidentSv.findIncidentById(incidenceId);
-            if (incident.getStatus().equals(IncidentStatusEnum.PENDING.name())) {
-                this.updateIncidentVoteCount(v.getScore(), incidenceId, true);
-                voteRepository.deleteById(v.getId());
-                return true;
-            } else if (incident.getStatus().equals(IncidentStatusEnum.ACCEPTED.name())) {
-                incidentSv.updateExpirationIndex(-v.getScore(), incidenceId);
-                voteRepository.deleteById(v.getId());
-                return true;
-            }
-        }
-        return false;
+    public void deleteByUserAndIncidence(Long incidenceId, String googleId) {
+        if (!deleteVote(voteRepository.findByUserAndIncidence(incidenceId, googleId)))  throw new ResourceNotFoundException("Vot no trobat amb incidenceId: " + incidenceId + " googleId: " + googleId);
     }
+
+    @Transactional
+    public boolean deleteVote(Optional<Vote> v) {
+        if (v.isEmpty()) return false;
+        Vote vote = v.get();
+        IncidentResponseDTO incident = incidentSv.findIncidentById(vote.getIncidenceId());
+        if (incident.getStatus().equals(IncidentStatusEnum.PENDING.name())) {
+            this.updateIncidentVoteCount(vote.getScore(), vote.getIncidenceId(), true);
+            voteRepository.deleteById(vote.getId());
+            checkValidation(vote.getIncidenceId());
+        } else if (incident.getStatus().equals(IncidentStatusEnum.ACCEPTED.name())) {
+            incidentSv.updateExpirationIndex(-vote.getScore(), vote.getIncidenceId());
+            voteRepository.deleteById(vote.getId());
+        }
+        return true;
+    }
+
 
     public List<VoteResponseDTO> getUserVotes(String googleId) {
-        userSv.getUserByGoogleId(googleId); // Extraído de develop: verifica que el usuario existe
+        userSv.getUserByGoogleId(googleId);
         List<VoteDBProjection> votes = voteRepository.findAllByGoogleId(googleId);
         List<VoteResponseDTO> result = new ArrayList<>();
         for (VoteDBProjection v : votes) {

@@ -33,6 +33,8 @@ class DatabaseUpdateSchedulerTest {
         // Sustituimos el comando de Python por 'echo' para aislar el test del SO.
         // 'echo' siempre devuelve un código de salida 0 (éxito).
         ReflectionTestUtils.setField(scheduler, "pythonCommand", "echo");
+        // Habilitamos el scheduler para las pruebas
+        ReflectionTestUtils.setField(scheduler, "schedulerEnabled", true);
     }
 
     @Test
