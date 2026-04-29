@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
@@ -280,6 +282,13 @@ public class AdminDashboardService {
         }), new AdminDashboardDTO.ErrorRateStats());
     }
 
+    /**
+     * Groups log files by pipeline run: a "run" is the cluster of scripts whose
+     * filename timestamps fall within LOG_RUN_WINDOW_MINUTES of the most recent log.
+     * This prevents mixing logs from different pipeline executions.
+     */
+    private static final long LOG_RUN_WINDOW_MINUTES = 10;
+
     private AdminDashboardDTO.PipelineStatus pipelineStatusFromLogs() {
         AdminDashboardDTO.PipelineStatus status = new AdminDashboardDTO.PipelineStatus();
         if (!Files.isDirectory(scriptsLogDir)) {
@@ -287,15 +296,35 @@ public class AdminDashboardService {
         }
 
         List<AdminDashboardDTO.PipelineScriptStat> scripts = safeIoList(() -> {
+            List<Path> allLogs;
             try (Stream<Path> files = Files.list(scriptsLogDir)) {
-                return files
+                allLogs = files
                         .filter(Files::isRegularFile)
                         .filter(path -> path.getFileName().toString().endsWith(".log"))
-                        .sorted(Comparator.comparing(this::lastModified).reversed())
-                        .limit(9)
-                        .map(this::scriptStatFromLog)
+                        .sorted(Comparator.comparing(this::parseLogTimestamp).reversed())
                         .toList();
             }
+
+            if (allLogs.isEmpty()) return List.of();
+
+            // Anchor = timestamp of the most recent log file
+            Instant anchor = parseLogTimestamp(allLogs.get(0));
+            Instant cutoff = anchor.minus(LOG_RUN_WINDOW_MINUTES, java.time.temporal.ChronoUnit.MINUTES);
+
+            // Keep only logs from the same run window, one per script name (most recent wins)
+            java.util.Map<String, Path> latestPerScript = new java.util.LinkedHashMap<>();
+            for (Path path : allLogs) {
+                Instant ts = parseLogTimestamp(path);
+                if (ts.isBefore(cutoff)) break;
+                String scriptName = path.getFileName().toString()
+                        .replaceFirst("^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}_", "")
+                        .replace(".log", "");
+                latestPerScript.putIfAbsent(scriptName, path);
+            }
+
+            return latestPerScript.values().stream()
+                    .map(this::scriptStatFromLog)
+                    .toList();
         });
 
         if (scripts.isEmpty()) return status;
@@ -307,10 +336,26 @@ public class AdminDashboardService {
         return status;
     }
 
+    /** Parses the timestamp from the log filename. Falls back to lastModified if parsing fails. */
+    private Instant parseLogTimestamp(Path path) {
+        try {
+            String filename = path.getFileName().toString();
+            String timestampPart = filename.substring(0, 19);
+            LocalDateTime ldt = LocalDateTime.parse(timestampPart, LOG_FILENAME_TIMESTAMP);
+            return ldt.atZone(ZoneId.systemDefault()).toInstant();
+        } catch (DateTimeParseException | StringIndexOutOfBoundsException ex) {
+            return lastModified(path);
+        }
+    }
+
+    private static final DateTimeFormatter LOG_FILENAME_TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+
     private AdminDashboardDTO.PipelineScriptStat scriptStatFromLog(Path path) {
         String filename = path.getFileName().toString();
         String scriptName = filename.replaceFirst("^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}_", "")
                 .replace(".log", "");
+
         String status = "SUCCESS";
         try {
             String content = Files.readString(path);
@@ -320,7 +365,29 @@ public class AdminDashboardService {
         } catch (IOException ex) {
             status = "UNKNOWN";
         }
-        return new AdminDashboardDTO.PipelineScriptStat(scriptName, status, 0L, null);
+
+        long durationMs = computeLogDurationMs(filename, path);
+        int exitCode = "SUCCESS".equals(status) ? 0 : 1;
+
+        return new AdminDashboardDTO.PipelineScriptStat(scriptName, status, durationMs, exitCode);
+    }
+
+    /**
+     * Computes script duration using the timestamp embedded in the log filename (start time)
+     * and the file's last-modified time (end time). Returns 0 if parsing fails.
+     */
+    private long computeLogDurationMs(String filename, Path path) {
+        try {
+            // Filename format: YYYY-MM-DD_HH-MM-SS_ScriptName.log
+            String timestampPart = filename.substring(0, 19); // "2026-04-29_02-00-00"
+            LocalDateTime startTime = LocalDateTime.parse(timestampPart, LOG_FILENAME_TIMESTAMP);
+            Instant start = startTime.atZone(ZoneId.systemDefault()).toInstant();
+            Instant end = lastModified(path);
+            long ms = end.toEpochMilli() - start.toEpochMilli();
+            return ms > 0 ? ms : 0L;
+        } catch (DateTimeParseException | StringIndexOutOfBoundsException ex) {
+            return 0L;
+        }
     }
 
     private Instant latestLogInstant() {
