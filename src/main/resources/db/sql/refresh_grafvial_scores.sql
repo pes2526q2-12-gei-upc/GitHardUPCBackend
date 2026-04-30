@@ -197,14 +197,10 @@ SET cnt_incidents = (
 -- =========================================================================================
 -- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
 -- =========================================================================================
--- 1. Eliminar v_trams_nodes independientemente de su tipo actual en BD.
---    Puede existir como TABLE (ejecuciones antiguas), VIEW o MATERIALIZED VIEW.
---    Cubrimos los tres casos para garantizar idempotencia.
-DROP VIEW IF EXISTS public.v_trams_nodes CASCADE;
-DROP MATERIALIZED VIEW IF EXISTS public.v_trams_nodes CASCADE;
+DROP TABLE IF EXISTS public.v_trams_nodes CASCADE;
 
--- 2. La creamos de nuevo con los datos frescos y TODOS los scores
-CREATE MATERIALIZED VIEW public.v_trams_nodes
+-- 2. Creamos la vista materializada SOLO si no existe en la base de datos.
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.v_trams_nodes
 TABLESPACE pg_default
 AS SELECT t."FID" AS fid,
           n_inici."FID" AS source,
@@ -228,12 +224,17 @@ AS SELECT t."FID" AS fid,
             JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
             JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
    WHERE t."TVia_D" <> ALL (ARRAY['Viaducte'::text, 'Nus'::text, '-'::text, ' '::text, ''::text])
-                   WITH DATA;
+              WITH DATA;
 
--- 3. Recreamos los índices para que el algoritmo JGraphT/pgRouting vuele
-CREATE UNIQUE INDEX idx_vtrams_fid ON public.v_trams_nodes USING btree (fid);
-CREATE INDEX idx_vtrams_source ON public.v_trams_nodes USING btree (source);
-CREATE INDEX idx_vtrams_target ON public.v_trams_nodes USING btree (target);
+-- 3. Aseguramos la creación de los índices para que el algoritmo pgRouting/JGraphT vuele.
+-- Usamos IF NOT EXISTS para que no dé error si ya se crearon en la ejecución de ayer.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vtrams_fid ON public.v_trams_nodes USING btree (fid);
+CREATE INDEX IF NOT EXISTS idx_vtrams_source ON public.v_trams_nodes USING btree (source);
+CREATE INDEX IF NOT EXISTS idx_vtrams_target ON public.v_trams_nodes USING btree (target);
+
+-- 4. AHORA SÍ: Refrescamos los datos con los cruces espaciales calculados.
+-- Omitimos 'CONCURRENTLY' para que sea compatible con las transacciones de Spring Boot.
+REFRESH MATERIALIZED VIEW public.v_trams_nodes;
 
 -- =========================================================================================
 -- FASE D: CREACIÓN DEL POLÍGONO DE LÍMITES DE BARCELONA (SSOT)
