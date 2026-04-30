@@ -30,16 +30,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')))")
     org.springframework.data.domain.Page<User> searchUsers(@org.springframework.data.repository.query.Param("query") String query, org.springframework.data.domain.Pageable pageable);
 
-    @Query(value = """
-            SELECT *
-            FROM prizes p
-            WHERE NOT EXISTS (
-                SELECT 1
-               FROM user_prizes up
-                WHERE up.id = p.id
-                  AND up.google_id = :googleId
-            )
-            """, nativeQuery = true)
+    @Query("""
+    SELECT p FROM Premi p
+    WHERE p.id NOT IN (
+        SELECT up.id FROM User u JOIN u.premis up WHERE u.googleId = :googleId
+    )
+""")
     List<Premi> getUserAvailablePrizes(@Param("googleId") String googleId);
 
     @Modifying
