@@ -19,8 +19,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private AdminSessionInterceptor adminSessionInterceptor;
 
+    @Autowired
+    private ApiRequestMetricsInterceptor apiRequestMetricsInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(apiRequestMetricsInterceptor)
+                .addPathPatterns("/api/v1/**")
+                .excludePathPatterns("/api/v1/evaluate-route-security");
+
         // Interceptor per a l'API externa de calcul de rutes
         registry.addInterceptor(apiAuthInterceptor)
                 .addPathPatterns("/api/v1/evaluate-route-security");

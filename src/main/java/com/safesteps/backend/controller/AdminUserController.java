@@ -1,5 +1,6 @@
 package com.safesteps.backend.controller;
 
+import com.safesteps.backend.domain.users.dto.AdminUserPageDTO;
 import com.safesteps.backend.domain.users.dto.AdminUserDTO;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.AdminUserService;
@@ -25,10 +26,18 @@ public class AdminUserController {
     private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<Page<AdminUserDTO>> searchUsers(
+    public ResponseEntity<AdminUserPageDTO> searchUsers(
             @RequestParam(required = false) String query,
             Pageable pageable) {
-        return ResponseEntity.ok(adminUserService.searchUsers(query, pageable));
+        Page<AdminUserDTO> page = adminUserService.searchUsers(query, pageable);
+        return ResponseEntity.ok(new AdminUserPageDTO(
+                page.getContent(),
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isFirst(),
+                page.isLast()
+        ));
     }
 
     @GetMapping("/{id}")

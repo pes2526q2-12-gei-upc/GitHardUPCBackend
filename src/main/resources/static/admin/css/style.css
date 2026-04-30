@@ -28,9 +28,7 @@ body {
     font-family: var(--font-main);
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+    background-image: linear-gradient(135deg, #0f172a 0%, #172033 52%, #12241f 100%);
     background-attachment: fixed;
     min-height: 100vh;
     line-height: 1.5;
@@ -42,7 +40,7 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    border-radius: 8px;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
@@ -94,11 +92,17 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    width: 100%;
     padding: 12px 16px;
+    border: 0;
+    background: transparent;
     color: var(--text-secondary);
     text-decoration: none;
-    border-radius: 12px;
+    border-radius: 8px;
     font-weight: 500;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    cursor: pointer;
     transition: all var(--transition-speed);
 }
 
@@ -117,6 +121,16 @@ body {
     color: var(--accent-color);
 }
 
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--glass-border);
+}
+
+.logout-btn {
+    color: var(--danger);
+}
+
 /* Header */
 .top-header {
     display: flex;
@@ -129,6 +143,19 @@ body {
 .top-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
+}
+
+.header-eyebrow {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .search-box {
@@ -168,6 +195,208 @@ body {
     flex: 1;
     overflow-y: auto;
     padding-bottom: 1rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Dashboard */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metric-card {
+    padding: 1rem;
+    min-height: 116px;
+}
+
+.metric-card span,
+.metric-card small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+}
+
+.metric-card strong {
+    display: block;
+    margin: 8px 0 4px;
+    font-size: 1.9rem;
+    line-height: 1.1;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-panel {
+    padding: 1rem;
+    min-height: 300px;
+}
+
+.wide-panel {
+    grid-column: 1 / -1;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.panel-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.panel-header span {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.chart-row {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    align-items: center;
+    gap: 1rem;
+}
+
+.legend-list,
+.ranking-list,
+.script-list,
+.zone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.legend-item,
+.ranking-item,
+.script-item,
+.zone-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+}
+
+.legend-left,
+.ranking-left,
+.script-left,
+.zone-left {
+    min-width: 0;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.item-title {
+    display: block;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.item-subtitle {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.item-value {
+    font-weight: 700;
+}
+
+.heatmap-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.heatmap-layout h4 {
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.zone-bar {
+    height: 8px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+
+.zone-bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), var(--success));
+}
+
+.funnel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.funnel-step {
+    padding: 12px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+}
+
+.funnel-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.funnel-bar {
+    height: 14px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.funnel-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.status-pill {
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.status-success { color: var(--success); background: rgba(16,185,129,0.12); }
+.status-failed { color: var(--danger); background: rgba(239,68,68,0.12); }
+.status-running { color: var(--warning); background: rgba(245,158,11,0.12); }
+.status-unknown { color: var(--text-secondary); background: rgba(148,163,184,0.12); }
+
+canvas {
+    width: 100%;
+    max-width: 100%;
 }
 
 .table-container {
@@ -413,6 +642,12 @@ body {
     margin-bottom: 2rem;
 }
 
+.incidents-title {
+    margin-bottom: 1rem;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 1rem;
+}
+
 .incidents-list {
     display: flex;
     flex-direction: column;
@@ -460,4 +695,7 @@ body {
     .app-container { flex-direction: column; }
     .sidebar { width: auto; height: auto; margin-bottom: 0; }
     .main-content { padding: 1rem; }
+    .metric-grid, .dashboard-grid, .heatmap-layout, .chart-row { grid-template-columns: 1fr; }
+    .search-box { width: 100%; }
+    .top-header { align-items: flex-start; flex-direction: column; }
 }

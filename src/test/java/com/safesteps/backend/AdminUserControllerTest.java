@@ -3,6 +3,7 @@ package com.safesteps.backend;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.AdminUserController;
 import com.safesteps.backend.domain.users.dto.AdminUserDTO;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.UserRepository;
@@ -47,6 +48,9 @@ public class AdminUserControllerTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @MockBean
+    private AdminMetricsService adminMetricsService;
 
     @Autowired
     private ObjectMapper objectMapper;
