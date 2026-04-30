@@ -35,6 +35,10 @@ public class UserService {
     private static final int XP_VOTED_INC = 10;
     private static final int XP_REPORTED_INC = 10;
     private static final int WALKING_METERS_PER_MINUTE = 75;
+    private static final String USER_BANNED = "USER_BANNED";
+    private static final String USER_SUSPENDED = "USER_SUSPENDED";
+    private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
+    private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
@@ -55,14 +59,14 @@ public class UserService {
 
         if (user.getStatus() == UserStatus.BANNED) {
             throw new UserForbiddenException(
-                    "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
-                    "USER_BANNED"
+                    USER_BANNED_MESSAGE,
+                    USER_BANNED
             );
         }
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new UserForbiddenException(
-                    "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
-                    "USER_SUSPENDED"
+                    USER_SUSPENDED_MESSAGE,
+                    USER_SUSPENDED
             );
         }
 
@@ -83,14 +87,14 @@ public class UserService {
             User user = existingByGoogleId.get();
             if (user.getStatus() == UserStatus.BANNED) {
                 throw new UserForbiddenException(
-                        "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
-                        "USER_BANNED"
+                        USER_BANNED_MESSAGE,
+                        USER_BANNED
                 );
             }
             if (user.getStatus() == UserStatus.SUSPENDED) {
                 throw new UserForbiddenException(
-                        "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
-                        "USER_SUSPENDED"
+                        USER_SUSPENDED_MESSAGE,
+                        USER_SUSPENDED
                 );
             }
             throw new BadRequestException("User already exists with the provided email or Google ID.");
@@ -101,14 +105,14 @@ public class UserService {
             User user = existingByEmail.get();
             if (user.getStatus() == UserStatus.BANNED) {
                 throw new UserForbiddenException(
-                        "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
-                        "USER_BANNED"
+                        USER_BANNED_MESSAGE,
+                        USER_BANNED
                 );
             }
             if (user.getStatus() == UserStatus.SUSPENDED) {
                 throw new UserForbiddenException(
-                        "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
-                        "USER_SUSPENDED"
+                        USER_SUSPENDED_MESSAGE,
+                        USER_SUSPENDED
                 );
             }
             throw new BadRequestException("User already exists with the provided email or Google ID.");
