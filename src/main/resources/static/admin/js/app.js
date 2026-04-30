@@ -276,27 +276,44 @@ function prepareCanvas(canvas, height) {
 
 function drawLines(ctx, canvas, lines, height) {
     const width = canvas.getBoundingClientRect().width;
-    const pad = 28;
+    // Aumentamos el padding izquierdo (padLeft) a 45 para dar espacio a los números
+    const padLeft = 45;
+    const padRight = 28;
+    const padTopBottom = 28;
     const allValues = lines.flatMap(line => line.data.map(point => point.value));
     const maxValue = Math.max(...allValues, 1);
     const pointCount = Math.max(...lines.map(line => line.data.length), 2);
 
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '500 11px Inter';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    // Dibujar las 4 líneas guía horizontales y sus valores en el eje Y
     for (let i = 0; i < 4; i++) {
-        const y = pad + ((height - pad * 2) / 3) * i;
+        const y = padTopBottom + ((height - padTopBottom * 2) / 3) * i;
+
+        // Dibujar la línea guía
         ctx.beginPath();
-        ctx.moveTo(pad, y);
-        ctx.lineTo(width - pad, y);
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
         ctx.stroke();
+
+        // Calcular y dibujar el valor del eje Y
+        const valueAtY = maxValue - (maxValue / 3) * i;
+        // Redondear el número y añadir sufijo 'k' si es mayor a 1000 para que quepa bien
+        let formattedValue = valueAtY >= 1000 ? (valueAtY / 1000).toFixed(1) + 'k' : Math.round(valueAtY);
+        ctx.fillText(formattedValue, padLeft - 8, y);
     }
 
     lines.forEach(line => {
         if (line.data.length === 0) return;
         ctx.beginPath();
         line.data.forEach((point, index) => {
-            const x = pad + ((width - pad * 2) / (pointCount - 1)) * index;
-            const y = height - pad - ((height - pad * 2) * (point.value / maxValue));
+            const x = padLeft + ((width - padLeft - padRight) / (pointCount - 1)) * index;
+            const y = height - padTopBottom - ((height - padTopBottom * 2) * (point.value / maxValue));
             if (index === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         });

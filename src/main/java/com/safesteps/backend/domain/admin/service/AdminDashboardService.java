@@ -74,21 +74,26 @@ public class AdminDashboardService {
     }
 
     private List<AdminDashboardDTO.ZoneStat> topZones(String prefix) {
-        String zoneColumn = prefix + "_zone";
         String latColumn = prefix + "_lat";
         String lonColumn = prefix + "_lon";
 
         String sql = String.format("""
-                SELECT COALESCE(%1$s, 'Sin zona') AS zone,
-                       AVG(%2$s) AS lat,
-                       AVG(%3$s) AS lon,
-                       COUNT(*) AS total
-                FROM admin_route_events
-                WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-                GROUP BY COALESCE(%1$s, 'Sin zona')
-                ORDER BY total DESC
-                LIMIT 8
-                """, zoneColumn, latColumn, lonColumn);
+            SELECT COALESCE(d.nom, 'Sin zona') AS zone,
+                   AVG(a.%1$s) AS lat,
+                   AVG(a.%2$s) AS lon,
+                   COUNT(*) AS total
+            FROM admin_route_events a
+            -- CORRECCIÓN 1: Nombre de la tabla corregido a 'bcn_districtes_poligons'
+            -- CORRECCIÓN 2: Transformación espacial de WGS84 (4326) a UTM (25831)
+            LEFT JOIN bcn_districtes_poligons d ON ST_Contains(
+                 d.geom,
+                 ST_Transform(ST_SetSRID(ST_Point(a.%2$s, a.%1$s), 4326), 25831)
+            )
+            WHERE a.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+            GROUP BY COALESCE(d.nom, 'Sin zona')
+            ORDER BY total DESC
+            LIMIT 8
+            """, latColumn, lonColumn);
 
         return safeList(() -> jdbcTemplate.query(sql, (rs, rowNum) -> new AdminDashboardDTO.ZoneStat(
                 rs.getString("zone"),
