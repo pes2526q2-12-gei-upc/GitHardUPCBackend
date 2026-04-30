@@ -91,4 +91,17 @@ class DatabaseUpdateSchedulerTest {
         // ASSERT
         verify(postgisCalculationService, times(1)).performDatabaseCalculations();
     }
+
+    @Test
+    void whenSchedulerIsDisabled_thenNoDatabaseOperationsArePerformed() {
+        // ARRANGE
+        ReflectionTestUtils.setField(scheduler, "schedulerEnabled", false);
+
+        // ACT
+        scheduler.updateDatabaseAndCalculations();
+
+        // ASSERT
+        verifyNoInteractions(postgisCalculationService);
+        verifyNoInteractions(adminMetricsService);
+    }
 }
