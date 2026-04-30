@@ -183,7 +183,7 @@ public class AdminDashboardService {
                 FROM incidents
                 """, (rs, rowNum) -> {
             AdminDashboardDTO.IncidentFunnelStats stats = new AdminDashboardDTO.IncidentFunnelStats();
-            stats.setTotal(rs.getLong("total"));
+            stats.setTotal(rs.getLong(COLUMN_TOTAL));
             stats.setAccepted(rs.getLong("accepted"));
             stats.setRejected(rs.getLong("rejected"));
             stats.setPending(rs.getLong("pending"));
@@ -374,7 +374,7 @@ public class AdminDashboardService {
         String scriptName = filename.replaceFirst("^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}_", "")
                 .replace(".log", "");
 
-        String status = "SUCCESS";
+        String status = STATUS_SUCCESS;
         try {
             String content = Files.readString(path);
             if (content.contains("[ERROR]") || content.contains("[FALLO]") || content.contains("Traceback")) {
