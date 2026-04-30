@@ -2,7 +2,8 @@ package com.safesteps.backend;
 
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
-import com.safesteps.backend.domain.common.exception.UserForbiddenException;
+import com.safesteps.backend.domain.common.exception.UserBannedException;
+import com.safesteps.backend.domain.common.exception.UserSuspendedException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
@@ -98,6 +99,26 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener usuario baneado por GoogleId")
+    void getUserByGoogleId_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserByGoogleId("g-123"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener usuario suspendido por GoogleId")
+    void getUserByGoogleId_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserByGoogleId("g-123"));
+    }
+
+    @Test
     @DisplayName("Debe retornar el usuario si existe por Email")
     void getUserByEmail_WhenExists_ReturnsDTO() {
         when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
@@ -113,7 +134,26 @@ class UserServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> userService.getUserByEmail("none@test.com"));
+    }
 
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener usuario baneado por Email")
+    void getUserByEmail_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserByEmail("test@test.com"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener usuario suspendido por Email")
+    void getUserByEmail_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserByEmail("test@test.com"));
     }
 
     // --- TESTS DE CREACIÓN ---
@@ -153,22 +193,22 @@ class UserServiceTest {
 
     @Test
     @DisplayName("No debe crear un usuario si ya existe y está baneado")
-    void createUser_WhenBanned_ThrowsUserForbiddenException() {
+    void createUser_WhenBanned_ThrowsUserBannedException() {
         User bannedUser = new User();
         bannedUser.setStatus(UserStatus.BANNED);
         when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
 
-        assertThrows(UserForbiddenException.class, () -> userService.createUser(userRequestDTO));
+        assertThrows(UserBannedException.class, () -> userService.createUser(userRequestDTO));
     }
 
     @Test
     @DisplayName("No debe crear un usuario si ya existe y está suspendido")
-    void createUser_WhenSuspended_ThrowsUserForbiddenException() {
+    void createUser_WhenSuspended_ThrowsUserSuspendedException() {
         User suspendedUser = new User();
         suspendedUser.setStatus(UserStatus.SUSPENDED);
         when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
 
-        assertThrows(UserForbiddenException.class, () -> userService.createUser(userRequestDTO));
+        assertThrows(UserSuspendedException.class, () -> userService.createUser(userRequestDTO));
     }
 
     // --- TESTS DE ACTUALIZACIÓN ---
@@ -391,4 +431,3 @@ class UserServiceTest {
         verify(userRepository, never()).insertUserPrize(anyString(), anyString());
     }
 }
-

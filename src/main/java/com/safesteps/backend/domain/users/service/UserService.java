@@ -2,7 +2,8 @@ package com.safesteps.backend.domain.users.service;
 
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
-import com.safesteps.backend.domain.common.exception.UserForbiddenException;
+import com.safesteps.backend.domain.common.exception.UserBannedException;
+import com.safesteps.backend.domain.common.exception.UserSuspendedException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
@@ -35,8 +36,6 @@ public class UserService {
     private static final int XP_VOTED_INC = 10;
     private static final int XP_REPORTED_INC = 10;
     private static final int WALKING_METERS_PER_MINUTE = 75;
-    private static final String USER_BANNED = "USER_BANNED";
-    private static final String USER_SUSPENDED = "USER_SUSPENDED";
     private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
 
@@ -58,16 +57,10 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
 
         if (user.getStatus() == UserStatus.BANNED) {
-            throw new UserForbiddenException(
-                    USER_BANNED_MESSAGE,
-                    USER_BANNED
-            );
+            throw new UserBannedException(USER_BANNED_MESSAGE);
         }
         if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new UserForbiddenException(
-                    USER_SUSPENDED_MESSAGE,
-                    USER_SUSPENDED
-            );
+            throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
         }
 
         return new UserResponseDTO(user);
@@ -75,9 +68,17 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponseDTO getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .map(UserResponseDTO::new)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));
+
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new UserBannedException(USER_BANNED_MESSAGE);
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
+        }
+
+        return new UserResponseDTO(user);
     }
 
     @Transactional
@@ -86,16 +87,10 @@ public class UserService {
         if (existingByGoogleId.isPresent()) {
             User user = existingByGoogleId.get();
             if (user.getStatus() == UserStatus.BANNED) {
-                throw new UserForbiddenException(
-                        USER_BANNED_MESSAGE,
-                        USER_BANNED
-                );
+                throw new UserBannedException(USER_BANNED_MESSAGE);
             }
             if (user.getStatus() == UserStatus.SUSPENDED) {
-                throw new UserForbiddenException(
-                        USER_SUSPENDED_MESSAGE,
-                        USER_SUSPENDED
-                );
+                throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
             }
             throw new BadRequestException("User already exists with the provided email or Google ID.");
         }
@@ -104,16 +99,10 @@ public class UserService {
         if (existingByEmail.isPresent()) {
             User user = existingByEmail.get();
             if (user.getStatus() == UserStatus.BANNED) {
-                throw new UserForbiddenException(
-                        USER_BANNED_MESSAGE,
-                        USER_BANNED
-                );
+                throw new UserBannedException(USER_BANNED_MESSAGE);
             }
             if (user.getStatus() == UserStatus.SUSPENDED) {
-                throw new UserForbiddenException(
-                        USER_SUSPENDED_MESSAGE,
-                        USER_SUSPENDED
-                );
+                throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
             }
             throw new BadRequestException("User already exists with the provided email or Google ID.");
         }

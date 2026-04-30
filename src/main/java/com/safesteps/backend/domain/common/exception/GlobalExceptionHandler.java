@@ -20,6 +20,7 @@ import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -103,6 +104,32 @@ public class GlobalExceptionHandler {
         logger.warn("URL not found at {} - {}", req.getRequestURI(), ex.getMessage());
         String message = "La url que has posat no es correcte.";
         return buildErrorResponse(HttpStatus.NOT_FOUND, message, req);
+    }
+
+    @ExceptionHandler(UserSuspendedException.class)
+    public ResponseEntity<Object> handleUserSuspended(UserSuspendedException ex, HttpServletRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.PAYMENT_REQUIRED.value()); // 402
+        body.put("error", "Payment Required");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+        body.put("details", null); // Mantenemos la estructura de tu JSON original
+
+        return new ResponseEntity<>(body, HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    @ExceptionHandler(UserBannedException.class)
+    public ResponseEntity<Object> handleUserBanned(UserBannedException ex, HttpServletRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.FORBIDDEN.value()); // 403
+        body.put("error", "Forbidden");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+        body.put("details", null);
+
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
     }
 
     // metode no suportat
