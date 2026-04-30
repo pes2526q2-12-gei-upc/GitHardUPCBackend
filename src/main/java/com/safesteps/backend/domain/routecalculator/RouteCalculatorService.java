@@ -74,22 +74,16 @@ public class RouteCalculatorService {
                 .map(f -> new PoiDTO("FONT", f.getName(), f.getLat(), f.getLon()))
                 .toList());
 
-        // C. Bancs (Radi molt curt: 30 metres. N'hi ha milers, només volem els que estan literalment al camí)
-        List<PoiDBProjection> bancsDB = carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0);
-        pois.addAll(bancsDB.stream()
-                .map(b -> new PoiDTO("BANC", b.getName(), b.getLat(), b.getLon()))
-                .toList());
-
-        // D. Càmeres de seguretat (Radi: 100 metres. Cobreixen un cert camp de visió)
-        List<PoiDBProjection> cameresDB = carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0);
-        pois.addAll(cameresDB.stream()
-                .map(c -> new PoiDTO("CAMERA", c.getName(), c.getLat(), c.getLon()))
-                .toList());
-
-        // E. Escales Mecàniques (Radi: 50 metres. Molt útils per evitar desnivells pronunciats)
+        // C. Escales Mecàniques (Radi: 50 metres. Molt útils per evitar desnivells pronunciats)
         List<PoiDBProjection> escalesDB = carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0);
         pois.addAll(escalesDB.stream()
                 .map(e -> new PoiDTO("ESCALA_MECANICA", e.getName(), e.getLat(), e.getLon()))
+                .toList());
+
+        // D. Refugis Climàtics (Radi: 100 metres. Protegen de condicions meteorològiques extremes)
+        List<PoiDBProjection> refugisDB = carrerRepository.findRefugisClimaticsNearRoute(rutaPrincipalFID, 100.0);
+        pois.addAll(refugisDB.stream()
+                .map(r -> new PoiDTO("REFUGIS_CLIMATICS", r.getName(), r.getLat(), r.getLon()))
                 .toList());
 
         // 3. Retornem la Ruta enriquida (Ara el constructor de Route demana els POIs al final)

@@ -218,4 +218,20 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                     "AND ST_DWithin(geom, ST_Transform(ST_GeomFromText(:wktLine, 4326), 25831), 20)",
             nativeQuery = true)
     RouteAveragesDBProjection getRouteAveragesFromWKT(@Param("wktLine") String wktLine);
+
+    /*
+     * Query per trobar Refugis Climàtics prop de la ruta.
+     * Utilitza les coordenades ETRS89 projectades a 25831 per a distàncies en metres.
+     */
+    @Query(value =
+            "WITH route_geom AS ( " +
+                    "  SELECT ST_MakeLine(ST_SetSRID(ST_MakePoint(n.\"Coord_X\", n.\"Coord_Y\"), 25831) ORDER BY t.seq) as geom " +
+                    "  FROM unnest(cast(:fids as bigint[])) WITH ORDINALITY AS t(fid, seq) " +
+                    "  JOIN bcn_grafvial_nodes n ON n.\"FID\" = t.fid " +
+                    ") " +
+                    "SELECT COALESCE(r.name, 'Refugi climàtic') as name, r.geo_epgs_4326_lat as lat, r.geo_epgs_4326_lon as lon " +
+                    "FROM bcn_refugis_climatics r, route_geom rg " +
+                    "WHERE ST_DWithin(ST_SetSRID(ST_MakePoint(r.geo_epgs_25831_x, r.geo_epgs_25831_y), 25831), rg.geom, :radi)",
+            nativeQuery = true)
+    List<PoiDBProjection> findRefugisClimaticsNearRoute(@Param("fids") Long[] fids, @Param("radi") Double radiMetres);
 }

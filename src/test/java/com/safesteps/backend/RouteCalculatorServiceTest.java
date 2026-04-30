@@ -78,25 +78,19 @@ class RouteCalculatorServiceTest {
         };
         when(carrerRepository.findFontsNearRoute(any(), eq(75.0))).thenReturn(List.of(fontMock));
 
-        PoiDBProjection bancsMock = new PoiDBProjection() {
-            @Override public String getName() { return "Banc Test"; }
-            @Override public Double getLat() { return 41.3875; }
-            @Override public Double getLon() { return 2.1686; }
-        };
-        when(carrerRepository.findBancsNearRoute(any(), eq(30.0))).thenReturn(List.of(bancsMock));
-
-        PoiDBProjection cameresMock = new PoiDBProjection() {
-            @Override public String getName() { return "Camera Test"; }
-            @Override public Double getLat() { return 41.3877; }
-            @Override public Double getLon() { return 2.1687; }
-        };
-        when(carrerRepository.findCameresNearRoute(any(), eq(100.0))).thenReturn(List.of(cameresMock));
         PoiDBProjection escalesMock = new PoiDBProjection() {
             @Override public String getName() { return "Escala Test"; }
             @Override public Double getLat() { return 41.3874; }
             @Override public Double getLon() { return 2.1688; }
         };
         when(carrerRepository.findEscalesNearRoute(any(), eq(50.0))).thenReturn(List.of(escalesMock));
+
+        PoiDBProjection refugisMock = new PoiDBProjection() {
+            @Override public String getName() { return "Refugi Climàtic Test"; }
+            @Override public Double getLat() { return 41.3876; }
+            @Override public Double getLon() { return 2.1689; }
+        };
+        when(carrerRepository.findRefugisClimaticsNearRoute(any(), eq(100.0))).thenReturn(List.of(refugisMock));
 
 
         Filtre f = new Filtre(FiltreEnum.CONFORT);
@@ -106,7 +100,7 @@ class RouteCalculatorServiceTest {
         assertEquals(1, response.getRoutes().size());
 
         Route route = response.getRoutes().getFirst();
-        assertEquals(5, route.getPois().size());
+        assertEquals(4, route.getPois().size());
 
         PoiDTO poiComissaria = route.getPois().stream().filter(p -> p.getType().equals("COMISSARIA")).findFirst().orElse(null);
         assertNotNull(poiComissaria);
@@ -118,26 +112,20 @@ class RouteCalculatorServiceTest {
         assertEquals("Font del Gat", poiFont.getName());
         assertEquals(41.3875, poiFont.getLat());
 
-        PoiDTO poiBanc = route.getPois().stream().filter(p -> p.getType().equals("BANC")).findFirst().orElse(null);
-        assertNotNull(poiBanc);
-        assertEquals("Banc Test", poiBanc.getName());
-        assertEquals(41.3875, poiBanc.getLat());
-
-        PoiDTO poiCameres = route.getPois().stream().filter(p -> p.getType().equals("CAMERA")).findFirst().orElse(null);
-        assertNotNull(poiCameres);
-        assertEquals("Camera Test", poiCameres.getName());
-        assertEquals(41.3877, poiCameres.getLat());
-
         PoiDTO poiEscales = route.getPois().stream().filter(p -> p.getType().equals("ESCALA_MECANICA")).findFirst().orElse(null);
         assertNotNull(poiEscales);
         assertEquals("Escala Test", poiEscales.getName());
         assertEquals(41.3874, poiEscales.getLat());
 
+        PoiDTO poiRefugis = route.getPois().stream().filter(p -> p.getType().equals("REFUGIS_CLIMATICS")).findFirst().orElse(null);
+        assertNotNull(poiRefugis);
+        assertEquals("Refugi Climàtic Test", poiRefugis.getName());
+        assertEquals(41.3876, poiRefugis.getLat());
+
         verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
         verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
-        verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
-        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
         verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
+        verify(carrerRepository, times(1)).findRefugisClimaticsNearRoute(any(), eq(100.0));
     }
 
 
@@ -164,9 +152,8 @@ class RouteCalculatorServiceTest {
 
         when(carrerRepository.findComissariesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findFontsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findBancsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        when(carrerRepository.findRefugisClimaticsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
 
         Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
@@ -179,9 +166,8 @@ class RouteCalculatorServiceTest {
 
         verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
         verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
-        verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
-        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
         verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
+        verify(carrerRepository, times(1)).findRefugisClimaticsNearRoute(any(), eq(100.0));
     }
 
 
