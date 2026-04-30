@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.util.HashSet;
+import java.util.Set;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -58,4 +61,12 @@ public class User {
 
     @Column(name="pending_rewards")
     private Long recompenses = 0L;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_prizes",
+            joinColumns = @JoinColumn(name = "google_id", referencedColumnName = "google_id"),
+            inverseJoinColumns = @JoinColumn(name = "id", referencedColumnName = "id")
+    )
+    private Set<Premi> premis = new HashSet<>();
 }
