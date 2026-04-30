@@ -26,6 +26,19 @@ public class AdminDashboardService {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminDashboardService.class);
 
+    // Constants for route types
+    private static final String ROUTE_TYPE_SEGURETAT = "SEGURETAT";
+    private static final String ROUTE_TYPE_CONFORT = "CONFORT";
+    private static final String ROUTE_TYPE_CLIMA = "CLIMA";
+    private static final String ROUTE_TYPE_PERSONALITZAT = "PERSONALITZAT";
+
+    // Constants for statuses
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_FAILED = "FAILED";
+
+    // Constants for column names
+    private static final String COLUMN_TOTAL = "total";
+
     private final JdbcTemplate jdbcTemplate;
     private final Path scriptsLogDir;
 
@@ -59,15 +72,15 @@ public class AdminDashboardService {
                 """, (rs, rowNum) -> new AdminDashboardDTO.RouteTypeStat(
                 rs.getString("route_type"),
                 routeLabel(rs.getString("route_type")),
-                rs.getLong("total")
+                rs.getLong(COLUMN_TOTAL)
         )));
 
         if (stats.isEmpty()) {
             return List.of(
-                    new AdminDashboardDTO.RouteTypeStat("SEGURETAT", routeLabel("SEGURETAT"), 0L),
-                    new AdminDashboardDTO.RouteTypeStat("CONFORT", routeLabel("CONFORT"), 0L),
-                    new AdminDashboardDTO.RouteTypeStat("CLIMA", routeLabel("CLIMA"), 0L),
-                    new AdminDashboardDTO.RouteTypeStat("PERSONALITZAT", routeLabel("PERSONALITZAT"), 0L)
+                    new AdminDashboardDTO.RouteTypeStat(ROUTE_TYPE_SEGURETAT, routeLabel(ROUTE_TYPE_SEGURETAT), 0L),
+                    new AdminDashboardDTO.RouteTypeStat(ROUTE_TYPE_CONFORT, routeLabel(ROUTE_TYPE_CONFORT), 0L),
+                    new AdminDashboardDTO.RouteTypeStat(ROUTE_TYPE_CLIMA, routeLabel(ROUTE_TYPE_CLIMA), 0L),
+                    new AdminDashboardDTO.RouteTypeStat(ROUTE_TYPE_PERSONALITZAT, routeLabel(ROUTE_TYPE_PERSONALITZAT), 0L)
             );
         }
         return stats;
@@ -99,7 +112,7 @@ public class AdminDashboardService {
                 rs.getString("zone"),
                 rs.getDouble("lat"),
                 rs.getDouble("lon"),
-                rs.getLong("total")
+                rs.getLong(COLUMN_TOTAL)
         )));
     }
 
@@ -144,7 +157,7 @@ public class AdminDashboardService {
                 ORDER BY day
                 """, (rs, rowNum) -> new AdminDashboardDTO.TimeseriesPoint(
                 rs.getString("day"),
-                rs.getLong("total")
+                rs.getLong(COLUMN_TOTAL)
         ))));
 
         stats.setRegistrations(safeList(() -> jdbcTemplate.query("""
@@ -155,7 +168,7 @@ public class AdminDashboardService {
                 ORDER BY day
                 """, (rs, rowNum) -> new AdminDashboardDTO.TimeseriesPoint(
                 rs.getString("day"),
-                rs.getLong("total")
+                rs.getLong(COLUMN_TOTAL)
         ))));
 
         return stats;
@@ -334,8 +347,8 @@ public class AdminDashboardService {
 
         if (scripts.isEmpty()) return status;
 
-        boolean failed = scripts.stream().anyMatch(script -> "FAILED".equals(script.getStatus()));
-        status.setStatus(failed ? "FAILED" : "SUCCESS");
+        boolean failed = scripts.stream().anyMatch(script -> STATUS_FAILED.equals(script.getStatus()));
+        status.setStatus(failed ? STATUS_FAILED : STATUS_SUCCESS);
         status.setScripts(scripts);
         status.setFinishedAt(formatInstant(latestLogInstant()));
         return status;
@@ -365,14 +378,14 @@ public class AdminDashboardService {
         try {
             String content = Files.readString(path);
             if (content.contains("[ERROR]") || content.contains("[FALLO]") || content.contains("Traceback")) {
-                status = "FAILED";
+                status = STATUS_FAILED;
             }
         } catch (IOException ex) {
             status = "UNKNOWN";
         }
 
         long durationMs = computeLogDurationMs(filename, path);
-        int exitCode = "SUCCESS".equals(status) ? 0 : 1;
+        int exitCode = STATUS_SUCCESS.equals(status) ? 0 : 1;
 
         return new AdminDashboardDTO.PipelineScriptStat(scriptName, status, durationMs, exitCode);
     }
@@ -427,10 +440,10 @@ public class AdminDashboardService {
 
     private String routeLabel(String routeType) {
         return switch (routeType) {
-            case "SEGURETAT" -> "Rutas seguras";
-            case "CONFORT" -> "Rutas accesibles";
-            case "CLIMA" -> "Rutas climaticas";
-            case "PERSONALITZAT" -> "Personalizadas";
+            case ROUTE_TYPE_SEGURETAT -> "Rutas seguras";
+            case ROUTE_TYPE_CONFORT -> "Rutas accesibles";
+            case ROUTE_TYPE_CLIMA -> "Rutas climaticas";
+            case ROUTE_TYPE_PERSONALITZAT -> "Personalizadas";
             default -> routeType;
         };
     }

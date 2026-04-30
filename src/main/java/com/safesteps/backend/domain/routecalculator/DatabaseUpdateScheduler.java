@@ -18,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 public class DatabaseUpdateScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUpdateScheduler.class);
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     @Value("${backend.scheduler.python.command:python}")
     private String pythonCommand;
@@ -59,7 +61,7 @@ public class DatabaseUpdateScheduler {
 
         long pipelineStart = System.nanoTime();
         Long pipelineRunId = adminMetricsService.startPipelineRun();
-        String pipelineStatus = "SUCCESS";
+        String pipelineStatus = STATUS_SUCCESS;
         String pipelineError = null;
 
         logger.info("Iniciando pipeline nocturno de actualizacion de OpenData BCN");
@@ -67,7 +69,7 @@ public class DatabaseUpdateScheduler {
             boolean dataLoadSuccess = executePythonDataLoad(pipelineRunId);
 
             if (!dataLoadSuccess) {
-                pipelineStatus = "FAILED";
+                pipelineStatus = STATUS_FAILED;
                 pipelineError = "Data load scripts failed.";
                 logger.error("Se abortan los calculos espaciales porque la ingesta de datos fallo criticamente.");
                 return;
@@ -78,7 +80,7 @@ public class DatabaseUpdateScheduler {
             logger.info("Pipeline completado con exito.");
 
         } catch (Exception e) {
-            pipelineStatus = "FAILED";
+            pipelineStatus = STATUS_FAILED;
             pipelineError = e.getMessage();
             logger.error("Error critico durante la actualizacion automatica: ", e);
         } finally {
@@ -106,7 +108,7 @@ public class DatabaseUpdateScheduler {
 
             if (!scriptFile.exists()) {
                 logger.error("El script no existe en disco: {}", scriptAbsPath);
-                recordScript(pipelineRunId, scriptName, "FAILED", scriptStart, null, "Script file not found.");
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, "Script file not found.");
                 return false;
             }
 
@@ -118,29 +120,29 @@ public class DatabaseUpdateScheduler {
             if (!process.waitFor(15, TimeUnit.MINUTES)) {
                 logger.error("[TIMEOUT] El script {} excedio los 15 minutos en OS. Forzando SIGKILL.", scriptName);
                 process.destroyForcibly();
-                recordScript(pipelineRunId, scriptName, "FAILED", scriptStart, null, "Timeout after 15 minutes.");
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, "Timeout after 15 minutes.");
                 return false;
             }
 
             int exitCode = process.exitValue();
             if (exitCode != 0) {
                 logger.error("[FALLO] Script {} retorno codigo {}.", scriptName, exitCode);
-                recordScript(pipelineRunId, scriptName, "FAILED", scriptStart, exitCode, "Script returned non-zero exit code.");
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, exitCode, "Script returned non-zero exit code.");
                 return false;
             }
 
-            recordScript(pipelineRunId, scriptName, "SUCCESS", scriptStart, exitCode, null);
+            recordScript(pipelineRunId, scriptName, STATUS_SUCCESS, scriptStart, exitCode, null);
             return true;
 
         } catch (InterruptedException e) {
             logger.error("[INTERRUPCION] El hilo fue interrumpido mientras esperaba al script {}.", scriptName);
             Thread.currentThread().interrupt();
-            recordScript(pipelineRunId, scriptName, "FAILED", scriptStart, null, e.getMessage());
+            recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, e.getMessage());
             return false;
 
         } catch (java.io.IOException e) {
             logger.error("Error de I/O despachando el script {}: {}", scriptName, e.getMessage());
-            recordScript(pipelineRunId, scriptName, "FAILED", scriptStart, null, e.getMessage());
+            recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, e.getMessage());
             return false;
         }
     }
