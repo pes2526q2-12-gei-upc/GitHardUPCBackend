@@ -2,14 +2,17 @@ package com.safesteps.backend;
 
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.users.service.UserService;
@@ -55,6 +58,7 @@ class UserServiceTest {
         user.setLanguage("ca");
         user.setReputacio(1);
         user.setIsAnonymous(false);
+        user.setStatus(UserStatus.ACTIVE);
 
         userRequestDTO = new UserRequestDTO();
         userRequestDTO.setGoogleId("g-123");
@@ -117,8 +121,8 @@ class UserServiceTest {
     @Test
     @DisplayName("Debe crear un usuario con valores por defecto y filtros")
     void createUser_Success_VerifiesDefaultsAndFilters() {
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByGoogleId(anyString())).thenReturn(false);
+        when(userRepository.findByGoogleId(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(user);
 
         UserResponseDTO result = userService.createUser(userRequestDTO);
@@ -137,14 +141,34 @@ class UserServiceTest {
     @Test
     @DisplayName("No debe crear un usuario si el email o googleId ya existen")
     void createUser_WhenExists_ThrowsBadRequestException() {
-        when(userRepository.existsByEmail("test@test.com")).thenReturn(true);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
         assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByGoogleId("g-123")).thenReturn(true);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
         assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("No debe crear un usuario si ya existe y está baneado")
+    void createUser_WhenBanned_ThrowsUserForbiddenException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserForbiddenException.class, () -> userService.createUser(userRequestDTO));
+    }
+
+    @Test
+    @DisplayName("No debe crear un usuario si ya existe y está suspendido")
+    void createUser_WhenSuspended_ThrowsUserForbiddenException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserForbiddenException.class, () -> userService.createUser(userRequestDTO));
     }
 
     // --- TESTS DE ACTUALIZACIÓN ---
@@ -286,6 +310,50 @@ class UserServiceTest {
         assertEquals(1010, voter.getPoints());
         assertEquals(10, creator.getPoints());
         verify(userRepository, times(3)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe sumar minutos estimados de ruta como puntos y recalcular nivel")
+    void completeRoute_AddsRoutePointsAndUpdatesLevel() {
+        user.setPoints(99L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 75.0);
+
+        assertEquals(1L, result.getPointsAdded());
+        assertEquals(100L, result.getTotalPoints());
+        assertEquals(2L, result.getLevel());
+        assertTrue(result.isLevelUpdated());
+        assertEquals(1L, result.getRecompenses());
+        verify(userRepository, times(2)).save(user);
+    }
+
+    @Test
+    @DisplayName("Debe rechazar metros negativos al completar ruta")
+    void completeRoute_NegativeMeters_ThrowsBadRequestException() {
+        assertThrows(BadRequestException.class, () -> userService.completeRoute("g-123", -1.0));
+        verify(userRepository, never()).findByGoogleId(anyString());
+    }
+
+    @Test
+    @DisplayName("Debe devolver 0 puntos si la ruta completada tiene 0 metros")
+    void completeRoute_ZeroMeters_AddsNoPoints() {
+        user.setPoints(0L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 0.0);
+
+        assertEquals(0L, result.getPointsAdded());
+        assertEquals(0L, result.getTotalPoints());
+        assertEquals(1L, result.getLevel());
+        assertFalse(result.isLevelUpdated());
+        verify(userRepository).save(user);
     }
 
 

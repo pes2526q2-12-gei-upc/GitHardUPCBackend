@@ -380,4 +380,36 @@ class IncidentServiceTest {
         assertEquals(IncidentStatusEnum.ACCEPTED.name(), i.getStatus());
         verify(incidentRepo).save(i);
     }
+
+    @Test
+    void updateExpirationIndex_DoesNotReachThreshold() {
+        Incident incident = new Incident();
+        incident.setId(1L);
+        incident.setExpirationIndex(-5.0);
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(incidentRepo.findById(1L)).thenReturn(Optional.of(incident));
+
+        incidentService.updateExpirationIndex(-2.0, 1L);
+
+        assertEquals(-7.0, incident.getExpirationIndex());
+        assertEquals(IncidentStatusEnum.ACCEPTED.name(), incident.getStatus());
+        verify(incidentRepo).save(incident);
+    }
+
+    @Test
+    void updateExpirationIndex_ReachesThreshold() {
+        Incident incident = new Incident();
+        incident.setId(1L);
+        incident.setExpirationIndex(-8.0);
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(incidentRepo.findById(1L)).thenReturn(Optional.of(incident));
+
+        incidentService.updateExpirationIndex(-3.0, 1L);
+
+        assertEquals(-11.0, incident.getExpirationIndex());
+        assertEquals(IncidentStatusEnum.RESOLVED.name(), incident.getStatus());
+        verify(incidentRepo).save(incident);
+    }
 }

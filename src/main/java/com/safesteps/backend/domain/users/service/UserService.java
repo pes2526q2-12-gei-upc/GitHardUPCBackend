@@ -6,6 +6,7 @@ import com.safesteps.backend.domain.common.exception.UserForbiddenException;
 import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.model.Premi;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static java.lang.Math.sqrt;
@@ -32,6 +34,11 @@ public class UserService {
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
     private static final int XP_REPORTED_INC = 10;
+    private static final int WALKING_METERS_PER_MINUTE = 75;
+    private static final String USER_BANNED = "USER_BANNED";
+    private static final String USER_SUSPENDED = "USER_SUSPENDED";
+    private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
+    private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository) {
         this.userRepository = userRepository;
@@ -52,14 +59,14 @@ public class UserService {
 
         if (user.getStatus() == UserStatus.BANNED) {
             throw new UserForbiddenException(
-                    "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.",
-                    "USER_BANNED"
+                    USER_BANNED_MESSAGE,
+                    USER_BANNED
             );
         }
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new UserForbiddenException(
-                    "El compte esta suspes temporalment i no pot accedir a l'aplicacio.",
-                    "USER_SUSPENDED"
+                    USER_SUSPENDED_MESSAGE,
+                    USER_SUSPENDED
             );
         }
 
@@ -75,7 +82,39 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO req) {
-        if (userRepository.existsByEmail(req.getEmail()) || userRepository.existsByGoogleId(req.getGoogleId())) {
+        Optional<User> existingByGoogleId = userRepository.findByGoogleId(req.getGoogleId());
+        if (existingByGoogleId.isPresent()) {
+            User user = existingByGoogleId.get();
+            if (user.getStatus() == UserStatus.BANNED) {
+                throw new UserForbiddenException(
+                        USER_BANNED_MESSAGE,
+                        USER_BANNED
+                );
+            }
+            if (user.getStatus() == UserStatus.SUSPENDED) {
+                throw new UserForbiddenException(
+                        USER_SUSPENDED_MESSAGE,
+                        USER_SUSPENDED
+                );
+            }
+            throw new BadRequestException("User already exists with the provided email or Google ID.");
+        }
+
+        Optional<User> existingByEmail = userRepository.findByEmail(req.getEmail());
+        if (existingByEmail.isPresent()) {
+            User user = existingByEmail.get();
+            if (user.getStatus() == UserStatus.BANNED) {
+                throw new UserForbiddenException(
+                        USER_BANNED_MESSAGE,
+                        USER_BANNED
+                );
+            }
+            if (user.getStatus() == UserStatus.SUSPENDED) {
+                throw new UserForbiddenException(
+                        USER_SUSPENDED_MESSAGE,
+                        USER_SUSPENDED
+                );
+            }
             throw new BadRequestException("User already exists with the provided email or Google ID.");
         }
 
@@ -190,6 +229,30 @@ public class UserService {
         return p;
     }
 
+    @Transactional
+    public RouteCompletionResponseDTO completeRoute(String googleId, double meters) {
+        if (!Double.isFinite(meters) || meters < 0) {
+            throw new BadRequestException("Route meters must be zero or greater.");
+        }
+
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        Long previousLevel = user.getLevel();
+        Long pointsAdded = calculateRoutePoints(meters);
+        user.setPoints(user.getPoints() + pointsAdded);
+        userRepository.save(user);
+        calculateLevel(user);
+
+        return new RouteCompletionResponseDTO(
+                user.getLevel(),
+                user.getLevel() > previousLevel,
+                pointsAdded,
+                user.getPoints(),
+                user.getRecompenses()
+        );
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
     private PremiDTO pickRandomPrize(List<Premi> premis) {
@@ -254,6 +317,12 @@ public class UserService {
 
     private Long getLevelByPoints(Long points) {
         return (long) (0.1*sqrt(points) + 1);
+    }
+
+    private Long calculateRoutePoints(double meters) {
+        long estimatedMinutes = Math.round(meters / WALKING_METERS_PER_MINUTE);
+        if (estimatedMinutes == 0 && meters > 0) return 1L;
+        return estimatedMinutes;
     }
 
     /**

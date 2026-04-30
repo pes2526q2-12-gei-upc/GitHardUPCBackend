@@ -21,6 +21,7 @@ public class IncidentResponseDTO {
     private Integer positiveVotes;
     private Integer negativeVotes;
     private Double reliabilityIndex;
+    private Double expirationIndex;
     private String status;
 
     private String authorName;
@@ -42,6 +43,7 @@ public class IncidentResponseDTO {
         this.positiveVotes = (in.getPositiveVotes() != null) ? in.getPositiveVotes().intValue() : 0;
         this.negativeVotes = (in.getNegativeVotes() != null) ? in.getNegativeVotes().intValue() : 0;
         this.reliabilityIndex = in.getReliabilityIndex();
+        this.expirationIndex = (in.getExpirationIndex() != null) ? in.getExpirationIndex() : 0.0;
         this.status = in.getStatus();
         this.authorName = in.getUsername();
         this.authorLevel = in.getUserLevel();
