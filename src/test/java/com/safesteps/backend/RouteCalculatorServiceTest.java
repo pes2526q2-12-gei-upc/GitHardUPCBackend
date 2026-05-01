@@ -11,6 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -76,10 +78,26 @@ class RouteCalculatorServiceTest {
         };
         when(carrerRepository.findFontsNearRoute(any(), eq(75.0))).thenReturn(List.of(fontMock));
 
-        // Llistes buides per la resta
-        when(carrerRepository.findBancsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        PoiDBProjection bancsMock = new PoiDBProjection() {
+            @Override public String getName() { return "Banc Test"; }
+            @Override public Double getLat() { return 41.3875; }
+            @Override public Double getLon() { return 2.1686; }
+        };
+        when(carrerRepository.findBancsNearRoute(any(), eq(30.0))).thenReturn(List.of(bancsMock));
+
+        PoiDBProjection cameresMock = new PoiDBProjection() {
+            @Override public String getName() { return "Camera Test"; }
+            @Override public Double getLat() { return 41.3877; }
+            @Override public Double getLon() { return 2.1687; }
+        };
+        when(carrerRepository.findCameresNearRoute(any(), eq(100.0))).thenReturn(List.of(cameresMock));
+        PoiDBProjection escalesMock = new PoiDBProjection() {
+            @Override public String getName() { return "Escala Test"; }
+            @Override public Double getLat() { return 41.3874; }
+            @Override public Double getLon() { return 2.1688; }
+        };
+        when(carrerRepository.findEscalesNearRoute(any(), eq(50.0))).thenReturn(List.of(escalesMock));
+
 
         Filtre f = new Filtre(FiltreEnum.CONFORT);
         RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
@@ -88,7 +106,7 @@ class RouteCalculatorServiceTest {
         assertEquals(1, response.getRoutes().size());
 
         Route route = response.getRoutes().getFirst();
-        assertEquals(2, route.getPois().size());
+        assertEquals(5, route.getPois().size());
 
         PoiDTO poiComissaria = route.getPois().stream().filter(p -> p.getType().equals("COMISSARIA")).findFirst().orElse(null);
         assertNotNull(poiComissaria);
@@ -100,9 +118,72 @@ class RouteCalculatorServiceTest {
         assertEquals("Font del Gat", poiFont.getName());
         assertEquals(41.3875, poiFont.getLat());
 
+        PoiDTO poiBanc = route.getPois().stream().filter(p -> p.getType().equals("BANC")).findFirst().orElse(null);
+        assertNotNull(poiBanc);
+        assertEquals("Banc Test", poiBanc.getName());
+        assertEquals(41.3875, poiBanc.getLat());
+
+        PoiDTO poiCameres = route.getPois().stream().filter(p -> p.getType().equals("CAMERA")).findFirst().orElse(null);
+        assertNotNull(poiCameres);
+        assertEquals("Camera Test", poiCameres.getName());
+        assertEquals(41.3877, poiCameres.getLat());
+
+        PoiDTO poiEscales = route.getPois().stream().filter(p -> p.getType().equals("ESCALA_MECANICA")).findFirst().orElse(null);
+        assertNotNull(poiEscales);
+        assertEquals("Escala Test", poiEscales.getName());
+        assertEquals(41.3874, poiEscales.getLat());
+
         verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
         verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
+        verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
+        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
+        verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
     }
+
+
+
+    @Test
+    void getBestRoute_WithNullPois() {
+        // Creem instàncies anònimes per evitar fer mocks de projeccions
+        RouteDBProjection routeMock = new RouteDBProjection() {
+            @Override public Long getNode() { return 100L; }
+            @Override public Long getEdge() { return 1L; }
+            @Override public Integer getSeq() { return 1; }
+            @Override public Double getCost() { return 150.0; }
+        };
+
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
+                .thenReturn(List.of(routeMock));
+
+        CoordDBProjection coordMock = new CoordDBProjection() {
+            @Override public Double getLon() { return 2.1686; }
+            @Override public Double getLat() { return 41.3874; }
+        };
+
+        when(carrerRepository.getCoordsFromNodeIds(any())).thenReturn(List.of(coordMock));
+
+        when(carrerRepository.findComissariesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        when(carrerRepository.findFontsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        when(carrerRepository.findBancsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+        when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
+
+        Filtre f = new Filtre(FiltreEnum.CONFORT);
+        RouteResponseDTO response = routeCalculatorService.getBestRoute(origin, destination, 1, f);
+
+        assertNotNull(response);
+        assertEquals(1, response.getRoutes().size());
+
+        Route route = response.getRoutes().getFirst();
+        assertEquals(0, route.getPois().size());
+
+        verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
+        verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
+        verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
+        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
+        verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
+    }
+
 
     @Test
     void getBestRouteTwoRoutesWithCorrectResult() {
@@ -254,4 +335,45 @@ class RouteCalculatorServiceTest {
         verify(carrerRepository, times(1)).findNearestNode(dest.getLat(), dest.getLon());
         verify(carrerRepository, times(2)).findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class));
     }
+
+    @Test
+    void getRouteWithNullEdges() {
+        List<RouteDBProjection> res = new ArrayList<>();
+        res.add(new RouteDBProjection() {
+            @Override public Long getNode() { return 1L; }
+            @Override public Long getEdge() { return null; }
+            @Override public Integer getSeq() { return 1; }
+            @Override public Double getCost() { return 100.0; }
+        });
+
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
+                .thenReturn(res);
+        Route r = routeCalculatorService.getBestRoute(origin, destination, 1, new Filtre()).getRoutes().getFirst();
+        assertNotNull(r);
+        assertEquals(0.0, r.getDistanceMeters());
+        assertEquals(0, r.getEstimatedTimeMinutes());
+        assertEquals(0, r.getCoordinates().size());
+
+    }
+
+    @Test
+    void getRouteWithZeroLongEdge() {
+        List<RouteDBProjection> res = new ArrayList<>();
+        res.add(new RouteDBProjection() {
+            @Override public Long getNode() { return 1L; }
+            @Override public Long getEdge() { return 0L; }
+            @Override public Integer getSeq() { return 1; }
+            @Override public Double getCost() { return 100.0; }
+        });
+
+        when(carrerRepository.findPathWithPenalties(anyLong(), anyLong(), anyString(), any(Filtre.class)))
+                .thenReturn(res);
+        Route r = routeCalculatorService.getBestRoute(origin, destination, 1, new Filtre()).getRoutes().getFirst();
+        assertNotNull(r);
+        assertEquals(0.0, r.getDistanceMeters());
+        assertEquals(0, r.getEstimatedTimeMinutes());
+        assertEquals(0, r.getCoordinates().size());
+
+    }
 }
+

@@ -2,7 +2,9 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.ApiAddressController;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.routecalculator.*;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,8 +35,13 @@ class ApiAddressControllerTest {
     @Mock
     private FiltreService filtreService;
 
+    @Mock
+    private AdminMetricsService adminMetricsService;
+
     @InjectMocks
     private ApiAddressController apiAddressController;
+    @Mock
+    private RouteEvaluationSafetyService routeEvaluationSafetyService;
 
     @BeforeEach
     void setUp() {
@@ -42,9 +49,10 @@ class ApiAddressControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        // Construïm el MockMvc injectant-li el nostre controlador i el validador
+        // Construïm el MockMvc injectant-li el nostre controlador, el validador i el GlobalExceptionHandler
         mockMvc = MockMvcBuilders.standaloneSetup(apiAddressController)
                 .setValidator(validator)
+                .setControllerAdvice(new com.safesteps.backend.domain.common.exception.GlobalExceptionHandler())
                 .build();
     }
 
@@ -101,7 +109,8 @@ class ApiAddressControllerTest {
     void calculateRoutePersonalitzatNoGoogleId() throws Exception {
         RouteRequestDTO request = buildValidRequest(FiltreEnum.PERSONALITZAT);
 
-        when(filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT)).thenReturn(null);
+        when(filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT))
+                .thenThrow(new BadRequestException("Per als filtres personalitzats el googleId no pot ser null."));
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -193,5 +202,47 @@ class ApiAddressControllerTest {
         request.setNRoutes(3);
         request.setFiltre(filtre);
         return request;
+    }
+
+
+    @Test
+    void evaluateRouteSecurity_NullRoutePoints() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints2() throws Exception {
+        String s = "{\"routePoints\": null}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_NoRoutePoints() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}" +
+                "]}";
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void evaluateRouteSecurity_OK() throws Exception {
+        String s = "{\"routePoints\": [" +
+                "{\"lon\": 2.16, \"lat\": 41.38}, " +
+                "{\"lon\": 2.17, \"lat\": 41.38}" +
+                "]}";
+
+        mockMvc.perform(post("/api/v1/evaluate-route-security")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(s))
+                .andExpect(status().isOk());
     }
 }

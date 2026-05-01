@@ -1,0 +1,347 @@
+package com.safesteps.backend;
+
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
+import com.safesteps.backend.domain.incidents.dto.VoteRequestDTO;
+import com.safesteps.backend.domain.incidents.dto.VoteResponseDTO;
+import com.safesteps.backend.domain.incidents.model.IncidentStatusEnum;
+import com.safesteps.backend.domain.incidents.model.Vote;
+import com.safesteps.backend.domain.incidents.projections.VoteDBProjection;
+import com.safesteps.backend.domain.incidents.repository.IncidentVoteRepository;
+import com.safesteps.backend.domain.incidents.service.IncidentService;
+import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
+import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.service.UserService;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class IncidentVoteServiceTest {
+
+    @Mock
+    private IncidentVoteRepository voteRepository;
+
+    @Mock
+    private IncidentService incidentSv;
+
+    @InjectMocks
+    private IncidentVoteService voteService;
+
+    @Mock
+    private UserService userSv;
+
+
+    @Test
+    void createVote_OK() {
+        UserResponseDTO user = mock(UserResponseDTO.class);
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+        req.setVoteScore(1);
+        req.setGoogleId("100L");
+
+        // formula: 1 / (1 + (7/7)^4) = 1/2 = 0.5
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
+        incident.setId(incidentId);
+        incident.setReliabilityIndex(1.0);
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+        when(voteRepository.save(any(Vote.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(userSv.getUserByGoogleId(any())).thenReturn(user);
+        when(user.getReputacio()).thenReturn(1.0);
+
+        VoteResponseDTO result = voteService.createVote(incidentId, req);
+
+
+        assertNotNull(result);
+        assertEquals(0.5, result.getScore(), 0.001);
+
+        verify(voteRepository).save(any(Vote.class));
+        verify(incidentSv).updateIncidentVoteCount(0.5, incidentId, false);
+    }
+
+    @Test
+    void createVote_ZERO() {
+        UserResponseDTO user = mock(UserResponseDTO.class);
+
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+        req.setVoteScore(0); // Vot 0
+        req.setGoogleId("100L");
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setCreatedAt(OffsetDateTime.now().minusDays(7).toLocalDateTime());
+        incident.setReliabilityIndex(1.0);
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+        incident.setId(incidentId);
+
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+        when(voteRepository.save(any(Vote.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(userSv.getUserByGoogleId(any())).thenReturn(user);
+        when(user.getReputacio()).thenReturn(1.0);
+
+        VoteResponseDTO r = voteService.createVote(incidentId, req);
+
+        verify(voteRepository).save(any(Vote.class));
+        verify(incidentSv).updateIncidentVoteCount(0.0, incidentId, false);
+
+        assertNotNull(r);
+        assertEquals(0.0, r.getScore(), 0.001);
+    }
+
+
+    @Test
+    void deleteVoteByVoteId_Pending() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(0.8);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+        incident.setReliabilityIndex(1.0);
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteVoteByVoteId(1L);
+
+        verify(incidentSv).updateIncidentVoteCount(0.8, 2L, true);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteVoteByVoteId_Accepted() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(0.8);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteVoteByVoteId(1L);
+
+        verify(incidentSv).updateExpirationIndex(-0.8, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteVoteByVoteId_Resolved_ReturnsFalse() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.RESOLVED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteVoteByVoteId(1L);
+
+        verify(voteRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteVoteByVoteId_EMPTY_ThrowsResourceNotFoundException() {
+        Long voteId = 10L;
+        when(voteRepository.findById(voteId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> voteService.deleteVoteByVoteId(voteId));
+
+        verify(voteRepository, never()).deleteById(any());
+        verify(incidentSv, never()).updateIncidentVoteCount(anyDouble(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    void deleteByUserAndIncidence_Pending() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(1.5);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+        incident.setReliabilityIndex(1.0);
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        verify(incidentSv).updateIncidentVoteCount(1.5, 2L, true);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_Accepted() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(1.5);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        verify(incidentSv).updateExpirationIndex(-1.5, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_Resolved_ReturnsFalse() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.RESOLVED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        verify(voteRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteByUserAndIncidence_EMPTY_ThrowsResourceNotFoundException() {
+        when(voteRepository.findByUserAndIncidence(1L, "100L")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> voteService.deleteByUserAndIncidence(1L, "100L"));
+
+        verify(voteRepository, never()).deleteById(any());
+        verify(incidentSv, never()).updateIncidentVoteCount(anyDouble(), anyLong(), anyBoolean());
+    }
+
+
+    @Test
+    void getUserVotes_DTO() {
+        String userId = "100L";
+
+        VoteDBProjection p = new VoteDBProjection() {
+            @Override public Long getId() { return 1L; }
+            @Override public Long getIncidenceId() { return 10L; }
+            @Override public String getGoogleId() { return "100L"; }
+            @Override public float getScore() { return 0.5f; }
+            @Override public LocalDateTime getCreatedAt() { return LocalDateTime.now(); }
+        };
+
+        when(voteRepository.findAllByGoogleId(userId)).thenReturn(List.of(p));
+
+        List<VoteResponseDTO> result = voteService.getUserVotes(userId);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(0.5, result.getFirst().getScore());
+    }
+
+    @Test
+    void updateIncidentVoteCount_Zero() {
+        voteService.updateIncidentVoteCount(0.0, 1L, false);
+        verify(voteRepository, never()).save(any());
+    }
+
+    @Test
+    void getVoters() {
+        VoteDBProjection v = mock(VoteDBProjection.class);
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setId(1L);
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+        when(v.getGoogleId()).thenReturn("voter1");
+        when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(v));
+
+        List<Vote> result = voteService.getVoters(1L);
+        assertEquals(1, result.size());
+        assertEquals("voter1", result.getFirst().getGoogleId());
+    }
+    @Test
+    void checkValidation_Accepted() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(15.0); // Supera el threshold de 10
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+        when(incidentSv.getIncidentCreatorGoogleId(1L)).thenReturn("creator1"); // Nuevo mock necesario
+
+        VoteDBProjection vp = mock(VoteDBProjection.class);
+        when(voteRepository.findAllByIncidenceId(1L)).thenReturn(List.of(vp));
+
+        voteService.checkValidation(1L);
+
+        verify(userSv).updateUserReliability(anyList(), eq(true), eq("creator1"));
+        verify(incidentSv).updateIncidentStatus(1L, IncidentStatusEnum.ACCEPTED);
+    }
+
+    @Test
+    void checkValidation_Rejected() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(-15.0); // Supera el threshold de |-10|
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+        when(incidentSv.getIncidentCreatorGoogleId(1L)).thenReturn("creator1");
+
+        voteService.checkValidation(1L);
+
+        verify(userSv).updateUserReliability(anyList(), eq(false), eq("creator1"));
+        verify(incidentSv).updateIncidentStatus(1L, IncidentStatusEnum.REJECTED);
+    }
+
+    @Test
+    void deleteVoteByVoteId_AcceptedIncident() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(5.0); // Voto positivo que restó vida
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteVoteByVoteId(1L);
+
+        verify(incidentSv).updateExpirationIndex(-5.0, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteByUserAndIncidence_AcceptedIncident() {
+        Vote vote = new Vote();
+        vote.setId(1L);
+        vote.setIncidenceId(2L);
+        vote.setScore(5.0);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(voteRepository.findByUserAndIncidence(2L, "googleId")).thenReturn(Optional.of(vote));
+        when(incidentSv.findIncidentById(2L)).thenReturn(incident);
+
+        voteService.deleteByUserAndIncidence(2L, "googleId");
+
+        verify(incidentSv).updateExpirationIndex(-5.0, 2L);
+        verify(voteRepository).deleteById(1L);
+    }
+}

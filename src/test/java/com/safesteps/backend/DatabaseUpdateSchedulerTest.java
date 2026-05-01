@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +22,9 @@ class DatabaseUpdateSchedulerTest {
     @Mock
     private PostgisCalculationService postgisCalculationService;
 
+    @Mock
+    private AdminMetricsService adminMetricsService;
+
     @InjectMocks
     private DatabaseUpdateScheduler scheduler;
 
@@ -33,6 +37,8 @@ class DatabaseUpdateSchedulerTest {
         // Sustituimos el comando de Python por 'echo' para aislar el test del SO.
         // 'echo' siempre devuelve un código de salida 0 (éxito).
         ReflectionTestUtils.setField(scheduler, "pythonCommand", "echo");
+        // Habilitamos el scheduler para las pruebas
+        ReflectionTestUtils.setField(scheduler, "schedulerEnabled", true);
     }
 
     @Test
@@ -84,5 +90,18 @@ class DatabaseUpdateSchedulerTest {
 
         // ASSERT
         verify(postgisCalculationService, times(1)).performDatabaseCalculations();
+    }
+
+    @Test
+    void whenSchedulerIsDisabled_thenNoDatabaseOperationsArePerformed() {
+        // ARRANGE
+        ReflectionTestUtils.setField(scheduler, "schedulerEnabled", false);
+
+        // ACT
+        scheduler.updateDatabaseAndCalculations();
+
+        // ASSERT
+        verifyNoInteractions(postgisCalculationService);
+        verifyNoInteractions(adminMetricsService);
     }
 }

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSteps - Web Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar glass-panel">
+            <div class="logo-container">
+                <div class="logo-icon"></div>
+                <h1>SafeSteps</h1>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="dashboardView" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                    Dashboard
+                </button>
+                <button class="nav-item" data-view="usersView" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Usuarios
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="nav-item logout-btn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Cerrar Sesion
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header glass-panel">
+                <div>
+                    <p id="headerEyebrow" class="header-eyebrow">Backoffice</p>
+                    <h2 id="pageTitle">Dashboard Operativo</h2>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshDashboardBtn" class="btn btn-secondary" type="button">Actualizar</button>
+                    <div id="userSearchBox" class="search-box hidden">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="searchInput" placeholder="Buscar por ID, nombre o email...">
+                    </div>
+                </div>
+            </header>
+
+            <section id="dashboardView" class="content-area admin-view">
+                <div class="metric-grid">
+                    <article class="metric-card glass-panel">
+                        <span>Usuarios activos hoy</span>
+                        <strong id="dauValue">0</strong>
+                        <small id="mauValue">MAU 0</small>
+                    </article>
+                    <article class="metric-card glass-panel">
+                        <span>Latencia media ruta</span>
+                        <strong id="latencyValue">0 ms</strong>
+                        <small id="latencySamples">0 muestras 24h</small>
+                    </article>
+                    <article class="metric-card glass-panel">
+                        <span>Error rate API movil</span>
+                        <strong id="errorRateValue">0%</strong>
+                        <small id="errorRateSamples">0 peticiones 24h</small>
+                    </article>
+                    <article class="metric-card glass-panel">
+                        <span>Pipeline nocturno</span>
+                        <strong id="pipelineStatusValue">UNKNOWN</strong>
+                        <small id="pipelineDuration">Sin ejecucion</small>
+                    </article>
+                </div>
+
+                <div class="dashboard-grid">
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>Distribucion de tipos de rutas</h3>
+                            <span>30 dias</span>
+                        </div>
+                        <div class="chart-row">
+                            <canvas id="routePieChart" width="220" height="220"></canvas>
+                            <div id="routeLegend" class="legend-list"></div>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>Origenes y destinos calientes</h3>
+                            <span>30 dias</span>
+                        </div>
+                        <div class="heatmap-layout">
+                            <div>
+                                <h4>Origenes</h4>
+                                <div id="topOriginsList" class="zone-list"></div>
+                            </div>
+                            <div>
+                                <h4>Destinos</h4>
+                                <div id="topDestinationsList" class="zone-list"></div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>DAU y registros</h3>
+                            <span>crecimiento</span>
+                        </div>
+                        <canvas id="activeUsersChart" height="220"></canvas>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>Embudo de incidencias</h3>
+                            <span>total historico</span>
+                        </div>
+                        <div id="incidentFunnel" class="funnel"></div>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>Top reporters</h3>
+                            <span>ranking</span>
+                        </div>
+                        <div id="reportersList" class="ranking-list"></div>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel">
+                        <div class="panel-header">
+                            <h3>Pipeline Open Data BCN</h3>
+                            <span id="pipelineUpdatedAt">ultimo run</span>
+                        </div>
+                        <div id="pipelineScripts" class="script-list"></div>
+                    </article>
+
+                    <article class="dashboard-panel glass-panel wide-panel">
+                        <div class="panel-header">
+                            <h3>Latencia del algoritmo</h3>
+                            <span>media por hora</span>
+                        </div>
+                        <canvas id="latencyChart" height="180"></canvas>
+                    </article>
+                </div>
+            </section>
+
+            <section id="usersView" class="content-area admin-view hidden">
+                <div class="table-container glass-panel">
+                    <table class="data-table" aria-label="Tabla de gestion de usuarios">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Nivel / Puntos</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <tr>
+                                <td colspan="6" class="loading-cell">Cargando usuarios...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="pagination" id="paginationControls">
+                        <button id="btnPrev" class="btn btn-secondary" disabled>Anterior</button>
+                        <span id="pageInfo" class="page-info">Pagina 1 de 1</span>
+                        <button id="btnNext" class="btn btn-secondary" disabled>Siguiente</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="userModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Perfil de Usuario</h3>
+                <button id="closeModal" class="close-btn" type="button">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div id="incidentsContainer" class="incidents-container hidden">
+                <h4 class="incidents-title">Registro de Incidencias</h4>
+                <div id="incidentsList" class="incidents-list"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="status-actions">
+                    <button class="btn btn-success" id="btnActive" type="button">Activar</button>
+                    <button class="btn btn-warning" id="btnSuspend" type="button">Suspender</button>
+                    <button class="btn btn-danger" id="btnBan" type="button">Banear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="./js/app.js"></script>
+</body>
+</html>
