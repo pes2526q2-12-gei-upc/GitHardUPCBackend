@@ -48,17 +48,17 @@ public class UserController {
     }
 
     @GetMapping("/search/username")
-    @Operation(summary = "Buscar usuarios por username (coincidencia parcial)",
-               description = "Retorna la lista de usuarios cuyo username contiene el string enviado, junto con username, email y avatar.")
+    @Operation(summary = "Buscar usuarios por username o email (coincidencia parcial)",
+               description = "Retorna la lista de usuarios cuyo username o email contiene el string enviado. Incluye googleId, username, email y avatar.")
     public ResponseEntity<List<UserSearchResultDTO>> searchByUsername(@RequestParam String username) {
         return ResponseEntity.ok(userService.searchUsersByUsername(username));
     }
 
-    @GetMapping("/profile/{email}")
-    @Operation(summary = "Ver el perfil p\u00FAblico de un usuario por email exacto",
+    @GetMapping("/profile/{googleId}")
+    @Operation(summary = "Ver el perfil p\u00FAblico de un usuario por googleId",
                description = "Retorna username, picture_url, points, level, created_at y status del usuario.")
-    public ResponseEntity<UserProfileDTO> getProfileByEmail(@PathVariable String email) {
-        return ResponseEntity.ok(userService.getUserProfileByEmail(email));
+    public ResponseEntity<UserProfileDTO> getProfileByGoogleId(@PathVariable String googleId) {
+        return ResponseEntity.ok(userService.getUserProfileByGoogleId(googleId));
     }
 
     @PostMapping
