@@ -18,6 +18,9 @@ import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.notifications.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,9 @@ import static java.lang.Math.sqrt;
 @Service
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
 
@@ -40,10 +46,12 @@ public class UserService {
     private static final int WALKING_METERS_PER_MINUTE = 75;
     private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
+    private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository, FilterRepository filterRepository) {
+    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -285,7 +293,31 @@ public class UserService {
         );
     }
 
+    public void updateToken(String googleId, String token) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        u.setFcmToken(token);
+        userRepository.save(u);
+    }
+
+    public void sendPushNotification(String googleId, String title, String body) {
+        try {
+            getfcmTokenByGoogleId(googleId);
+        } catch (ResourceNotFoundException e) {
+            // si no existeix l'usuari o no te token, NO petem l'execucio, nomes loggem l'error i retornem (l'user no ho ha de saber)
+            logger.error("Error while getting fcm token for googleId: {}.", googleId);
+        }
+        notificationService.sendPushNotification(googleId, title, body);
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
+
+    private String getfcmTokenByGoogleId(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        if (u.getFcmToken() == null) throw new ResourceNotFoundException("No fcm token available.");
+        return u.getFcmToken();
+    }
 
     private PremiDTO pickRandomPrize(List<Premi> premis) {
         double totalWeight = 0;

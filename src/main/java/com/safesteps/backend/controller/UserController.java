@@ -120,4 +120,18 @@ public class UserController {
         RouteCompletionResponseDTO response = userService.completeRoute(googleId, distanceMeters);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{googleId}/fcm-token")
+    public ResponseEntity<Void> updateToken(@PathVariable String googleId, @RequestParam String token) {
+        userService.updateToken(googleId, token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{googleId}/try-notifications")
+    public ResponseEntity<Void> tryNotifications(@PathVariable String googleId, @RequestParam String title, @RequestParam String body) {
+        if (title == null) title = "Notificación de prueba";
+        if (body == null) body = "Si recibes esta notificación, las push notifications funcionan correctamente.";
+        userService.sendPushNotification(googleId,  title, body);
+        return ResponseEntity.ok().build();
+    }
 }

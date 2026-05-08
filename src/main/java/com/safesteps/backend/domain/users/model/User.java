@@ -69,4 +69,7 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "id", referencedColumnName = "id")
     )
     private Set<Premi> premis = new HashSet<>();
+
+    @Column(name="fcm_token")
+    private String fcmToken;
 }
