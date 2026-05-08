@@ -10,10 +10,12 @@ public class UserSearchResultDTO {
 
     private String username;
     private String pictureUrl;
+    private String email;
 
     public UserSearchResultDTO(User user) {
         if (user == null) return;
         this.username = user.getUsername();
         this.pictureUrl = user.getPictureUrl();
+        this.email = user.getEmail();
     }
 }

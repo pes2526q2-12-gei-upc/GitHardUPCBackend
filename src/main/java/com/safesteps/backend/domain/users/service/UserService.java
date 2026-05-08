@@ -85,7 +85,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserSearchResultDTO> searchUsersByUsername(String query) {
-        return userRepository.findByUsernameContainingIgnoreCase(query)
+        return userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query)
                 .stream()
                 .filter(u -> Boolean.FALSE.equals(u.getIsAnonymous()))
                 .filter(u -> u.getStatus() != UserStatus.BANNED)
@@ -94,9 +94,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserProfileDTO getUserProfileByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found for username: " + username));
+    public UserProfileDTO getUserProfileByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));
 
         return new UserProfileDTO(user);
     }

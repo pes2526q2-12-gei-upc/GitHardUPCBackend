@@ -84,6 +84,7 @@ class UserControllerTest {
         UserSearchResultDTO dto = new UserSearchResultDTO();
         dto.setUsername("marc_dev");
         dto.setPictureUrl("https://example.com/avatar.jpg");
+        dto.setEmail("marc@example.com");
         when(userService.searchUsersByUsername("marc")).thenReturn(List.of(dto));
 
         mockMvc.perform(get("/api/v1/users/search/username").param("username", "marc"))
@@ -91,7 +92,8 @@ class UserControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].username").value("marc_dev"))
-                .andExpect(jsonPath("$[0].pictureUrl").value("https://example.com/avatar.jpg"));
+                .andExpect(jsonPath("$[0].pictureUrl").value("https://example.com/avatar.jpg"))
+                .andExpect(jsonPath("$[0].email").value("marc@example.com"));
     }
 
     @Test
@@ -104,19 +106,19 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // --- TESTS PARA PERFIL POR USERNAME ---
+    // --- TESTS PARA PERFIL POR EMAIL ---
     @Test
-    @DisplayName("GET /api/v1/users/profile/{username} - Usuario existe (OK)")
-    void getProfileByUsername_WhenExists_ReturnsOk() throws Exception {
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario existe (OK)")
+    void getProfileByEmail_WhenExists_ReturnsOk() throws Exception {
         UserProfileDTO profile = new UserProfileDTO();
         profile.setUsername("marc_dev");
         profile.setPictureUrl("https://example.com/avatar.jpg");
         profile.setPoints(500L);
         profile.setLevel(3L);
         profile.setStatus(UserStatus.ACTIVE);
-        when(userService.getUserProfileByUsername("marc_dev")).thenReturn(profile);
+        when(userService.getUserProfileByEmail("marc@example.com")).thenReturn(profile);
 
-        mockMvc.perform(get("/api/v1/users/profile/marc_dev"))
+        mockMvc.perform(get("/api/v1/users/profile/marc@example.com"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.username").value("marc_dev"))
@@ -126,24 +128,24 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/users/profile/{username} - Usuario no existe (Not Found)")
-    void getProfileByUsername_WhenNotExists_ReturnsNotFound() throws Exception {
-        when(userService.getUserProfileByUsername("nobody"))
-                .thenThrow(new ResourceNotFoundException("User not found for username: nobody"));
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario no existe (Not Found)")
+    void getProfileByEmail_WhenNotExists_ReturnsNotFound() throws Exception {
+        when(userService.getUserProfileByEmail("nobody@example.com"))
+                .thenThrow(new ResourceNotFoundException("User not found for email: nobody@example.com"));
 
-        mockMvc.perform(get("/api/v1/users/profile/nobody"))
+        mockMvc.perform(get("/api/v1/users/profile/nobody@example.com"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("GET /api/v1/users/profile/{username} - Usuario baneado devuelve perfil con status BANNED")
-    void getProfileByUsername_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario baneado devuelve perfil con status BANNED")
+    void getProfileByEmail_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
         UserProfileDTO profile = new UserProfileDTO();
         profile.setUsername("banned_user");
         profile.setStatus(UserStatus.BANNED);
-        when(userService.getUserProfileByUsername("banned_user")).thenReturn(profile);
+        when(userService.getUserProfileByEmail("banned@example.com")).thenReturn(profile);
 
-        mockMvc.perform(get("/api/v1/users/profile/banned_user"))
+        mockMvc.perform(get("/api/v1/users/profile/banned@example.com"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("BANNED"));
     }
