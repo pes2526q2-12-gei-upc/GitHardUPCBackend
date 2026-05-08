@@ -10,6 +10,8 @@ import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -64,6 +66,39 @@ public class UserService {
         }
 
         return new UserResponseDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfile(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new UserBannedException(USER_BANNED_MESSAGE);
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
+        }
+
+        return new UserProfileDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSearchResultDTO> searchUsersByUsername(String query) {
+        return userRepository.findByUsernameContainingIgnoreCase(query)
+                .stream()
+                .filter(u -> Boolean.FALSE.equals(u.getIsAnonymous()))
+                .filter(u -> u.getStatus() != UserStatus.BANNED)
+                .map(UserSearchResultDTO::new)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfileByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for username: " + username));
+
+        return new UserProfileDTO(user);
     }
 
     @Transactional(readOnly = true)

@@ -8,8 +8,10 @@ import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
@@ -429,5 +431,112 @@ class UserServiceTest {
 
         assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
         verify(userRepository, never()).insertUserPrize(anyString(), anyString());
+    }
+
+    // --- TESTS PARA BÚSQUEDA POR USERNAME ---
+
+    @Test
+    @DisplayName("Debe retornar lista de DTOs con username y picture cuando hay coincidencias")
+    void searchUsersByUsername_WhenMatches_ReturnsList() {
+        User u1 = new User(); u1.setUsername("marc_dev"); u1.setPictureUrl("url1"); u1.setIsAnonymous(false); u1.setStatus(UserStatus.ACTIVE);
+        User u2 = new User(); u2.setUsername("marceline"); u2.setPictureUrl("url2"); u2.setIsAnonymous(false); u2.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCase("marc")).thenReturn(List.of(u1, u2));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(2, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+        assertEquals("url1", result.get(0).getPictureUrl());
+    }
+
+    @Test
+    @DisplayName("Debe retornar lista vacía cuando no hay coincidencias")
+    void searchUsersByUsername_WhenNoMatches_ReturnsEmptyList() {
+        when(userRepository.findByUsernameContainingIgnoreCase("zzz")).thenReturn(List.of());
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("zzz");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios anónimos de la búsqueda por username")
+    void searchUsersByUsername_ExcludesAnonymousUsers() {
+        User visible  = new User(); visible.setUsername("marc_dev"); visible.setIsAnonymous(false); visible.setStatus(UserStatus.ACTIVE);
+        User anonymous = new User(); anonymous.setUsername("marc_anon"); anonymous.setIsAnonymous(true); anonymous.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCase("marc")).thenReturn(List.of(visible, anonymous));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios baneados de la búsqueda por username")
+    void searchUsersByUsername_ExcludesBannedUsers() {
+        User active = new User(); active.setUsername("marc_dev"); active.setIsAnonymous(false); active.setStatus(UserStatus.ACTIVE);
+        User banned = new User(); banned.setUsername("marc_bad"); banned.setIsAnonymous(false); banned.setStatus(UserStatus.BANNED);
+        when(userRepository.findByUsernameContainingIgnoreCase("marc")).thenReturn(List.of(active, banned));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    // --- TESTS PARA PERFIL POR USERNAME ---
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el username existe")
+    void getUserProfileByUsername_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByUsername("testuser");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el username no existe")
+    void getUserProfileByUsername_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByUsername("nobody")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByUsername("nobody"));
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status BANNED (no lanza excepción)")
+    void getUserProfileByUsername_WhenBanned_ReturnsProfileWithBannedStatus() {
+        User bannedUser = new User();
+        bannedUser.setUsername("banned_user");
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByUsername("banned_user")).thenReturn(Optional.of(bannedUser));
+
+        UserProfileDTO result = userService.getUserProfileByUsername("banned_user");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.BANNED, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status SUSPENDED (no lanza excepción)")
+    void getUserProfileByUsername_WhenSuspended_ReturnsProfileWithSuspendedStatus() {
+        User suspendedUser = new User();
+        suspendedUser.setUsername("suspended_user");
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByUsername("suspended_user")).thenReturn(Optional.of(suspendedUser));
+
+        UserProfileDTO result = userService.getUserProfileByUsername("suspended_user");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.SUSPENDED, result.getStatus());
     }
 }

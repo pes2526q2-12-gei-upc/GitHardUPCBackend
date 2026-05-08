@@ -11,7 +11,10 @@ import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -72,6 +75,77 @@ class UserControllerTest {
 
         mockMvc.perform(get("/api/v1/users/g-123"))
                 .andExpect(status().isOk());
+    }
+
+    // --- TESTS PARA SEARCH POR USERNAME ---
+    @Test
+    @DisplayName("GET /api/v1/users/search/username - Hay coincidencias (OK)")
+    void searchByUsername_WhenMatches_ReturnsOk() throws Exception {
+        UserSearchResultDTO dto = new UserSearchResultDTO();
+        dto.setUsername("marc_dev");
+        dto.setPictureUrl("https://example.com/avatar.jpg");
+        when(userService.searchUsersByUsername("marc")).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/v1/users/search/username").param("username", "marc"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].username").value("marc_dev"))
+                .andExpect(jsonPath("$[0].pictureUrl").value("https://example.com/avatar.jpg"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/search/username - Sin coincidencias devuelve lista vacía (OK)")
+    void searchByUsername_WhenNoMatches_ReturnsEmptyList() throws Exception {
+        when(userService.searchUsersByUsername("zzz")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/users/search/username").param("username", "zzz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    // --- TESTS PARA PERFIL POR USERNAME ---
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{username} - Usuario existe (OK)")
+    void getProfileByUsername_WhenExists_ReturnsOk() throws Exception {
+        UserProfileDTO profile = new UserProfileDTO();
+        profile.setUsername("marc_dev");
+        profile.setPictureUrl("https://example.com/avatar.jpg");
+        profile.setPoints(500L);
+        profile.setLevel(3L);
+        profile.setStatus(UserStatus.ACTIVE);
+        when(userService.getUserProfileByUsername("marc_dev")).thenReturn(profile);
+
+        mockMvc.perform(get("/api/v1/users/profile/marc_dev"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.username").value("marc_dev"))
+                .andExpect(jsonPath("$.points").value(500))
+                .andExpect(jsonPath("$.level").value(3))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{username} - Usuario no existe (Not Found)")
+    void getProfileByUsername_WhenNotExists_ReturnsNotFound() throws Exception {
+        when(userService.getUserProfileByUsername("nobody"))
+                .thenThrow(new ResourceNotFoundException("User not found for username: nobody"));
+
+        mockMvc.perform(get("/api/v1/users/profile/nobody"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{username} - Usuario baneado devuelve perfil con status BANNED")
+    void getProfileByUsername_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
+        UserProfileDTO profile = new UserProfileDTO();
+        profile.setUsername("banned_user");
+        profile.setStatus(UserStatus.BANNED);
+        when(userService.getUserProfileByUsername("banned_user")).thenReturn(profile);
+
+        mockMvc.perform(get("/api/v1/users/profile/banned_user"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BANNED"));
     }
 
     @Test
