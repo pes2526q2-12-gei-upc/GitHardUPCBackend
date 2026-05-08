@@ -6,18 +6,18 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class UserSearchResultDTO {
+public class FriendDTO {
 
     private String googleId;
     private String username;
-    private String pictureUrl;
     private String email;
+    private String pictureUrl;
 
-    public UserSearchResultDTO(User user) {
+    public FriendDTO(User user) {
         if (user == null) return;
         this.googleId = user.getGoogleId();
         this.username = user.getUsername();
-        this.pictureUrl = user.getPictureUrl();
         this.email = user.getEmail();
+        this.pictureUrl = user.getPictureUrl();
     }
 }

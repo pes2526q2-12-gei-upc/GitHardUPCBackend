@@ -102,6 +102,14 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfileByGoogleId(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for googleId: " + googleId));
+
+        return new UserProfileDTO(user);
+    }
+
+    @Transactional(readOnly = true)
     public UserResponseDTO getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));

@@ -106,19 +106,19 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // --- TESTS PARA PERFIL POR EMAIL ---
+    // --- TESTS PARA PERFIL POR GOOGLEID ---
     @Test
-    @DisplayName("GET /api/v1/users/profile/{email} - Usuario existe (OK)")
-    void getProfileByEmail_WhenExists_ReturnsOk() throws Exception {
+    @DisplayName("GET /api/v1/users/profile/{googleId} - Usuario existe (OK)")
+    void getProfileByGoogleId_WhenExists_ReturnsOk() throws Exception {
         UserProfileDTO profile = new UserProfileDTO();
         profile.setUsername("marc_dev");
         profile.setPictureUrl("https://example.com/avatar.jpg");
         profile.setPoints(500L);
         profile.setLevel(3L);
         profile.setStatus(UserStatus.ACTIVE);
-        when(userService.getUserProfileByEmail("marc@example.com")).thenReturn(profile);
+        when(userService.getUserProfileByGoogleId("googleId123")).thenReturn(profile);
 
-        mockMvc.perform(get("/api/v1/users/profile/marc@example.com"))
+        mockMvc.perform(get("/api/v1/users/profile/googleId123"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.username").value("marc_dev"))
@@ -128,24 +128,24 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/users/profile/{email} - Usuario no existe (Not Found)")
-    void getProfileByEmail_WhenNotExists_ReturnsNotFound() throws Exception {
-        when(userService.getUserProfileByEmail("nobody@example.com"))
-                .thenThrow(new ResourceNotFoundException("User not found for email: nobody@example.com"));
+    @DisplayName("GET /api/v1/users/profile/{googleId} - Usuario no existe (Not Found)")
+    void getProfileByGoogleId_WhenNotExists_ReturnsNotFound() throws Exception {
+        when(userService.getUserProfileByGoogleId("unknownId"))
+                .thenThrow(new ResourceNotFoundException("User not found for googleId: unknownId"));
 
-        mockMvc.perform(get("/api/v1/users/profile/nobody@example.com"))
+        mockMvc.perform(get("/api/v1/users/profile/unknownId"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("GET /api/v1/users/profile/{email} - Usuario baneado devuelve perfil con status BANNED")
-    void getProfileByEmail_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
+    @DisplayName("GET /api/v1/users/profile/{googleId} - Usuario baneado devuelve perfil con status BANNED")
+    void getProfileByGoogleId_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
         UserProfileDTO profile = new UserProfileDTO();
         profile.setUsername("banned_user");
         profile.setStatus(UserStatus.BANNED);
-        when(userService.getUserProfileByEmail("banned@example.com")).thenReturn(profile);
+        when(userService.getUserProfileByGoogleId("bannedGoogleId")).thenReturn(profile);
 
-        mockMvc.perform(get("/api/v1/users/profile/banned@example.com"))
+        mockMvc.perform(get("/api/v1/users/profile/bannedGoogleId"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("BANNED"));
     }
