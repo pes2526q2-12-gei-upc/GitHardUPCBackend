@@ -1,6 +1,7 @@
 package com.safesteps.backend;
 
 import com.safesteps.backend.domain.routecalculator.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("integration")
 @Tag("integration")
+@Disabled("Requiere base de datos PostGIS real con datos de bcn_grafvial_nodes cargados y la funcion pgr_dijkstra")
 class RouteCalculatorPerformanceTest {
 
     @Autowired

@@ -11,7 +11,10 @@ import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -72,6 +75,79 @@ class UserControllerTest {
 
         mockMvc.perform(get("/api/v1/users/g-123"))
                 .andExpect(status().isOk());
+    }
+
+    // --- TESTS PARA SEARCH POR USERNAME ---
+    @Test
+    @DisplayName("GET /api/v1/users/search/username - Hay coincidencias (OK)")
+    void searchByUsername_WhenMatches_ReturnsOk() throws Exception {
+        UserSearchResultDTO dto = new UserSearchResultDTO();
+        dto.setUsername("marc_dev");
+        dto.setPictureUrl("https://example.com/avatar.jpg");
+        dto.setEmail("marc@example.com");
+        when(userService.searchUsersByUsername("marc")).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/v1/users/search/username").param("username", "marc"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].username").value("marc_dev"))
+                .andExpect(jsonPath("$[0].pictureUrl").value("https://example.com/avatar.jpg"))
+                .andExpect(jsonPath("$[0].email").value("marc@example.com"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/search/username - Sin coincidencias devuelve lista vacía (OK)")
+    void searchByUsername_WhenNoMatches_ReturnsEmptyList() throws Exception {
+        when(userService.searchUsersByUsername("zzz")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/users/search/username").param("username", "zzz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    // --- TESTS PARA PERFIL POR EMAIL ---
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario existe (OK)")
+    void getProfileByEmail_WhenExists_ReturnsOk() throws Exception {
+        UserProfileDTO profile = new UserProfileDTO();
+        profile.setUsername("marc_dev");
+        profile.setPictureUrl("https://example.com/avatar.jpg");
+        profile.setPoints(500L);
+        profile.setLevel(3L);
+        profile.setStatus(UserStatus.ACTIVE);
+        when(userService.getUserProfileByEmail("marc@example.com")).thenReturn(profile);
+
+        mockMvc.perform(get("/api/v1/users/profile/marc@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.username").value("marc_dev"))
+                .andExpect(jsonPath("$.points").value(500))
+                .andExpect(jsonPath("$.level").value(3))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario no existe (Not Found)")
+    void getProfileByEmail_WhenNotExists_ReturnsNotFound() throws Exception {
+        when(userService.getUserProfileByEmail("nobody@example.com"))
+                .thenThrow(new ResourceNotFoundException("User not found for email: nobody@example.com"));
+
+        mockMvc.perform(get("/api/v1/users/profile/nobody@example.com"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/profile/{email} - Usuario baneado devuelve perfil con status BANNED")
+    void getProfileByEmail_WhenBanned_ReturnsProfileWithBannedStatus() throws Exception {
+        UserProfileDTO profile = new UserProfileDTO();
+        profile.setUsername("banned_user");
+        profile.setStatus(UserStatus.BANNED);
+        when(userService.getUserProfileByEmail("banned@example.com")).thenReturn(profile);
+
+        mockMvc.perform(get("/api/v1/users/profile/banned@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BANNED"));
     }
 
     @Test

@@ -6,6 +6,8 @@ import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +45,20 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> getByEmail(@RequestParam String email) {
         UserResponseDTO user = userService.getUserByEmail(email);
         return ResponseEntity.ok(user);
+    }
+
+    @GetMapping("/search/username")
+    @Operation(summary = "Buscar usuarios por username (coincidencia parcial)",
+               description = "Retorna la lista de usuarios cuyo username contiene el string enviado, junto con username, email y avatar.")
+    public ResponseEntity<List<UserSearchResultDTO>> searchByUsername(@RequestParam String username) {
+        return ResponseEntity.ok(userService.searchUsersByUsername(username));
+    }
+
+    @GetMapping("/profile/{email}")
+    @Operation(summary = "Ver el perfil p\u00FAblico de un usuario por email exacto",
+               description = "Retorna username, picture_url, points, level, created_at y status del usuario.")
+    public ResponseEntity<UserProfileDTO> getProfileByEmail(@PathVariable String email) {
+        return ResponseEntity.ok(userService.getUserProfileByEmail(email));
     }
 
     @PostMapping

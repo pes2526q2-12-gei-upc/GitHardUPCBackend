@@ -20,6 +20,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "premis")
     Optional<User> findByGoogleId(String googleId);
 
+    Optional<User> findByUsername(String username);
+
+    List<User> findByUsernameContainingIgnoreCase(String username);
+
+    List<User> findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(String username, String email);
+
     boolean existsByEmail(String email);
 
     boolean existsByGoogleId(String googleId);
