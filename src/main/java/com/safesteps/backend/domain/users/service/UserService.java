@@ -12,10 +12,7 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
-import com.safesteps.backend.domain.users.model.Premi;
-import com.safesteps.backend.domain.users.model.User;
-import com.safesteps.backend.domain.users.model.UserFilter;
-import com.safesteps.backend.domain.users.model.UserStatus;
+import com.safesteps.backend.domain.users.model.*;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -283,6 +280,35 @@ public class UserService {
                 user.getPoints(),
                 user.getRecompenses()
         );
+    }
+
+    @Transactional
+    public List<UserProfileDTO> newEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId.contains(userGoogleId))
+            throw new BadRequestException("Cannot add yourself as an emergency contact.");
+
+        for (String contactId : emergencyContactsGoogleId)
+            userRepository.addEmergencyContact(userGoogleId, contactId);
+
+        return getEmergencyContacts(userGoogleId);
+    }
+
+    @Transactional
+    public void deleteEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId != null && !emergencyContactsGoogleId.isEmpty())
+            userRepository.deleteEmergencyContacts(userGoogleId, emergencyContactsGoogleId);
+
+    }
+
+    public List<UserProfileDTO> getEmergencyContacts(String googleId) {
+        List<String> contactIds = userRepository.getEmergencyContacts(googleId);
+        if (contactIds.isEmpty()) return List.of();
+
+        List<User> contacts = userRepository.findByGoogleIdIn(contactIds);
+
+        return contacts.stream()
+                .map(UserProfileDTO::new)
+                .toList();
     }
 
     // --- MÉTODOS PRIVADOS DE AYUDA ---
