@@ -57,7 +57,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     void addEmergencyContact(@Param("userGoogleId") String userGoogleId, @Param("emergencyContactGoogleId") String emergencyContactGoogleId);
 
     @Modifying
-    @Query(value = "DELETE FROM emergency_contacts WHERE user_google_id = :userGoogleId AND emergency_contact_google_id IN (:emergencyContactsGoogleIds)", nativeQuery = true)
+    @Query(value = "DELETE FROM emergency_contacts WHERE user_google_id = :userGoogleId AND emergency_contact_google_id IN (:emergencyContactsGoogleId)", nativeQuery = true)
     void deleteEmergencyContacts(@Param("userGoogleId") String userGoogleId, @Param("emergencyContactsGoogleId") List<String> emergencyContactsGoogleId);
 
     @Query(value = "SELECT emergency_contact_google_id FROM emergency_contacts WHERE user_google_id = :userGoogleId", nativeQuery = true)
