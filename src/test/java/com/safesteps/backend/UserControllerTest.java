@@ -13,6 +13,7 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
+import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.UserService;
@@ -27,6 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -350,5 +352,84 @@ class UserControllerTest {
         request.setGoogleId("g-123");
         request.setIsAnonymous(false);
         return request;
+    }
+
+
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency-contacts")
+    void getEmergencyContacts() throws Exception {
+        User u = new User();
+        u.setGoogleId("googleId");
+        u.setUsername("username");
+        List<UserProfileDTO> users = List.of(new UserProfileDTO(u));
+
+        when(userService.getEmergencyContacts("googleId")).thenReturn(users);
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency-contacts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].username").value("username"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency-contacts None")
+    void getNoneEmergencyContacts() throws Exception {
+        List<UserProfileDTO> users = new ArrayList<>();
+
+        when(userService.getEmergencyContacts("googleId")).thenReturn(users);
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency-contacts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/users/{googleId}/emergency-contacts Null")
+    void deleteNullEmergencyContacts() throws Exception {
+        mockMvc.perform(delete("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", ""))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/users/{googleId}/emergency-contacts")
+    void deleteEmergencyContacts() throws Exception {
+        List<String> users = List.of("u1", "u2", "u3");
+
+        mockMvc.perform(delete("/api/v1/users/googleId/emergency-contacts")
+                    .param("emergencyContacts", String.valueOf(users)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts adding my as my emergency contact")
+    void newEmergencyContactImMyContact() throws Exception {
+        List<String> users = List.of("googleId");
+
+        when(userService.newEmergencyContact(any(), any())).thenThrow(new BadRequestException("Cannot add yourself as an emergency contact."));
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", String.valueOf(users)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts none")
+    void newEmergencyContactNone() throws Exception {
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", ""))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts none")
+    void newEmergencyContact() throws Exception {
+        List<String> users = List.of("googleId");
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", String.valueOf(users)))
+                .andExpect(status().isCreated());
     }
 }
