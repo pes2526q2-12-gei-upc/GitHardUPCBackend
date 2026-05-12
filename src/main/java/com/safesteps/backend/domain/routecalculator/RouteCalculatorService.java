@@ -60,94 +60,7 @@ public class RouteCalculatorService {
                 .map(r -> new Double[]{ r.getLon(), r.getLat() })
                 .toList();
 
-        List<PoiDTO> pois = new ArrayList<>();
-
-        boolean showComissaries = false;
-        boolean showFonts = false;
-        boolean showBancs = false;
-        boolean showCameres = false;
-        boolean showEscales = false;
-        boolean showRefugis = false;
-
-        if (filtre.getComissaries() == 1 && filtre.getFetsPenals() == 1 && filtre.getCameresSeguretat() == 1 && filtre.getInfraccions() == 1 && filtre.getFontsAigua() == 0) {
-            // SEGURETAT
-            showComissaries = true;
-        } else if (filtre.getFontsAigua() == 1 && filtre.getBancs() == 1 && filtre.getContaminacioAcustica() == 1 && filtre.getEscalesMecaniques() == 1 && filtre.getComissaries() == 0) {
-            // CONFORT
-            showBancs = true;
-            showFonts = true;
-            showEscales = true;
-        } else if (filtre.getArbres() == 1 && filtre.getRefugisClimatics() == 1 && filtre.getQualitatAire() == 1 && filtre.getComissaries() == 0) {
-            // CLIMA
-            showFonts = true;
-            showRefugis = true;
-        } else {
-            // PERSONALITZAT o algun altre
-            double avg = (filtre.getComissaries() + filtre.getFetsPenals() + filtre.getCameresSeguretat() + filtre.getInfraccions() +
-                    filtre.getFontsAigua() + filtre.getBancs() + filtre.getContaminacioAcustica() + filtre.getEscalesMecaniques() +
-                    filtre.getArbres() + filtre.getRefugisClimatics() + filtre.getQualitatAire()) / 11.0;
-
-            if (filtre.getComissaries() > avg) showComissaries = true;
-            if (filtre.getFontsAigua() > avg) showFonts = true;
-            if (filtre.getBancs() > avg) showBancs = true;
-            if (filtre.getCameresSeguretat() > avg) showCameres = true;
-            if (filtre.getEscalesMecaniques() > avg) showEscales = true;
-            if (filtre.getRefugisClimatics() > avg) showRefugis = true;
-        }
-
-        if (showComissaries) {
-            // A. Comissaries (Radi ample: 500 metres, útil per a seguretat a la zona)
-            List<PoiDBProjection> comissariesDB = carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0);
-            pois.addAll(comissariesDB.stream()
-                    .map(c -> new PoiDTO("COMISSARIA", c.getName(), c.getLat(), c.getLon()))
-                    .toList());
-        }
-
-        if (showFonts) {
-            // B. Fonts de beure (Radi curt: 75 metres, l'usuari no vol desviar-se molt per beure aigua)
-            List<PoiDBProjection> fontsDB = carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0);
-            pois.addAll(fontsDB.stream()
-                    .map(f -> new PoiDTO("FONT", f.getName(), f.getLat(), f.getLon()))
-                    .toList());
-        }
-
-        if (showBancs) {
-            // C. Bancs (Radi molt curt: 30 metres. N'hi ha milers, només volem els que estan literalment al camí)
-            List<PoiDBProjection> bancsDB = carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0);
-            pois.addAll(bancsDB.stream()
-                    .map(b -> new PoiDTO("BANC", b.getName(), b.getLat(), b.getLon()))
-                    .toList());
-        }
-
-        if (showCameres) {
-            // D. Càmeres de seguretat (Radi: 100 metres. Cobreixen un cert camp de visió)
-            List<PoiDBProjection> cameresDB = carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0);
-            pois.addAll(cameresDB.stream()
-                    .map(c -> new PoiDTO("CAMERA", c.getName(), c.getLat(), c.getLon()))
-                    .toList());
-        }
-
-        if (showEscales) {
-            // E. Escales Mecàniques (Radi: 50 metres. Molt útils per evitar desnivells pronunciats)
-            List<PoiDBProjection> escalesDB = carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0);
-            pois.addAll(escalesDB.stream()
-                    .map(e -> new PoiDTO("ESCALA_MECANICA", e.getName(), e.getLat(), e.getLon()))
-                    .toList());
-        }
-
-        if (showRefugis) {
-            // F. Refugis Climàtics
-            List<PoiDBProjection> refugisDB = carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0);
-            pois.addAll(refugisDB.stream()
-                    .map(r -> new PoiDTO("REFUGI_CLIMATIC", r.getName(), r.getLat(), r.getLon()))
-                    .toList());
-        }
-
-        // INCIDENCIES (Sempre s'envien)
-        List<PoiDBProjection> incidentsDB = carrerRepository.findIncidentsNearRoute(rutaPrincipalFID, 50.0);
-        pois.addAll(incidentsDB.stream()
-                .map(inc -> new PoiDTO("INCIDENCIA", inc.getName(), inc.getLat(), inc.getLon()))
-                .toList());
+        List<PoiDTO> pois = fetchRoutePois(rutaPrincipalFID, filtre);
 
         // 3. Retornem la Ruta enriquida (Ara el constructor de Route demana els POIs al final)
         return new Route(
@@ -156,6 +69,58 @@ public class RouteCalculatorService {
                 calculateEstimatedTime(distanceMeters),
                 pois
         );
+    }
+
+    private List<PoiDTO> fetchRoutePois(Long[] rutaPrincipalFID, Filtre filtre) {
+        List<PoiDTO> pois = new ArrayList<>();
+
+        if (isFiltreSeguretat(filtre)) {
+            addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
+        } else if (isFiltreConfort(filtre)) {
+            addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
+            addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
+            addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
+        } else if (isFiltreClima(filtre)) {
+            addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
+            addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
+        } else {
+            addPersonalizedPois(pois, rutaPrincipalFID, filtre);
+        }
+
+        addPois(pois, carrerRepository.findIncidentsNearRoute(rutaPrincipalFID, 50.0), "INCIDENCIA");
+
+        return pois;
+    }
+
+    private boolean isFiltreSeguretat(Filtre filtre) {
+        return filtre.getComissaries() == 1 && filtre.getFetsPenals() == 1 && filtre.getCameresSeguretat() == 1 && filtre.getInfraccions() == 1 && filtre.getFontsAigua() == 0;
+    }
+
+    private boolean isFiltreConfort(Filtre filtre) {
+        return filtre.getFontsAigua() == 1 && filtre.getBancs() == 1 && filtre.getContaminacioAcustica() == 1 && filtre.getEscalesMecaniques() == 1 && filtre.getComissaries() == 0;
+    }
+
+    private boolean isFiltreClima(Filtre filtre) {
+        return filtre.getArbres() == 1 && filtre.getRefugisClimatics() == 1 && filtre.getQualitatAire() == 1 && filtre.getComissaries() == 0;
+    }
+
+    private void addPersonalizedPois(List<PoiDTO> pois, Long[] rutaPrincipalFID, Filtre filtre) {
+        double avg = (filtre.getComissaries() + filtre.getFetsPenals() + filtre.getCameresSeguretat() + filtre.getInfraccions() +
+                filtre.getFontsAigua() + filtre.getBancs() + filtre.getContaminacioAcustica() + filtre.getEscalesMecaniques() +
+                filtre.getArbres() + filtre.getRefugisClimatics() + filtre.getQualitatAire()) / 11.0;
+
+        if (filtre.getComissaries() > avg) addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
+        if (filtre.getFontsAigua() > avg) addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
+        if (filtre.getBancs() > avg) addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
+        if (filtre.getCameresSeguretat() > avg) addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
+        if (filtre.getEscalesMecaniques() > avg) addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
+        if (filtre.getRefugisClimatics() > avg) addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
+    }
+
+    private void addPois(List<PoiDTO> pois, List<PoiDBProjection> dbProjections, String type) {
+        pois.addAll(dbProjections.stream()
+                .map(p -> new PoiDTO(type, p.getName(), p.getLat(), p.getLon()))
+                .toList());
     }
 
     // Calcular el temps estimat (Velocitat a peu de 5 km/h -> ~83.33 m/min)
