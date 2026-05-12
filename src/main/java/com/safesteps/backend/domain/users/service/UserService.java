@@ -302,12 +302,13 @@ public class UserService {
 
     public void sendPushNotification(String googleId, String title, String body) {
         try {
-            getfcmTokenByGoogleId(googleId);
+            String token = getfcmTokenByGoogleId(googleId);
+            notificationService.sendPushNotification(token, title, body);
         } catch (ResourceNotFoundException e) {
             // si no existeix l'usuari o no te token, NO petem l'execucio, nomes loggem l'error i retornem (l'user no ho ha de saber)
             logger.error("Error while getting fcm token for googleId: {}.", googleId);
         }
-        notificationService.sendPushNotification(googleId, title, body);
+
     }
 
     // --- MÉTODOS PRIVADOS DE AYUDA ---
