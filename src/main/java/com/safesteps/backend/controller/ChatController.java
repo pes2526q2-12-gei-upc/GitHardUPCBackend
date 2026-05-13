@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/chats")
-@Tag(name = "Chats", description = "Gestión de conversaciones y mensajería entre usuarios")
+@Tag(name = "Chats", description = "Gestió de converses i mensajería entre usuarios")
 public class ChatController {
 
     private final ChatService chatService;
@@ -26,22 +26,59 @@ public class ChatController {
     }
 
     @GetMapping("/user/{googleId}")
-    @Operation(summary = "Obtener los chats de un usuario",
-            description = "Retorna la lista de conversaciones en las que participa el usuario.")
+    @Operation(summary = "Obtenir els chats de un usuari")
     public ResponseEntity<List<ChatResponseDTO>> getUserChats(@PathVariable String googleId) {
         return ResponseEntity.ok(chatService.getUserChats(googleId));
     }
 
     @PostMapping
-    @Operation(summary = "Crear un nuevo chat (Privado o Grupal)",
-            description = "Crea una sala de chat y añade los participantes pasados por Google ID.")
+    @Operation(summary = "Crear un nou xat (privat o grup)")
     public ResponseEntity<ChatResponseDTO> create(@Valid @RequestBody ChatRequestDTO req) {
         ChatResponseDTO created = chatService.createChat(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @PostMapping("/{chatId}/participants")
+    @Operation(summary = "Afegir un usuari a un grup (Només ADMINS)")
+    public ResponseEntity<Void> addUser(
+            @PathVariable Long chatId,
+            @RequestParam String adminId,
+            @RequestParam String newUserGoogleId) {
+        chatService.addUserToGroup(chatId, adminId, newUserGoogleId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{chatId}/participants/exit")
+    @Operation(summary = "Sortir d'un grup")
+    public ResponseEntity<Void> exitGroup(
+            @PathVariable Long chatId,
+            @RequestParam String googleId) {
+        chatService.exitGroup(chatId, googleId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{chatId}/participants/{targetGoogleId}")
+    @Operation(summary = "Eliminar un usuari d'un grup (Només ADMINS)")
+    public ResponseEntity<Void> removeUser(
+            @PathVariable Long chatId,
+            @RequestParam String adminId,
+            @PathVariable String targetGoogleId) {
+        chatService.removeUserFromGroup(chatId, adminId, targetGoogleId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{chatId}/participants/{targetGoogleId}/admin")
+    @Operation(summary = "Donar rang d'ADMIN a un participant (Només ADMINS)")
+    public ResponseEntity<Void> grantAdmin(
+            @PathVariable Long chatId,
+            @RequestParam String adminId,
+            @PathVariable String targetGoogleId) {
+        chatService.grantAdmin(chatId, adminId, targetGoogleId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{chatId}/messages")
-    @Operation(summary = "Enviar un mensaje a un chat específico")
+    @Operation(summary = "Enviar un missatge")
     public ResponseEntity<MessageResponseDTO> sendMessage(
             @PathVariable Long chatId,
             @Valid @RequestBody MessageRequestDTO req) {
@@ -50,19 +87,26 @@ public class ChatController {
     }
 
     @GetMapping("/{chatId}/messages")
-    @Operation(summary = "Obtener el historial de mensajes de un chat")
     public ResponseEntity<List<MessageResponseDTO>> getMessages(@PathVariable Long chatId) {
         return ResponseEntity.ok(chatService.getMessagesByChatId(chatId));
     }
 
     @PutMapping("/{chatId}/messages/{messageId}/read")
-    @Operation(summary = "Marcar un mensaje como leído",
-            description = "Inicia la cuenta atrás de 24h para el borrado automático del mensaje.")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long chatId,
             @PathVariable Long messageId,
             @RequestParam String googleId) {
         chatService.markMessageAsRead(messageId, googleId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{chatId}/participants/{targetGoogleId}/admin")
+    @Operation(summary = "Treure el rang d'ADMIN a un participant (Només ADMINS)")
+    public ResponseEntity<Void> revokeAdmin(
+            @PathVariable Long chatId,
+            @RequestParam String adminId,
+            @PathVariable String targetGoogleId) {
+        chatService.revokeAdmin(chatId, adminId, targetGoogleId);
         return ResponseEntity.noContent().build();
     }
 }

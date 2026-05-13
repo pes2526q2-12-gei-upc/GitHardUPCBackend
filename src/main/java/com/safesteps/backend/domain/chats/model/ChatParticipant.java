@@ -24,4 +24,7 @@ public class ChatParticipant {
 
     @Column(name = "joined_at", insertable = false, updatable = false)
     private OffsetDateTime joinedAt;
+
+    @Column(name = "role")
+    private String role;
 }
