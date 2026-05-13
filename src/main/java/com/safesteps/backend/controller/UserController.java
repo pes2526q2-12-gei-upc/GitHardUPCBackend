@@ -128,10 +128,16 @@ public class UserController {
     }
 
     @PostMapping("/{googleId}/try-notifications")
-    public ResponseEntity<Void> tryNotifications(@PathVariable String googleId, @RequestParam String title, @RequestParam String body) {
+    @Operation(summary = "1 -> Message" +
+            "2 -> Emergency" +
+            "3 -> Friend req" +
+            "4 -> Location" +
+            "5 -> Firebase" +
+            "6 -> WebSocket")
+    public ResponseEntity<Void> tryNotifications(@PathVariable String googleId, @RequestParam String title, @RequestParam String body, @RequestParam Integer type) {
         if (title == null) title = "Notificación de prueba";
         if (body == null) body = "Si recibes esta notificación, las push notifications funcionan correctamente.";
-        userService.sendPushNotification(googleId,  title, body);
+        userService.sendPushNotification(googleId,  title, body, type);
         return ResponseEntity.ok().build();
     }
 }

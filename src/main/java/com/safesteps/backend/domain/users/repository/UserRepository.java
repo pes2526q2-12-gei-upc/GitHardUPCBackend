@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,4 +52,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying
     @Query(value = "UPDATE users SET pending_rewards = COALESCE(pending_rewards, 0) - 1 WHERE google_id = :googleId AND COALESCE(pending_rewards, 0) > 0", nativeQuery = true)
     int decrementPendingRewards(@Param("googleId") String googleId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE User u SET u.isOnline = :status WHERE u.googleId = :googleId")
+    void updateOnlineStatus(@Param("googleId") String googleId, @Param("status") boolean status);
 }

@@ -300,10 +300,9 @@ public class UserService {
         userRepository.save(u);
     }
 
-    public void sendPushNotification(String googleId, String title, String body) {
+    public void sendPushNotification(String googleId, String title, String body, int type) {
         try {
-            String token = getfcmTokenByGoogleId(googleId);
-            notificationService.sendPushNotification(token, title, body);
+            notificationService.sendNotification(googleId, title, body, type);
         } catch (ResourceNotFoundException e) {
             // si no existeix l'usuari o no te token, NO petem l'execucio, nomes loggem l'error i retornem (l'user no ho ha de saber)
             logger.error("Error while getting fcm token for googleId: {}.", googleId);
@@ -313,12 +312,6 @@ public class UserService {
 
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
-    private String getfcmTokenByGoogleId(String googleId) {
-        User u = userRepository.findByGoogleId(googleId)
-                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
-        if (u.getFcmToken() == null) throw new ResourceNotFoundException("No fcm token available.");
-        return u.getFcmToken();
-    }
 
     private PremiDTO pickRandomPrize(List<Premi> premis) {
         double totalWeight = 0;

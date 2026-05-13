@@ -72,4 +72,7 @@ public class User {
 
     @Column(name="fcm_token")
     private String fcmToken;
+
+    @Column(name="is_online", nullable = false)
+    private Boolean isOnline = false;
 }
