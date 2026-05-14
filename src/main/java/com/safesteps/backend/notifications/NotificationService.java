@@ -1,5 +1,6 @@
 package com.safesteps.backend.notifications;
 
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.safesteps.backend.domain.users.model.User;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -33,30 +35,33 @@ public class NotificationService {
         this.userRepository = userRepository;
     }
 
-    // todo msg_body should be msg
-    public void sendMessage(String toGoogleId, Object msg) {
+    // todo msg_body should be msg.text(). Cal canviar el Object per el DTO corresponent.
+    public void sendMessage(List<String> toGoogleId, Object msg) {
         send(toGoogleId, MSG_TITLE, MSG_BODY, msg, "/queue/messages");
     }
 
-    public void sendEmergency(String toGoogleId, Object emergency) {
+    public void sendEmergency(List<String> toGoogleId, Object emergency) {
         send(toGoogleId, EMERGENCY_TITLE, EMERGENCY_BODY, emergency, "/queue/emergency");
     }
 
-    public void sendLocationUpdate(String toGoogleId, Object coords) {
-        webSocketNotification(toGoogleId, null, null, coords, "/queue/location");
+    public void sendLocationUpdate(List<String> toGoogleIds, Object coords) {
+        for (String toGoogleId : toGoogleIds) {
+            webSocketNotification(toGoogleId, null, null, coords, "/queue/location");
+        }
+
     }
 
     public void sendFriendRequest(String toGoogleId, Object requestInfo) {
-        send(toGoogleId, FRIEND_REQ_TITLE, FRIEND_REQ_BODY, requestInfo, "/queue/requests");
+        send(List.of(toGoogleId), FRIEND_REQ_TITLE, FRIEND_REQ_BODY, requestInfo, "/queue/requests");
     }
 
     // todo: Eliminar aquesta funcio un cop s'han provat les ws notifications
     public void sendNotification(String toGoogleId, String title, String body, int type) {
         switch (type) {
-            case 1 -> sendMessage(toGoogleId, null);
-            case 2 -> sendEmergency(toGoogleId, null);
+            case 1 -> sendMessage(List.of(toGoogleId), null);
+            case 2 -> sendEmergency(List.of(toGoogleId), null);
             case 3 -> sendFriendRequest(toGoogleId, null);
-            case 4 -> sendLocationUpdate(toGoogleId, null);
+            case 4 -> sendLocationUpdate(List.of(toGoogleId), null);
             case 5 -> firebaseNotification(userRepository.findByGoogleId(toGoogleId).map(User::getFcmToken).orElse(null), title, body);
             case 6 -> webSocketNotification(toGoogleId, title, body, null, "/queue/notifications");
             default -> logger.warn("Unknown notification type: {}", type);
@@ -68,28 +73,30 @@ public class NotificationService {
      * Decideix entre WebSocket o Firebase segons l'estat de connexió de l'usuari.
      * Si falla el ws, envia via firebase
      */
-    private void send(String googleId, String title, String body, Object payload, String path) {
-        if (googleId == null) {
-            logger.error("Google Id is null");
-            return;
-        }
+    private void send(List<String> googleIds, String title, String body, Object payload, String path) {
+        for (String googleId : googleIds) {
+            if (googleId == null) {
+                logger.error("Google Id is null");
+                return;
+            }
 
-        User user = userRepository.findByGoogleId(googleId).orElse(null);
-        if (user == null) {
-            logger.error("User not found for notification: {}", googleId);
-            return;
-        }
+            User user = userRepository.findByGoogleId(googleId).orElse(null);
+            if (user == null) {
+                logger.error("User not found for notification: {}", googleId);
+                return;
+            }
 
-        boolean isOnline = user.getIsOnline() != null && user.getIsOnline();
+            boolean isOnline = user.getIsOnline() != null && user.getIsOnline();
 
-        if (isOnline) {
-            boolean beenSent = webSocketNotification(googleId, title, body, payload, path);
-            if (!beenSent) {
-                logger.error("WebSocket failed, falling back to Push for: {}", googleId);
+            if (isOnline) {
+                boolean beenSent = webSocketNotification(googleId, title, body, payload, path);
+                if (!beenSent) {
+                    logger.error("WebSocket failed, falling back to Push for: {}", googleId);
+                    firebaseNotification(user.getFcmToken(), title, body);
+                }
+            } else {
                 firebaseNotification(user.getFcmToken(), title, body);
             }
-        } else {
-            firebaseNotification(user.getFcmToken(), title, body);
         }
     }
 
@@ -98,6 +105,10 @@ public class NotificationService {
     private void firebaseNotification(String fcmToken, String title, String body) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             logger.warn("Skipping push: No FCM token for this user.");
+            return;
+        }
+        if (FirebaseApp.getApps().isEmpty()) {
+            logger.warn("Firebase no inicialitzat");
             return;
         }
         try {

@@ -30,8 +30,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -340,6 +339,23 @@ class UserControllerTest {
         mockMvc.perform(get("/api/v1/users/googleId/complete-route"))
                 .andExpect(status().isBadRequest());
     }
+
+
+    // -- Update token
+
+    @Test
+    void updateToken_Ok() throws Exception {
+        String googleId = "googleId";
+        String token = "fcm-token";
+
+        mockMvc.perform(post("/api/v1/users/" + googleId + "/fcm-token") // Si el teu controlador té un prefix (ex: /api/users), afegeix-lo aquí
+                        .param("token", token)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(status().isOk());
+
+        verify(userService, times(1)).updateToken(googleId, token);
+    }
+
 
     // --- HELPER METHOD ---
 
