@@ -137,5 +137,23 @@ public class UserController {
     public ResponseEntity<List<UserProfileDTO>> getEmergencyContacts(@PathVariable String googleId) {
         List<UserProfileDTO> ec = userService.getEmergencyContacts(googleId);
         return ResponseEntity.ok().body(ec);
+    @PostMapping("/{googleId}/fcm-token")
+    public ResponseEntity<Void> updateToken(@PathVariable String googleId, @RequestParam String token) {
+        userService.updateToken(googleId, token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{googleId}/try-notifications")
+    @Operation(summary = "1 -> Message" +
+            "2 -> Emergency" +
+            "3 -> Friend req" +
+            "4 -> Location" +
+            "5 -> Firebase" +
+            "6 -> WebSocket")
+    public ResponseEntity<Void> tryNotifications(@PathVariable String googleId, @RequestParam(required = false) String title, @RequestParam(required = false) String body, @RequestParam Integer type) {
+        if (title == null) title = "Notificación de prueba";
+        if (body == null) body = "Si recibes esta notificación, las push notifications funcionan correctamente.";
+        userService.sendPushNotification(googleId,  title, body, type);
+        return ResponseEntity.ok().build();
     }
 }

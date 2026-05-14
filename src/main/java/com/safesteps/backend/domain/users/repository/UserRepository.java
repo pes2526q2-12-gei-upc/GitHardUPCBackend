@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -64,4 +65,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<String> getEmergencyContacts(@Param("userGoogleId") String userGoogleId);
 
     List<User> findByGoogleIdIn(List<String> googleIds);
+    @Transactional
+    @Query("UPDATE User u SET u.isOnline = :status WHERE u.googleId = :googleId")
+    void updateOnlineStatus(@Param("googleId") String googleId, @Param("status") boolean status);
 }
