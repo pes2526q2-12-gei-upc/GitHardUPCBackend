@@ -586,4 +586,64 @@ class UserServiceTest {
         verify(userRepository, never()).save(any(User.class));
     }
 
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByGoogleId("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el googleId no existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByGoogleId("none"));
+    }
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfile)")
+    void getUserProfile_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfile("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener perfil baneado por GoogleId (getUserProfile)")
+    void getUserProfile_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserProfile("g-123"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener perfil suspendido por GoogleId (getUserProfile)")
+    void getUserProfile_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserProfile("g-123"));
+    }
 }

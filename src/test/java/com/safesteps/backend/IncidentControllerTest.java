@@ -184,8 +184,8 @@ class IncidentControllerTest {
         exp.setVoteScore(10);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(exp)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isBadRequest());
     }
 
