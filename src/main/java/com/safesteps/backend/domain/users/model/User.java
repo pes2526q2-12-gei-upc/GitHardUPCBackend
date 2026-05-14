@@ -75,4 +75,7 @@ public class User {
 
     @Column(name="is_online", nullable = false)
     private Boolean isOnline = false;
+
+    @Column(name="is_inemergency", nullable = false)
+    private Boolean isInEmergency = false;
 }

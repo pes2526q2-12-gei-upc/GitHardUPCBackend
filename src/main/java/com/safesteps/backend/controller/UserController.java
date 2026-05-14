@@ -158,4 +158,15 @@ public class UserController {
         userService.sendPushNotification(googleId,  title, body, type);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/{googleId}/emergency")
+    public ResponseEntity<Boolean> getUserStatusEmergency(@PathVariable String googleId) {
+        return ResponseEntity.ok().body(userService.getUserStatusEmergency(googleId));
+    }
+
+    @PostMapping("/{googleId}/emergency")
+    public ResponseEntity<Void> toggleUserStatusEmergency(@PathVariable String googleId) {
+        userService.toggleUserStatusEmergency(googleId);
+        return ResponseEntity.ok().build();
+    }
 }

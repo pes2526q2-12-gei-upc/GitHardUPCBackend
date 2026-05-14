@@ -339,6 +339,32 @@ public class UserService {
 
     }
 
+    public boolean getUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        return u.getIsInEmergency();
+    }
+
+    @Transactional
+    public void toggleUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        boolean status = !u.getIsInEmergency();
+        u.setIsInEmergency(status);
+        userRepository.save(u);
+
+        List<String> users = getEmergencyContactsGoogleIds(googleId);
+
+        //emergencia -> status = 1 -> avisa als contactes que estiguin pendents.
+        //no emergencia -> status = 0 -> avisa als contactes que ja ha acabat tot.
+        notificationService.sendEmergency(users, status);
+    }
+
+    public List<String> getEmergencyContactsGoogleIds(String googleId) {
+        return userRepository.getEmergencyContacts(googleId);
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
 
