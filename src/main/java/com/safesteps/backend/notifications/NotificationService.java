@@ -107,11 +107,11 @@ public class NotificationService {
                     .putData("body_loc_key", body)
                     .build();
 
-            FirebaseMessaging.getInstance().sendAsync(message);
+            FirebaseMessaging.getInstance().send(message);
+            logger.info("Push notification sent to token: {}.", fcmToken);
         } catch (Exception e) {
             logger.error("Error while sending push notification to googleId: {}. Error: {}", fcmToken, e.getMessage());
         }
-        logger.info("Push notification sent to token: {}.", fcmToken);
     }
 
     //ws notifications
