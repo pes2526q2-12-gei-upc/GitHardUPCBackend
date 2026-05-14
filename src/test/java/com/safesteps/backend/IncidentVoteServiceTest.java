@@ -344,4 +344,57 @@ class IncidentVoteServiceTest {
         verify(incidentSv).updateExpirationIndex(-5.0, 2L);
         verify(voteRepository).deleteById(1L);
     }
+
+    @Test
+    void createResolutionVote_IncidentNotFoundOrNotAccepted() {
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+
+        VoteResponseDTO result = voteService.createResolutionVote(incidentId, req);
+
+        assertNotNull(result);
+        assertNull(result.getId());
+    }
+
+    @Test
+    void createResolutionVote_OK() {
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+        req.setGoogleId("user1");
+        req.setVoteScore(1);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+        incident.setCreatedAt(LocalDateTime.now().minusDays(5));
+
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+
+        UserResponseDTO user = mock(UserResponseDTO.class);
+        when(userSv.getUserByGoogleId("user1")).thenReturn(user);
+        when(user.getReputacio()).thenReturn(1.0);
+
+        when(voteRepository.save(any(Vote.class))).thenAnswer(i -> {
+            Vote v = (Vote) i.getArguments()[0];
+            v.setId(10L);
+            return v;
+        });
+
+        VoteResponseDTO result = voteService.createResolutionVote(incidentId, req);
+
+        assertNotNull(result);
+        assertEquals(10L, result.getId());
+        verify(incidentSv).updateExpirationIndex(anyDouble(), eq(incidentId));
+        verify(voteRepository).save(any(Vote.class));
+    }
+
+    @Test
+    void getVoters_NotFound() {
+        when(incidentSv.findIncidentById(1L)).thenReturn(null);
+        assertThrows(ResourceNotFoundException.class, () -> voteService.getVoters(1L));
+    }
 }
