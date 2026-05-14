@@ -121,6 +121,24 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<List<UserProfileDTO>> newEmergencyContacts(@PathVariable String googleId, @RequestParam List<String> emergencyContacts) {
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, emergencyContacts);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @DeleteMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<Void> deleteEmergencyContacts(@PathVariable String googleId, @RequestParam List<String> emergencyContacts) {
+        userService.deleteEmergencyContact(googleId, emergencyContacts);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<List<UserProfileDTO>> getEmergencyContacts(@PathVariable String googleId) {
+        List<UserProfileDTO> ec = userService.getEmergencyContacts(googleId);
+        return ResponseEntity.ok().body(ec);
+    }
+
     @PostMapping("/{googleId}/fcm-token")
     public ResponseEntity<Void> updateToken(@PathVariable String googleId, @RequestParam String token) {
         userService.updateToken(googleId, token);

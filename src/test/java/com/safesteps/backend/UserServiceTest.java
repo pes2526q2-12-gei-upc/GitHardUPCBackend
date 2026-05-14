@@ -28,6 +28,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -556,6 +557,100 @@ class UserServiceTest {
         assertEquals(UserStatus.SUSPENDED, result.getStatus());
     }
 
+
+    @Test
+    @DisplayName("Debe devolver la lista de perfiles de los contactos de emergencia")
+    void getEmergencyContacts_WhenExist_ReturnsProfileList() {
+        String googleId = "googleId";
+        List<String> contactIds = List.of("u1", "u2");
+
+        User c1 = new User(); c1.setGoogleId("u1"); c1.setUsername("user1");
+        User c2 = new User(); c2.setGoogleId("u2"); c2.setUsername("user2");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contactIds);
+        when(userRepository.findByGoogleIdIn(contactIds)).thenReturn(List.of(c1, c2));
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertEquals(2, result.size());
+        assertEquals("user1", result.get(0).getUsername());
+        assertEquals("user2", result.get(1).getUsername());
+        verify(userRepository).getEmergencyContacts(googleId);
+        verify(userRepository).findByGoogleIdIn(contactIds);
+    }
+
+    @Test
+    @DisplayName("Debe devolver una lista vacia si el usuario no tiene contactos de emergencia")
+    void getEmergencyContacts_WhenNone_ReturnsEmptyList() {
+        String googleId = "googleId";
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(List.of());
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertTrue(result.isEmpty());
+        verify(userRepository, never()).findByGoogleIdIn(anyList());
+    }
+
+    @Test
+    @DisplayName("Debe añadir contactos y retornar la lista actualizada")
+    void newEmergencyContact_Success_AddsAndReturnsList() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(newContacts);
+        when(userRepository.findByGoogleIdIn(newContacts)).thenReturn(List.of(new User()));
+
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, newContacts);
+
+        assertNotNull(result);
+        verify(userRepository).addEmergencyContact(googleId, "u1");
+        verify(userRepository).getEmergencyContacts(googleId);
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si el usuario se intenta añadir a si mismo")
+    void newEmergencyContact_SelfAddition_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("googleId");
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, contacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe llamar al repositorio para borrar si la lista no es nula ni vacía")
+    void deleteEmergencyContact_Ok_CallsRepository() {
+        String googleId = "googleId";
+        List<String> toDelete = List.of("u1", "u2");
+
+        userService.deleteEmergencyContact(googleId, toDelete);
+
+        verify(userRepository).deleteEmergencyContacts(googleId, toDelete);
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es nula")
+    void deleteEmergencyContact_Null_DoesNothing() {
+        String googleId = "googleId";
+
+        userService.deleteEmergencyContact(googleId, null);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es vacía")
+    void deleteEmergencyContact_Empty_DoesNothing() {
+        String googleId = "googleId";
+        List<String> aux = new ArrayList<>();
+        userService.deleteEmergencyContact(googleId, aux);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
 
     // --- Test per a fcm notificacions
     @Test

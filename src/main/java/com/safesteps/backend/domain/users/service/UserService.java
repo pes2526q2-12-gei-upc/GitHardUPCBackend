@@ -293,6 +293,35 @@ public class UserService {
         );
     }
 
+    @Transactional
+    public List<UserProfileDTO> newEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId.contains(userGoogleId))
+            throw new BadRequestException("Cannot add yourself as an emergency contact.");
+
+        for (String contactId : emergencyContactsGoogleId)
+            userRepository.addEmergencyContact(userGoogleId, contactId);
+
+        return getEmergencyContacts(userGoogleId);
+    }
+
+    @Transactional
+    public void deleteEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId != null && !emergencyContactsGoogleId.isEmpty())
+            userRepository.deleteEmergencyContacts(userGoogleId, emergencyContactsGoogleId);
+
+    }
+
+    public List<UserProfileDTO> getEmergencyContacts(String googleId) {
+        List<String> contactIds = userRepository.getEmergencyContacts(googleId);
+        if (contactIds.isEmpty()) return List.of();
+
+        List<User> contacts = userRepository.findByGoogleIdIn(contactIds);
+
+        return contacts.stream()
+                .map(UserProfileDTO::new)
+                .toList();
+    }
+
     public void updateToken(String googleId, String token) {
         User u = userRepository.findByGoogleId(googleId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));

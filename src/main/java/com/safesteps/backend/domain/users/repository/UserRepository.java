@@ -54,6 +54,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
     int decrementPendingRewards(@Param("googleId") String googleId);
 
     @Modifying
+    @Query(value = "INSERT INTO emergency_contacts (user_google_id, emergency_contact_google_id) VALUES (:userGoogleId, :emergencyContactGoogleId) ON CONFLICT DO NOTHING", nativeQuery = true)
+    void addEmergencyContact(@Param("userGoogleId") String userGoogleId, @Param("emergencyContactGoogleId") String emergencyContactGoogleId);
+
+    @Modifying
+    @Query(value = "DELETE FROM emergency_contacts WHERE user_google_id = :userGoogleId AND emergency_contact_google_id IN (:emergencyContactsGoogleId)", nativeQuery = true)
+    void deleteEmergencyContacts(@Param("userGoogleId") String userGoogleId, @Param("emergencyContactsGoogleId") List<String> emergencyContactsGoogleId);
+
+    @Query(value = "SELECT emergency_contact_google_id FROM emergency_contacts WHERE user_google_id = :userGoogleId", nativeQuery = true)
+    List<String> getEmergencyContacts(@Param("userGoogleId") String userGoogleId);
+
+    List<User> findByGoogleIdIn(List<String> googleIds);
     @Transactional
     @Query("UPDATE User u SET u.isOnline = :status WHERE u.googleId = :googleId")
     void updateOnlineStatus(@Param("googleId") String googleId, @Param("status") boolean status);
