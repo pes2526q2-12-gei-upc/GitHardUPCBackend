@@ -556,6 +556,36 @@ class UserServiceTest {
         assertEquals(UserStatus.SUSPENDED, result.getStatus());
     }
 
+
+    // --- Test per a fcm notificacions
+    @Test
+    void updateToken_OK() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        User user = new User();
+        user.setGoogleId(googleId);
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        userService.updateToken(googleId, token);
+
+        assertEquals(token, user.getFcmToken());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    void updateToken_UserNotExists() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+            userService.updateToken(googleId, token)
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
     @Test
     @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfileByGoogleId)")
     void getUserProfileByGoogleId_WhenExists_ReturnsProfile() {
