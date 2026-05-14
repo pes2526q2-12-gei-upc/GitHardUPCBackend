@@ -12,7 +12,10 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
-import com.safesteps.backend.domain.users.model.*;
+import com.safesteps.backend.domain.users.model.Premi;
+import com.safesteps.backend.domain.users.model.User;
+import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.notifications.NotificationService;
@@ -317,6 +320,8 @@ public class UserService {
         return contacts.stream()
                 .map(UserProfileDTO::new)
                 .toList();
+    }
+
     public void updateToken(String googleId, String token) {
         User u = userRepository.findByGoogleId(googleId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));

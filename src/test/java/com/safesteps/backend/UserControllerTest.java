@@ -414,8 +414,9 @@ class UserControllerTest {
         List<String> users = List.of("u1", "u2", "u3");
 
         mockMvc.perform(delete("/api/v1/users/googleId/emergency-contacts")
-                    .param("emergencyContacts", String.valueOf(users)))
+                .param("emergencyContacts", users.toArray(new String[0])))
                 .andExpect(status().isNoContent());
+        verify(userService).deleteEmergencyContact("googleId", users);
     }
 
     @Test
@@ -426,8 +427,9 @@ class UserControllerTest {
         when(userService.newEmergencyContact(any(), any())).thenThrow(new BadRequestException("Cannot add yourself as an emergency contact."));
 
         mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
-                        .param("emergencyContacts", String.valueOf(users)))
+                        .param("emergencyContacts", users.toArray(new String[0])))
                 .andExpect(status().isBadRequest());
+        verify(userService).newEmergencyContact("googleId", users);
     }
 
     @Test
@@ -445,7 +447,8 @@ class UserControllerTest {
         List<String> users = List.of("googleId");
 
         mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
-                        .param("emergencyContacts", String.valueOf(users)))
+                        .param("emergencyContacts", users.toArray(new String[0])))
                 .andExpect(status().isCreated());
+        verify(userService).newEmergencyContact("googleId", users);
     }
 }
