@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Enrutamiento", description = "API para la planificación y cálculo de rutas seguras en Barcelona")
@@ -22,16 +24,19 @@ public class ApiAddressController {
     private final RouteCalculatorService routeCalculatorService;
     private final FiltreService filtreSv;
     private final RouteEvaluationSafetyService routeEvaluationSafetyService;
+    private final EventIntegrationService eventIntegrationService;
     private final AdminMetricsService adminMetricsService;
     private static final Logger logger = LoggerFactory.getLogger(ApiAddressController.class);
 
-    public ApiAddressController(RouteCalculatorService routeCalculatorService,  
-                                FiltreService filtreSv, 
+    public ApiAddressController(RouteCalculatorService routeCalculatorService,
+                                FiltreService filtreSv,
                                 RouteEvaluationSafetyService routeEvaluationSafetyService,
+                                EventIntegrationService eventIntegrationService,
                                 AdminMetricsService adminMetricsService) {
         this.routeCalculatorService = routeCalculatorService;
         this.filtreSv = filtreSv;
         this.routeEvaluationSafetyService = routeEvaluationSafetyService;
+        this.eventIntegrationService = eventIntegrationService;
         this.adminMetricsService = adminMetricsService;
     }
 
@@ -93,5 +98,18 @@ public class ApiAddressController {
         ExternalSafetyResponseDTO response = routeEvaluationSafetyService.evaluateSafetyIndex(request.getRoutePoints());
 
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Obtenir POIs d'esdeveniments culturals propers a una ruta")
+    @PostMapping("/route-events")
+    public ResponseEntity<List<PoiDTO>> getEventsForRoute(@RequestBody ExternalRouteRequestDTO request) {
+
+        if (request.getRoutePoints() == null || request.getRoutePoints().isEmpty()) {
+            throw new BadRequestException("La llista de coordenades no pot estar buida.");
+        }
+
+        List<PoiDTO> eventPois = eventIntegrationService.getEventsForRoute(request.getRoutePoints());
+
+        return ResponseEntity.ok(eventPois);
     }
 }
