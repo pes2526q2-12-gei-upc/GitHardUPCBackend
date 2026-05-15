@@ -22,7 +22,7 @@ public class UserResponseDTO {
     private OffsetDateTime createdAt;
     private Long recompenses;
     private List<PremiDTO> premis;
-    private boolean isInEmergency;
+    private Boolean isInEmergency;
 
     public UserResponseDTO(User user) {
         if (user == null) return;

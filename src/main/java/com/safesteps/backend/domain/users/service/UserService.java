@@ -361,7 +361,9 @@ public class UserService {
         notificationService.sendEmergency(users, status);
     }
 
+    @Transactional
     public List<String> getEmergencyContactsGoogleIds(String googleId) {
+        getUserProfileByGoogleId(googleId);
         return userRepository.getEmergencyContacts(googleId);
     }
 

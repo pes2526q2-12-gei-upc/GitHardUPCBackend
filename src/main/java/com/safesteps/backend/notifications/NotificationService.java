@@ -3,9 +3,9 @@ package com.safesteps.backend.notifications;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
-import com.safesteps.backend.domain.routecalculator.Coord;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.notifications.dto.EmergencyLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -50,7 +50,7 @@ public class NotificationService {
         send(toGoogleId, title, body, null, "/queue/emergency");
     }
 
-    public void sendLocationUpdate(List<String> toGoogleIds, Coord coords) {
+    public void sendLocationUpdate(List<String> toGoogleIds, EmergencyLocation coords) {
         for (String toGoogleId : toGoogleIds) {
             webSocketNotification(toGoogleId, null, null, coords, "/queue/location");
         }
