@@ -14,6 +14,7 @@ public class MessageResponseDTO {
     private String senderGoogleId;
     private String content;
     private OffsetDateTime createdAt;
+    private SharedRouteDTO sharedRoute;
 
     public MessageResponseDTO(Message message) {
         if (message == null) return;
@@ -25,6 +26,16 @@ public class MessageResponseDTO {
         if (message.getSender() != null) {
             this.senderUsername = message.getSender().getUsername();
             this.senderGoogleId = message.getSender().getGoogleId();
+        }
+
+        if (message.getSharedRoute() != null) {
+            this.sharedRoute = new SharedRouteDTO();
+            this.sharedRoute.setId(message.getSharedRoute().getId());
+            this.sharedRoute.setOriginLat(message.getSharedRoute().getOriginLat());
+            this.sharedRoute.setOriginLng(message.getSharedRoute().getOriginLng());
+            this.sharedRoute.setDestLat(message.getSharedRoute().getDestLat());
+            this.sharedRoute.setDestLng(message.getSharedRoute().getDestLng());
+            this.sharedRoute.setScheduledDate(message.getSharedRoute().getScheduledDate());
         }
     }
 }

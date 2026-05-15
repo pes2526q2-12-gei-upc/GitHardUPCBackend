@@ -14,4 +14,7 @@ public class MessageRequestDTO {
     @NotBlank(message = "L'ID de Google del remitent és obligatori")
     @Schema(description = "El Google ID de l'usuari que envia el missatge", requiredMode = Schema.RequiredMode.REQUIRED)
     private String senderGoogleId;
+
+    @Schema(description = "Ruta compartida opcional")
+    private SharedRouteRequestDTO sharedRoute;
 }
