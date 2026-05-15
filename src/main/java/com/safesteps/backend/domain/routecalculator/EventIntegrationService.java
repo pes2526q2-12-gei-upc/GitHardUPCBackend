@@ -45,19 +45,17 @@ public class EventIntegrationService {
                     int eventsAddedForThisPoint = 0;
 
                     for (EventDTO event : fetchedEvents) {
-                        // FILTRE 1: Només esdeveniments gratuïts
-                        if (Boolean.TRUE.equals(event.getFree())) {
 
                             // Transformar EventDTO a PoiDTO
-                            PoiDTO poi = mapToPoiDTO(event);
+                        PoiDTO poi = mapToPoiDTO(event);
 
                             // Si l'hem pogut afegir (no estava repetit), sumem 1
-                            if (filteredPois.add(poi)) {
-                                eventsAddedForThisPoint++;
-                            }
+                        if (filteredPois.add(poi)) {
+                            eventsAddedForThisPoint++;
                         }
 
-                        // FILTRE 2: Màxim 3 esdeveniments gratuïts nous per cada coordenada analitzada
+
+                        // FILTRE: Màxim 3 esdeveniments nous per cada coordenada analitzada
                         if (eventsAddedForThisPoint >= 3) {
                             break;
                         }
@@ -80,9 +78,19 @@ public class EventIntegrationService {
             type = event.getCategories().get(0).getName().toUpperCase();
         }
 
+        String rawName = event.getDenomination();
+        String cleanedName = rawName;
+
+        if (rawName != null) {
+            // 1. Eliminem el prefix 'Exposició "' (ignorant majúscules/minúscules amb (?i))
+            // 2. Eliminem la cometa final '"'
+            cleanedName = rawName
+                    .replaceFirst("(?i)^Exposició\\s+\"", "") // Busca "Exposició " + cometa al principi
+                    .replaceFirst("\"$", "");                // Busca la cometa final a l'últim caràcter
+        }
         return new PoiDTO(
                 type,
-                event.getDenomination(),
+                cleanedName,
                 event.getLatitude(),
                 event.getLongitude()
         );
