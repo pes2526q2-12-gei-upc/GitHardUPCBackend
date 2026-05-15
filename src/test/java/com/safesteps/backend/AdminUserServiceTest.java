@@ -41,7 +41,7 @@ public class AdminUserServiceTest {
         mockUser.setId(1L);
         mockUser.setEmail("test@example.com");
         mockUser.setUsername("testuser");
-        mockUser.setPoints(100);
+        mockUser.setPoints(100L);
         mockUser.setLevel(2L);
         mockUser.setReputacio(5);
         mockUser.setStatus(UserStatus.ACTIVE);

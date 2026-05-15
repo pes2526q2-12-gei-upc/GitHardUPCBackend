@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.util.HashSet;
+import java.util.Set;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -33,7 +36,7 @@ public class User {
     private String language;
 
     @Column(nullable = false)
-    private Integer points = 0;
+    private Long points = 0L;
 
     @Column(nullable = false)
     private Long level = 1L;
@@ -42,7 +45,7 @@ public class User {
     private Boolean isAnonymous = false;
 
     @Column(nullable = false)
-    private Integer reputacio = 1;
+    private double reputacio = 1;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ACTIVE'")
@@ -55,4 +58,21 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name="pending_rewards")
+    private Long recompenses = 0L;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_prizes",
+            joinColumns = @JoinColumn(name = "google_id", referencedColumnName = "google_id"),
+            inverseJoinColumns = @JoinColumn(name = "id", referencedColumnName = "id")
+    )
+    private Set<Premi> premis = new HashSet<>();
+
+    @Column(name="fcm_token")
+    private String fcmToken;
+
+    @Column(name="is_online", nullable = false)
+    private Boolean isOnline = false;
 }

@@ -1,10 +1,21 @@
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.common.exception.UserBannedException;
+import com.safesteps.backend.domain.common.exception.UserSuspendedException;
+import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
+import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.users.service.UserService;
@@ -17,6 +28,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +62,7 @@ class UserServiceTest {
         user.setLanguage("ca");
         user.setReputacio(1);
         user.setIsAnonymous(false);
+        user.setStatus(UserStatus.ACTIVE);
 
         userRequestDTO = new UserRequestDTO();
         userRequestDTO.setGoogleId("g-123");
@@ -67,7 +80,7 @@ class UserServiceTest {
         when(userRepository.findAll()).thenReturn(Arrays.asList(user));
         List<UserResponseDTO> result = userService.getAllUsers();
         assertEquals(1, result.size());
-        assertEquals("testuser", result.get(0).getUsername());
+        assertEquals("testuser", result.getFirst().getUsername());
     }
 
     @Test
@@ -80,10 +93,32 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null si el usuario no existe por GoogleId")
-    void getUserByGoogleId_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException si el usuario no existe por GoogleId")
+    void getUserByGoogleId_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        assertNull(userService.getUserByGoogleId("none"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserByGoogleId("none"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener usuario baneado por GoogleId")
+    void getUserByGoogleId_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserByGoogleId("g-123"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener usuario suspendido por GoogleId")
+    void getUserByGoogleId_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserByGoogleId("g-123"));
     }
 
     @Test
@@ -96,10 +131,32 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null si el usuario no existe por Email")
-    void getUserByEmail_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException si el usuario no existe por Email")
+    void getUserByEmail_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByEmail("none@test.com")).thenReturn(Optional.empty());
-        assertNull(userService.getUserByEmail("none@test.com"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserByEmail("none@test.com"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener usuario baneado por Email")
+    void getUserByEmail_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserByEmail("test@test.com"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener usuario suspendido por Email")
+    void getUserByEmail_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserByEmail("test@test.com"));
     }
 
     // --- TESTS DE CREACIÓN ---
@@ -107,8 +164,8 @@ class UserServiceTest {
     @Test
     @DisplayName("Debe crear un usuario con valores por defecto y filtros")
     void createUser_Success_VerifiesDefaultsAndFilters() {
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByGoogleId(anyString())).thenReturn(false);
+        when(userRepository.findByGoogleId(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(user);
 
         UserResponseDTO result = userService.createUser(userRequestDTO);
@@ -126,15 +183,35 @@ class UserServiceTest {
 
     @Test
     @DisplayName("No debe crear un usuario si el email o googleId ya existen")
-    void createUser_WhenExists_ReturnsNull() {
-        when(userRepository.existsByEmail("test@test.com")).thenReturn(true);
-        assertNull(userService.createUser(userRequestDTO));
+    void createUser_WhenExists_ThrowsBadRequestException() {
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByGoogleId("g-123")).thenReturn(true);
-        assertNull(userService.createUser(userRequestDTO));
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+        assertThrows(BadRequestException.class, () -> userService.createUser(userRequestDTO));
 
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("No debe crear un usuario si ya existe y está baneado")
+    void createUser_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.createUser(userRequestDTO));
+    }
+
+    @Test
+    @DisplayName("No debe crear un usuario si ya existe y está suspendido")
+    void createUser_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.createUser(userRequestDTO));
     }
 
     // --- TESTS DE ACTUALIZACIÓN ---
@@ -154,11 +231,13 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al intentar actualizar un usuario que no existe")
-    void updateUser_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar actualizar un usuario que no existe")
+    void updateUser_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        UserResponseDTO result = userService.updateUser("none", userRequestDTO);
-        assertNull(result);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.updateUser("none", userRequestDTO));
+
     }
 
     @Test
@@ -182,11 +261,14 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al actualizar filtros de usuario que no existe")
-    void updateFilters_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al actualizar filtros de usuario que no existe")
+    void updateFilters_WhenNotExists_ThrowsResourceNotFoundException() {
         when(filterRepository.findById("none")).thenReturn(Optional.empty());
-        UserFilter result = userService.updateFilters("none", new FilterRequestDTO());
-        assertNull(result);
+
+        FilterRequestDTO request = new FilterRequestDTO();
+        String userId = "none";
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.updateFilters(userId, request));
     }
 
     @Test
@@ -203,10 +285,13 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar null al intentar actualizar idioma de usuario inexistente")
-    void updateLanguage_WhenNotExists_ReturnsNull() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar actualizar idioma de usuario inexistente")
+    void updateLanguage_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        assertNull(userService.updateLanguage("none", "en"));
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.updateLanguage("none", "en"));
+
     }
 
     // --- TESTS DE BORRADO ---
@@ -216,20 +301,444 @@ class UserServiceTest {
     void deleteUser_Success_VerifiesCascadeDelete() {
         when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
 
-        boolean deleted = userService.deleteUserByGoogleId("g-123");
+        userService.deleteUserByGoogleId("g-123");
 
-        assertTrue(deleted);
         verify(filterRepository).deleteById("g-123");
         verify(userRepository).delete(user);
     }
 
     @Test
-    @DisplayName("Debe retornar false al intentar borrar un usuario inexistente")
-    void deleteUser_WhenNotExists_ReturnsFalse() {
+    @DisplayName("Debe lanzar ResourceNotFoundException al intentar borrar un usuario inexistente")
+    void deleteUser_WhenNotExists_ThrowsResourceNotFoundException() {
         when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
-        boolean deleted = userService.deleteUserByGoogleId("none");
-        assertFalse(deleted);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.deleteUserByGoogleId("none"));
         verify(filterRepository, never()).deleteById(anyString());
         verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe actualizar reputación y puntos de votantes y del creador al aceptar")
+    void updateUserReliability_Accepted_WithCreator() {
+        Vote v = new Vote(); v.setGoogleId("voter1"); v.setScore(0.5f);
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setReputacio(1.0); voter.setPoints(0L);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setReputacio(1.0); creator.setPoints(0L);
+
+        when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
+        when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
+
+        // Simulamos que la incidencia es aceptada y le pasamos el ID del creador
+        userService.updateUserReliability(List.of(v), true, "creator1");
+
+        assertEquals(1.01, voter.getReputacio(), 0.001);
+        assertEquals(10, voter.getPoints());
+        assertEquals(1.01, creator.getReputacio(), 0.001);
+        assertEquals(10, creator.getPoints());
+        verify(userRepository, times(2)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe dar puntos por incidencia expirada a votantes y creador")
+    void rewardForExpiredIncident_Success() {
+        Vote v = new Vote(); v.setGoogleId("voter1");
+        User voter = new User(); voter.setGoogleId("voter1"); voter.setPoints(1000L); voter.setRecompenses(0L);
+        User creator = new User(); creator.setGoogleId("creator1"); creator.setPoints(0L);
+
+        when(userRepository.findByGoogleId("voter1")).thenReturn(Optional.of(voter));
+        when(userRepository.findByGoogleId("creator1")).thenReturn(Optional.of(creator));
+
+        userService.rewardForExpiredIncident(List.of(v), "creator1");
+
+        assertEquals(1010, voter.getPoints());
+        assertEquals(10, creator.getPoints());
+        verify(userRepository, times(3)).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe sumar minutos estimados de ruta como puntos y recalcular nivel")
+    void completeRoute_AddsRoutePointsAndUpdatesLevel() {
+        user.setPoints(99L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 75.0);
+
+        assertEquals(1L, result.getPointsAdded());
+        assertEquals(100L, result.getTotalPoints());
+        assertEquals(2L, result.getLevel());
+        assertTrue(result.isLevelUpdated());
+        assertEquals(1L, result.getRecompenses());
+        verify(userRepository, times(2)).save(user);
+    }
+
+    @Test
+    @DisplayName("Debe rechazar metros negativos al completar ruta")
+    void completeRoute_NegativeMeters_ThrowsBadRequestException() {
+        assertThrows(BadRequestException.class, () -> userService.completeRoute("g-123", -1.0));
+        verify(userRepository, never()).findByGoogleId(anyString());
+    }
+
+    @Test
+    @DisplayName("Debe devolver 0 puntos si la ruta completada tiene 0 metros")
+    void completeRoute_ZeroMeters_AddsNoPoints() {
+        user.setPoints(0L);
+        user.setLevel(1L);
+        user.setRecompenses(0L);
+
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        RouteCompletionResponseDTO result = userService.completeRoute("g-123", 0.0);
+
+        assertEquals(0L, result.getPointsAdded());
+        assertEquals(0L, result.getTotalPoints());
+        assertEquals(1L, result.getLevel());
+        assertFalse(result.isLevelUpdated());
+        verify(userRepository).save(user);
+    }
+
+
+    @Test
+    void openPrize_OK() {
+        String googleId = user.getGoogleId();
+        Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setProbability(0.1);
+        Premi p2  = new Premi(); p2.setId("p2"); p2.setUrl("url2"); p2.setProbability(0.5);
+        List<Premi> lp = List.of(p1, p2);
+        user.setRecompenses(1L);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getUserAvailablePrizes(googleId)).thenReturn(lp);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(user.getGoogleId());
+        assertNotNull(p);
+        assertTrue(lp.stream().anyMatch(pr -> pr.getId().equals(p.getId())));
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository).insertUserPrize(googleId, p.getId());
+    }
+
+    @Test
+    void openPrize_NOK() {
+        assertThrows(ResourceNotFoundException.class, () -> userService.openPrize("voter1"));
+    }
+
+    @Test
+    void openPrize_ERROR() {
+        String googleId = user.getGoogleId();
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(0);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
+    }
+
+    // --- TESTS PARA BÚSQUEDA POR USERNAME O EMAIL ---
+
+    @Test
+    @DisplayName("Debe retornar resultados cuando coincide el username")
+    void searchUsers_WhenUsernameMatches_ReturnsList() {
+        User u1 = new User(); u1.setUsername("marc_dev"); u1.setEmail("marc@example.com"); u1.setPictureUrl("url1"); u1.setIsAnonymous(false); u1.setStatus(UserStatus.ACTIVE);
+        User u2 = new User(); u2.setUsername("marceline"); u2.setEmail("marc2@example.com"); u2.setPictureUrl("url2"); u2.setIsAnonymous(false); u2.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(u1, u2));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(2, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+        assertEquals("marc@example.com", result.get(0).getEmail());
+        assertEquals("url1", result.get(0).getPictureUrl());
+    }
+
+    @Test
+    @DisplayName("Debe retornar resultados cuando coincide el email")
+    void searchUsers_WhenEmailMatches_ReturnsList() {
+        User u1 = new User(); u1.setUsername("otheruser"); u1.setEmail("marc@company.com"); u1.setPictureUrl("url1"); u1.setIsAnonymous(false); u1.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc@", "marc@")).thenReturn(List.of(u1));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc@");
+
+        assertEquals(1, result.size());
+        assertEquals("otheruser", result.get(0).getUsername());
+        assertEquals("marc@company.com", result.get(0).getEmail());
+    }
+
+    @Test
+    @DisplayName("Debe retornar lista vacía cuando no hay coincidencias")
+    void searchUsers_WhenNoMatches_ReturnsEmptyList() {
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("zzz", "zzz")).thenReturn(List.of());
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("zzz");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios anónimos de la búsqueda")
+    void searchUsers_ExcludesAnonymousUsers() {
+        User visible  = new User(); visible.setUsername("marc_dev"); visible.setIsAnonymous(false); visible.setStatus(UserStatus.ACTIVE);
+        User anonymous = new User(); anonymous.setUsername("marc_anon"); anonymous.setIsAnonymous(true); anonymous.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(visible, anonymous));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios baneados de la búsqueda")
+    void searchUsers_ExcludesBannedUsers() {
+        User active = new User(); active.setUsername("marc_dev"); active.setIsAnonymous(false); active.setStatus(UserStatus.ACTIVE);
+        User banned = new User(); banned.setUsername("marc_bad"); banned.setIsAnonymous(false); banned.setStatus(UserStatus.BANNED);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(active, banned));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    // --- TESTS PARA PERFIL POR EMAIL ---
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el email existe")
+    void getUserProfileByEmail_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("test@test.com");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el email no existe")
+    void getUserProfileByEmail_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByEmail("nobody@test.com"));
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status BANNED (no lanza excepción)")
+    void getUserProfileByEmail_WhenBanned_ReturnsProfileWithBannedStatus() {
+        User bannedUser = new User();
+        bannedUser.setUsername("banned_user");
+        bannedUser.setEmail("banned@example.com");
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByEmail("banned@example.com")).thenReturn(Optional.of(bannedUser));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("banned@example.com");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.BANNED, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status SUSPENDED (no lanza excepción)")
+    void getUserProfileByEmail_WhenSuspended_ReturnsProfileWithSuspendedStatus() {
+        User suspendedUser = new User();
+        suspendedUser.setUsername("suspended_user");
+        suspendedUser.setEmail("suspended@example.com");
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByEmail("suspended@example.com")).thenReturn(Optional.of(suspendedUser));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("suspended@example.com");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.SUSPENDED, result.getStatus());
+    }
+
+
+    @Test
+    @DisplayName("Debe devolver la lista de perfiles de los contactos de emergencia")
+    void getEmergencyContacts_WhenExist_ReturnsProfileList() {
+        String googleId = "googleId";
+        List<String> contactIds = List.of("u1", "u2");
+
+        User c1 = new User(); c1.setGoogleId("u1"); c1.setUsername("user1");
+        User c2 = new User(); c2.setGoogleId("u2"); c2.setUsername("user2");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contactIds);
+        when(userRepository.findByGoogleIdIn(contactIds)).thenReturn(List.of(c1, c2));
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertEquals(2, result.size());
+        assertEquals("user1", result.get(0).getUsername());
+        assertEquals("user2", result.get(1).getUsername());
+        verify(userRepository).getEmergencyContacts(googleId);
+        verify(userRepository).findByGoogleIdIn(contactIds);
+    }
+
+    @Test
+    @DisplayName("Debe devolver una lista vacia si el usuario no tiene contactos de emergencia")
+    void getEmergencyContacts_WhenNone_ReturnsEmptyList() {
+        String googleId = "googleId";
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(List.of());
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertTrue(result.isEmpty());
+        verify(userRepository, never()).findByGoogleIdIn(anyList());
+    }
+
+    @Test
+    @DisplayName("Debe añadir contactos y retornar la lista actualizada")
+    void newEmergencyContact_Success_AddsAndReturnsList() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(newContacts);
+        when(userRepository.findByGoogleIdIn(newContacts)).thenReturn(List.of(new User()));
+
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, newContacts);
+
+        assertNotNull(result);
+        verify(userRepository).addEmergencyContact(googleId, "u1");
+        verify(userRepository).getEmergencyContacts(googleId);
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si el usuario se intenta añadir a si mismo")
+    void newEmergencyContact_SelfAddition_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("googleId");
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, contacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe llamar al repositorio para borrar si la lista no es nula ni vacía")
+    void deleteEmergencyContact_Ok_CallsRepository() {
+        String googleId = "googleId";
+        List<String> toDelete = List.of("u1", "u2");
+
+        userService.deleteEmergencyContact(googleId, toDelete);
+
+        verify(userRepository).deleteEmergencyContacts(googleId, toDelete);
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es nula")
+    void deleteEmergencyContact_Null_DoesNothing() {
+        String googleId = "googleId";
+
+        userService.deleteEmergencyContact(googleId, null);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es vacía")
+    void deleteEmergencyContact_Empty_DoesNothing() {
+        String googleId = "googleId";
+        List<String> aux = new ArrayList<>();
+        userService.deleteEmergencyContact(googleId, aux);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    // --- Test per a fcm notificacions
+    @Test
+    void updateToken_OK() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        User user = new User();
+        user.setGoogleId(googleId);
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        userService.updateToken(googleId, token);
+
+        assertEquals(token, user.getFcmToken());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    void updateToken_UserNotExists() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+            userService.updateToken(googleId, token)
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByGoogleId("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el googleId no existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByGoogleId("none"));
+    }
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfile)")
+    void getUserProfile_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfile("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener perfil baneado por GoogleId (getUserProfile)")
+    void getUserProfile_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserProfile("g-123"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener perfil suspendido por GoogleId (getUserProfile)")
+    void getUserProfile_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserProfile("g-123"));
     }
 }

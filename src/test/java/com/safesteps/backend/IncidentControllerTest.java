@@ -2,29 +2,36 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.IncidentController;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.incidents.dto.*;
 import com.safesteps.backend.domain.incidents.model.IncidentTypeEnum;
 import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.service.IncidentVoteService;
+import com.safesteps.backend.domain.routecalculator.BarcelonaBoundaryService;
 import com.safesteps.backend.domain.routecalculator.Coord;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.*;
+import org.springframework.context.annotation.Import;
+import com.safesteps.backend.domain.common.exception.GlobalExceptionHandler;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import org.springframework.http.MediaType;
 
 import java.util.List;
 
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(IncidentController.class)
+@Import(GlobalExceptionHandler.class)
 class IncidentControllerTest {
 
     @Autowired
@@ -36,8 +43,20 @@ class IncidentControllerTest {
     @MockBean
     private IncidentVoteService voteService;
 
+    @MockBean
+    private BarcelonaBoundaryService barcelonaBoundaryService;
+
+    @MockBean
+    private AdminMetricsService adminMetricsService;
+
     @Autowired
     private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        // Coordenadas usadas en los tests están dentro de Barcelona
+        when(barcelonaBoundaryService.isWithinBarcelona(anyDouble(), anyDouble())).thenReturn(true);
+    }
 
     @Test
     void getIncidents() throws Exception {
@@ -84,7 +103,7 @@ class IncidentControllerTest {
 
     @Test
     void getIncident_NOTFOUND() throws Exception {
-        when(incidentService.findIncidentById(99L)).thenReturn(null);
+        when(incidentService.findIncidentById(99L)).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id: 99"));
 
         mockMvc.perform(get("/api/v1/incidents/99"))
                 .andExpect(status().isNotFound());
@@ -124,7 +143,8 @@ class IncidentControllerTest {
         req.setDescription("Test desc");
         req.setCoordinates(c);
 
-        when(incidentService.editIncidentById(1L, req)).thenReturn(null);
+        when(incidentService.editIncidentById(1L, req)).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id: 1"));
+
         mockMvc.perform(put("/api/v1/incidents/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -134,20 +154,23 @@ class IncidentControllerTest {
 
     @Test
     void deleteIncident() throws Exception {
-        when(incidentService.deleteIncidentById(1L)).thenReturn(true);
+        doNothing().when(incidentService).deleteIncidentById(1L);
         mockMvc.perform(delete("/api/v1/incidents/1"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteIncidentNotFound() throws Exception {
-        when(incidentService.deleteIncidentById(1L)).thenReturn(false);
+        doThrow(new ResourceNotFoundException("No es pot esborrar: Incidencia no trobada"))
+                .when(incidentService).deleteIncidentById(1L);
+
         mockMvc.perform(delete("/api/v1/incidents/1"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void getIncidentsByUserId() throws Exception {
+        when(incidentService.getIncidentsByUserId("1L")).thenReturn(java.util.List.of(new IncidentResponseDTO()));
         mockMvc.perform(get("/api/v1/incidents/users/1"))
                 .andExpect(status().isOk());
         List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId("1L");
@@ -161,8 +184,8 @@ class IncidentControllerTest {
         exp.setVoteScore(10);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(exp)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -210,7 +233,7 @@ class IncidentControllerTest {
 
     @Test
     void getInfoVotes_NULL() throws Exception {
-        when(incidentService.getVoteCount(any())).thenReturn(null);
+        when(incidentService.getVoteCount(any())).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id 1"));
 
         mockMvc.perform(get("/api/v1/incidents/1/count-votes"))
                 .andExpect(status().isNotFound());
@@ -218,15 +241,15 @@ class IncidentControllerTest {
 
     @Test
     void delete_OK() throws Exception {
-        when(voteService.deleteVoteByVoteId(1L)).thenReturn(true);
-
+        doNothing().when(voteService).deleteVoteByVoteId(1L);
         mockMvc.perform(delete("/api/v1/incidents/votes/1"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void delete_NotFound() throws Exception {
-        when(voteService.deleteVoteByVoteId(1L)).thenReturn(false);
+        doThrow(new ResourceNotFoundException("Vot no trobat amb id: 1"))
+                .when(voteService).deleteVoteByVoteId(1L);
 
         mockMvc.perform(delete("/api/v1/incidents/votes/1"))
                 .andExpect(status().isNotFound());
@@ -234,15 +257,15 @@ class IncidentControllerTest {
 
     @Test
     void deleteByUserIncidence_OK() throws Exception {
-        when(voteService.deleteByUserAndIncidence(1L, "1")).thenReturn(true);
-
+        doNothing().when(voteService).deleteByUserAndIncidence(1L, "1");
         mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteByUserIncidence_NOTFOUND() throws Exception {
-        when(voteService.deleteByUserAndIncidence(1L, "1L")).thenReturn(false);
+        doThrow(new ResourceNotFoundException("Vot no trobat amb incidenceId: 1 googleId: 1"))
+                .when(voteService).deleteByUserAndIncidence(1L, "1");
 
         mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
                 .andExpect(status().isNotFound());

@@ -13,11 +13,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class FiltreServiceTest {
@@ -69,15 +71,13 @@ class FiltreServiceTest {
 
     @Test
     void getFiltrePersonalitzatIdNull() {
-        Filtre filtre = filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT);
-        assertNull(filtre);
+        assertThrows(BadRequestException.class, () -> filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT));
     }
 
     @Test
     void getFiltrePersonalitzatFPJNull() {
         when(filtreRepository.findByGoogleId(any())).thenReturn(null);
-        Filtre filtre = filtreService.getFiltre("a", FiltreEnum.PERSONALITZAT);
-        assertNull(filtre);
+        assertThrows(ResourceNotFoundException.class, () -> filtreService.getFiltre("a", FiltreEnum.PERSONALITZAT));
     }
 
     @Test

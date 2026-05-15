@@ -36,6 +36,8 @@ class IncidentResponseDTOTest {
             @Override
             public Double getReliabilityIndex() {return -0.30;}
             @Override
+            public Double getExpirationIndex() { return -2.50; }
+            @Override
             public String getStatus() {return "Success";}
             @Override
             public LocalDateTime getCreated() {return null;}
@@ -52,6 +54,7 @@ class IncidentResponseDTOTest {
         assertEquals(2L, dto.getPositiveVotes().longValue());
         assertEquals(4L, dto.getNegativeVotes().longValue());
         assertEquals(-0.30, dto.getReliabilityIndex());
+        assertEquals(-2.50, dto.getExpirationIndex());
         assertEquals("Success", dto.getStatus());
     }
 
@@ -99,6 +102,8 @@ class IncidentResponseDTOTest {
             @Override
             public Double getReliabilityIndex() {return -0.30;}
             @Override
+            public Double getExpirationIndex() { return -2.50; }
+            @Override
             public String getStatus() {return "Success";}
             @Override
             public LocalDateTime getCreated() {return null;}
@@ -115,6 +120,7 @@ class IncidentResponseDTOTest {
         assertEquals(0L, dto.getPositiveVotes().longValue());
         assertEquals(0L, dto.getNegativeVotes().longValue());
         assertEquals(-0.30, dto.getReliabilityIndex());
+        assertEquals(-2.50, dto.getExpirationIndex());
         assertEquals("Success", dto.getStatus());
         assertEquals(41.3851, dto.getCoordinates().getLat());
         assertEquals(2.1734, dto.getCoordinates().getLon());

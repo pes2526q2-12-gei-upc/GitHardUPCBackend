@@ -64,4 +64,22 @@ class VoteDTOTest {
         assertEquals(-1f, r.getScore());
         assertEquals(createdAt, r.getCreatedAt());
     }
+
+    @Test
+    void checkVoteProjToVote() {
+        LocalDateTime createdAt = LocalDateTime.now();
+        VoteDBProjection p = new VoteDBProjection() {
+            @Override public Long getId() { return 1L; }
+            @Override public Long getIncidenceId() { return 2L; }
+            @Override public String getGoogleId() { return "100L"; }
+            @Override public float getScore() { return 1f; }
+            @Override public LocalDateTime getCreatedAt() { return createdAt; }
+        };
+        Vote v =  new Vote(p);
+        assertEquals(1L, v.getId());
+        assertEquals(2L, v.getIncidenceId());
+        assertEquals("100L", v.getGoogleId());
+        assertEquals(1f, v.getScore());
+        assertEquals(createdAt, v.getCreatedAt());
+    }
 }

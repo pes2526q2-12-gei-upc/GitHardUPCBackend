@@ -2,7 +2,9 @@ package com.safesteps.backend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safesteps.backend.controller.ApiAddressController;
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import com.safesteps.backend.domain.routecalculator.*;
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +35,9 @@ class ApiAddressControllerTest {
     @Mock
     private FiltreService filtreService;
 
+    @Mock
+    private AdminMetricsService adminMetricsService;
+
     @InjectMocks
     private ApiAddressController apiAddressController;
     @Mock
@@ -44,9 +49,10 @@ class ApiAddressControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        // Construïm el MockMvc injectant-li el nostre controlador i el validador
+        // Construïm el MockMvc injectant-li el nostre controlador, el validador i el GlobalExceptionHandler
         mockMvc = MockMvcBuilders.standaloneSetup(apiAddressController)
                 .setValidator(validator)
+                .setControllerAdvice(new com.safesteps.backend.domain.common.exception.GlobalExceptionHandler())
                 .build();
     }
 
@@ -103,7 +109,8 @@ class ApiAddressControllerTest {
     void calculateRoutePersonalitzatNoGoogleId() throws Exception {
         RouteRequestDTO request = buildValidRequest(FiltreEnum.PERSONALITZAT);
 
-        when(filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT)).thenReturn(null);
+        when(filtreService.getFiltre(null, FiltreEnum.PERSONALITZAT))
+                .thenThrow(new BadRequestException("Per als filtres personalitzats el googleId no pot ser null."));
 
         mockMvc.perform(post("/api/v1/calculate-route")
                         .contentType(MediaType.APPLICATION_JSON)

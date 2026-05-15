@@ -64,13 +64,6 @@ class RouteCalculatorServiceTest {
         when(carrerRepository.getCoordsFromNodeIds(any())).thenReturn(List.of(coordMock));
 
         // Punts d'Interès (També usem classes anònimes per seguretat)
-        PoiDBProjection comissariaMock = new PoiDBProjection() {
-            @Override public String getName() { return "Comissaria Test"; }
-            @Override public Double getLat() { return 41.3880; }
-            @Override public Double getLon() { return 2.1690; }
-        };
-        when(carrerRepository.findComissariesNearRoute(any(), eq(500.0))).thenReturn(List.of(comissariaMock));
-
         PoiDBProjection fontMock = new PoiDBProjection() {
             @Override public String getName() { return "Font del Gat"; }
             @Override public Double getLat() { return 41.3875; }
@@ -84,13 +77,6 @@ class RouteCalculatorServiceTest {
             @Override public Double getLon() { return 2.1686; }
         };
         when(carrerRepository.findBancsNearRoute(any(), eq(30.0))).thenReturn(List.of(bancsMock));
-
-        PoiDBProjection cameresMock = new PoiDBProjection() {
-            @Override public String getName() { return "Camera Test"; }
-            @Override public Double getLat() { return 41.3877; }
-            @Override public Double getLon() { return 2.1687; }
-        };
-        when(carrerRepository.findCameresNearRoute(any(), eq(100.0))).thenReturn(List.of(cameresMock));
         PoiDBProjection escalesMock = new PoiDBProjection() {
             @Override public String getName() { return "Escala Test"; }
             @Override public Double getLat() { return 41.3874; }
@@ -106,12 +92,7 @@ class RouteCalculatorServiceTest {
         assertEquals(1, response.getRoutes().size());
 
         Route route = response.getRoutes().getFirst();
-        assertEquals(5, route.getPois().size());
-
-        PoiDTO poiComissaria = route.getPois().stream().filter(p -> p.getType().equals("COMISSARIA")).findFirst().orElse(null);
-        assertNotNull(poiComissaria);
-        assertEquals("Comissaria Test", poiComissaria.getName());
-        assertEquals(41.3880, poiComissaria.getLat());
+        assertEquals(3, route.getPois().size()); // Fonts, Bancs, EscalesMecaniques. Incident is mocked to empty by default? Wait, I didn't mock it so it returns empty. Wait, the POIs will be 3.
 
         PoiDTO poiFont = route.getPois().stream().filter(p -> p.getType().equals("FONT")).findFirst().orElse(null);
         assertNotNull(poiFont);
@@ -123,21 +104,18 @@ class RouteCalculatorServiceTest {
         assertEquals("Banc Test", poiBanc.getName());
         assertEquals(41.3875, poiBanc.getLat());
 
-        PoiDTO poiCameres = route.getPois().stream().filter(p -> p.getType().equals("CAMERA")).findFirst().orElse(null);
-        assertNotNull(poiCameres);
-        assertEquals("Camera Test", poiCameres.getName());
-        assertEquals(41.3877, poiCameres.getLat());
-
         PoiDTO poiEscales = route.getPois().stream().filter(p -> p.getType().equals("ESCALA_MECANICA")).findFirst().orElse(null);
         assertNotNull(poiEscales);
         assertEquals("Escala Test", poiEscales.getName());
         assertEquals(41.3874, poiEscales.getLat());
 
-        verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
+        verify(carrerRepository, never()).findComissariesNearRoute(any(), eq(500.0));
         verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
         verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
-        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
+        verify(carrerRepository, never()).findCameresNearRoute(any(), eq(100.0));
         verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
+        verify(carrerRepository, never()).findRefugisNearRoute(any(), eq(100.0));
+        verify(carrerRepository, times(1)).findIncidentsNearRoute(any(), eq(50.0));
     }
 
 
@@ -162,10 +140,8 @@ class RouteCalculatorServiceTest {
 
         when(carrerRepository.getCoordsFromNodeIds(any())).thenReturn(List.of(coordMock));
 
-        when(carrerRepository.findComissariesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findFontsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findBancsNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
-        when(carrerRepository.findCameresNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
         when(carrerRepository.findEscalesNearRoute(any(), anyDouble())).thenReturn(Collections.emptyList());
 
         Filtre f = new Filtre(FiltreEnum.CONFORT);
@@ -177,11 +153,13 @@ class RouteCalculatorServiceTest {
         Route route = response.getRoutes().getFirst();
         assertEquals(0, route.getPois().size());
 
-        verify(carrerRepository, times(1)).findComissariesNearRoute(any(), eq(500.0));
+        verify(carrerRepository, never()).findComissariesNearRoute(any(), eq(500.0));
         verify(carrerRepository, times(1)).findFontsNearRoute(any(), eq(75.0));
         verify(carrerRepository, times(1)).findBancsNearRoute(any(), eq(30.0));
-        verify(carrerRepository, times(1)).findCameresNearRoute(any(), eq(100.0));
+        verify(carrerRepository, never()).findCameresNearRoute(any(), eq(100.0));
         verify(carrerRepository, times(1)).findEscalesNearRoute(any(), eq(50.0));
+        verify(carrerRepository, never()).findRefugisNearRoute(any(), eq(100.0));
+        verify(carrerRepository, times(1)).findIncidentsNearRoute(any(), eq(50.0));
     }
 
 
@@ -376,3 +354,4 @@ class RouteCalculatorServiceTest {
 
     }
 }
+

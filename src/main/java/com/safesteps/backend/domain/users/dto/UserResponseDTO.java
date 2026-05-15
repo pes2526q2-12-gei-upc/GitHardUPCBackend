@@ -4,6 +4,7 @@ import com.safesteps.backend.domain.users.model.User;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -14,11 +15,13 @@ public class UserResponseDTO {
     private String googleId;
     private String pictureUrl;
     private String language;
-    private Integer points;
+    private Long points;
     private Long level;
     private Boolean isAnonymous;
-    private Integer reputacio;
+    private double reputacio;
     private OffsetDateTime createdAt;
+    private Long recompenses;
+    private List<PremiDTO> premis;
 
     public UserResponseDTO(User user) {
         if (user == null) return;
@@ -33,5 +36,7 @@ public class UserResponseDTO {
         this.isAnonymous = user.getIsAnonymous();
         this.reputacio = user.getReputacio();
         this.createdAt = user.getCreatedAt();
+        this.recompenses = user.getRecompenses();
+        this.premis = user.getPremis() == null ? List.of() : user.getPremis().stream().map(PremiDTO::new).toList();
     }
 }

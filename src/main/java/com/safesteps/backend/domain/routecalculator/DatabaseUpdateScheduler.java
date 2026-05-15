@@ -1,5 +1,6 @@
 package com.safesteps.backend.domain.routecalculator;
 
+import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,12 +18,17 @@ import java.util.concurrent.TimeUnit;
 public class DatabaseUpdateScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUpdateScheduler.class);
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     @Value("${backend.scheduler.python.command:python}")
     private String pythonCommand;
 
     @Value("${backend.scheduler.scripts.path:src/scripts/}")
     private String scriptsDir;
+
+    @Value("${backend.scheduler.enabled:true}")
+    private boolean schedulerEnabled;
 
     private static final List<String> PYTHON_SCRIPTS = List.of(
             "DataLoad_GrafViari.py",
@@ -36,63 +42,73 @@ public class DatabaseUpdateScheduler {
             "DataLoad_Fets_Penals.py");
 
     private final PostgisCalculationService postgisCalculationService;
+    private final AdminMetricsService adminMetricsService;
 
-    // INYECCIÓN DE DEPENDENCIAS (D de SOLID)
     @Autowired
-    public DatabaseUpdateScheduler(PostgisCalculationService postgisCalculationService) {
+    public DatabaseUpdateScheduler(PostgisCalculationService postgisCalculationService,
+                                   AdminMetricsService adminMetricsService) {
         this.postgisCalculationService = postgisCalculationService;
+        this.adminMetricsService = adminMetricsService;
     }
 
-    // DISPARADOR DE PRUEBA: Si descomentas esta línea, se ejecutará UNA ÚNICA VEZ
-    // justo al arrancar el servidor.
     //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
-    // Restaurado a "una vez al día" para prevenir solapes y fallos de lock
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
-        logger.info("Iniciando pipeline nocturno de actualización de OpenData BCN");
-        try {
-            boolean dataLoadSuccess = executePythonDataLoad();
+        if (!schedulerEnabled) {
+            logger.info("El scheduler esta deshabilitado. Saliendo de updateDatabaseAndCalculations.");
+            return;
+        }
 
-            // GUARD CLAUSE (Bouncer Pattern)
+        long pipelineStart = System.nanoTime();
+        Long pipelineRunId = adminMetricsService.startPipelineRun();
+        String pipelineStatus = STATUS_SUCCESS;
+        String pipelineError = null;
+
+        logger.info("Iniciando pipeline nocturno de actualizacion de OpenData BCN");
+        try {
+            boolean dataLoadSuccess = executePythonDataLoad(pipelineRunId);
+
             if (!dataLoadSuccess) {
-                logger.error(
-                        "Se abortan los cálculos geométricos espaciales porque la ingesta de datos falló críticamente.");
+                pipelineStatus = STATUS_FAILED;
+                pipelineError = "Data load scripts failed.";
+                logger.error("Se abortan los calculos espaciales porque la ingesta de datos fallo criticamente.");
                 return;
             }
 
-            // Ejecutamos las estadísticas de PostgreSQL ANTES de bloquear las tablas
-            // con nuestra transacción masiva.
             postgisCalculationService.executePreAnalysis();
-
-            // Evaluamos la matemática espacial bajo transacción (Todo o Nada)
             postgisCalculationService.performDatabaseCalculations();
-            logger.info("Pipeline completado con éxito.");
+            logger.info("Pipeline completado con exito.");
 
         } catch (Exception e) {
-            logger.error("Error crítico durante la actualización automática: ", e);
+            pipelineStatus = STATUS_FAILED;
+            pipelineError = e.getMessage();
+            logger.error("Error critico durante la actualizacion automatica: ", e);
+        } finally {
+            long durationMs = (System.nanoTime() - pipelineStart) / 1_000_000;
+            adminMetricsService.finishPipelineRun(pipelineRunId, pipelineStatus, durationMs, pipelineError);
         }
     }
 
-    private boolean executePythonDataLoad() {
-        logger.info("Directorio raíz de scripts: {}", scriptsDir);
+    private boolean executePythonDataLoad(Long pipelineRunId) {
+        logger.info("Directorio raiz de scripts: {}", scriptsDir);
 
         for (String script : PYTHON_SCRIPTS) {
-            if (!executeSingleScript(script)) {
-                return false; // Si prefieres detener todo por un solo fallo, si no, puedes obviar este
-                              // return.
+            if (!executeSingleScript(script, pipelineRunId)) {
+                return false;
             }
         }
         return true;
     }
 
-    private boolean executeSingleScript(String scriptName) {
+    private boolean executeSingleScript(String scriptName, Long pipelineRunId) {
+        long scriptStart = System.nanoTime();
         try {
-            // USANDO PATH BUILDERS PARA PREVENIR ERRORES DE RUTAS ENTRE WINDOWS/LINUX
             Path scriptAbsPath = Paths.get(scriptsDir, scriptName).toAbsolutePath();
             File scriptFile = scriptAbsPath.toFile();
 
             if (!scriptFile.exists()) {
                 logger.error("El script no existe en disco: {}", scriptAbsPath);
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, "Script file not found.");
                 return false;
             }
 
@@ -102,28 +118,37 @@ public class DatabaseUpdateScheduler {
             Process process = pb.start();
 
             if (!process.waitFor(15, TimeUnit.MINUTES)) {
-                logger.error("[TIMEOUT] El script {} excedió los 15 minutos en OS. Forzando SIGKILL.", scriptName);
+                logger.error("[TIMEOUT] El script {} excedio los 15 minutos en OS. Forzando SIGKILL.", scriptName);
                 process.destroyForcibly();
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, "Timeout after 15 minutes.");
                 return false;
             }
 
             int exitCode = process.exitValue();
             if (exitCode != 0) {
-                logger.error("[FALLO] Script {} retornó código {}.", scriptName, exitCode);
+                logger.error("[FALLO] Script {} retorno codigo {}.", scriptName, exitCode);
+                recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, exitCode, "Script returned non-zero exit code.");
                 return false;
             }
+
+            recordScript(pipelineRunId, scriptName, STATUS_SUCCESS, scriptStart, exitCode, null);
             return true;
 
         } catch (InterruptedException e) {
-            logger.error("[INTERRUPCIÓN] El hilo fue interrumpido mientras esperaba al script {}.", scriptName);
-            // ¡ESTA ES LA LÍNEA MÁGICA QUE PIDE SONARQUBE!
-            // Restauramos el estado de interrupción del hilo actual.
+            logger.error("[INTERRUPCION] El hilo fue interrumpido mientras esperaba al script {}.", scriptName);
             Thread.currentThread().interrupt();
+            recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, e.getMessage());
             return false;
 
         } catch (java.io.IOException e) {
             logger.error("Error de I/O despachando el script {}: {}", scriptName, e.getMessage());
+            recordScript(pipelineRunId, scriptName, STATUS_FAILED, scriptStart, null, e.getMessage());
             return false;
         }
+    }
+
+    private void recordScript(Long pipelineRunId, String scriptName, String status, long scriptStart, Integer exitCode, String errorMessage) {
+        long durationMs = (System.nanoTime() - scriptStart) / 1_000_000;
+        adminMetricsService.recordPipelineScript(pipelineRunId, scriptName, status, durationMs, exitCode, errorMessage);
     }
 }

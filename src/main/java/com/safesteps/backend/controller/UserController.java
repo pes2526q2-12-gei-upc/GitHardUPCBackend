@@ -1,8 +1,13 @@
 package com.safesteps.backend.controller;
 
+import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
+import com.safesteps.backend.domain.users.dto.PremiDTO;
+import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,34 +38,47 @@ public class UserController {
     @GetMapping("/{googleId}")
     public ResponseEntity<UserResponseDTO> getByGoogleId(@PathVariable String googleId) {
         UserResponseDTO user = userService.getUserByGoogleId(googleId);
-        return (user != null) ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/search")
     public ResponseEntity<UserResponseDTO> getByEmail(@RequestParam String email) {
         UserResponseDTO user = userService.getUserByEmail(email);
-        return (user != null) ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
+    }
+
+    @GetMapping("/search/username")
+    @Operation(summary = "Buscar usuarios por username o email (coincidencia parcial)",
+               description = "Retorna la lista de usuarios cuyo username o email contiene el string enviado. Incluye googleId, username, email y avatar.")
+    public ResponseEntity<List<UserSearchResultDTO>> searchByUsername(@RequestParam String username) {
+        return ResponseEntity.ok(userService.searchUsersByUsername(username));
+    }
+
+    @GetMapping("/profile/{googleId}")
+    @Operation(summary = "Ver el perfil p\u00FAblico de un usuario por googleId",
+               description = "Retorna username, picture_url, points, level, created_at y status del usuario.")
+    public ResponseEntity<UserProfileDTO> getProfileByGoogleId(@PathVariable String googleId) {
+        return ResponseEntity.ok(userService.getUserProfileByGoogleId(googleId));
     }
 
     @PostMapping
     @Operation(summary = "Crear usuario y sus filtros por defecto")
     public ResponseEntity<UserResponseDTO> create(@Valid @RequestBody UserRequestDTO req) {
         UserResponseDTO created = userService.createUser(req);
-        if (created == null) return ResponseEntity.status(HttpStatus.CONFLICT).build();
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{googleId}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable String googleId, @Valid @RequestBody UserRequestDTO req) {
         UserResponseDTO updated = userService.updateUser(googleId, req);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{googleId}")
     @Operation(summary = "Eliminar usuario y sus filtros")
     public ResponseEntity<Void> delete(@PathVariable String googleId) {
-        boolean deleted = userService.deleteUserByGoogleId(googleId);
-        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        userService.deleteUserByGoogleId(googleId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{googleId}/filters")
@@ -69,7 +87,7 @@ public class UserController {
             @PathVariable String googleId,
             @RequestBody FilterRequestDTO req) {
         UserFilter updated = userService.updateFilters(googleId, req);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{googleId}/language")
@@ -78,6 +96,66 @@ public class UserController {
             @PathVariable String googleId,
             @RequestParam String lang) {
         UserResponseDTO updated = userService.updateLanguage(googleId, lang);
-        return (updated != null) ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{googleId}/open-prize")
+    @Operation(summary = "Obre una de les recompenses disponibles actualment de l'usuari.")
+    public ResponseEntity<PremiDTO> openPrize(
+            @PathVariable String googleId) {
+        PremiDTO premi = userService.openPrize(googleId);
+        return ResponseEntity.ok(premi);
+    }
+
+    @GetMapping("/{googleId}/complete-route")
+    @Operation(summary = "Completar una ruta y sumar los puntos recorridos")
+    public ResponseEntity<RouteCompletionResponseDTO> completeRoute(
+            @PathVariable String googleId,
+            @RequestParam(required = false) Double meters,
+            @RequestParam(required = false) Double metros) {
+        Double distanceMeters = meters != null ? meters : metros;
+        if (distanceMeters == null) {
+            throw new BadRequestException("Missing route meters.");
+        }
+        RouteCompletionResponseDTO response = userService.completeRoute(googleId, distanceMeters);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<List<UserProfileDTO>> newEmergencyContacts(@PathVariable String googleId, @RequestParam List<String> emergencyContacts) {
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, emergencyContacts);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @DeleteMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<Void> deleteEmergencyContacts(@PathVariable String googleId, @RequestParam List<String> emergencyContacts) {
+        userService.deleteEmergencyContact(googleId, emergencyContacts);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{googleId}/emergency-contacts")
+    public ResponseEntity<List<UserProfileDTO>> getEmergencyContacts(@PathVariable String googleId) {
+        List<UserProfileDTO> ec = userService.getEmergencyContacts(googleId);
+        return ResponseEntity.ok().body(ec);
+    }
+
+    @PostMapping("/{googleId}/fcm-token")
+    public ResponseEntity<Void> updateToken(@PathVariable String googleId, @RequestParam String token) {
+        userService.updateToken(googleId, token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{googleId}/try-notifications")
+    @Operation(summary = "1 -> Message" +
+            "2 -> Emergency" +
+            "3 -> Friend req" +
+            "4 -> Location" +
+            "5 -> Firebase" +
+            "6 -> WebSocket")
+    public ResponseEntity<Void> tryNotifications(@PathVariable String googleId, @RequestParam(required = false) String title, @RequestParam(required = false) String body, @RequestParam Integer type) {
+        if (title == null) title = "Notificación de prueba";
+        if (body == null) body = "Si recibes esta notificación, las push notifications funcionan correctamente.";
+        userService.sendPushNotification(googleId,  title, body, type);
+        return ResponseEntity.ok().build();
     }
 }

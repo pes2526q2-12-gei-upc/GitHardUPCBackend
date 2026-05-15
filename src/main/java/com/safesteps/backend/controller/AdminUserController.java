@@ -1,5 +1,6 @@
 package com.safesteps.backend.controller;
 
+import com.safesteps.backend.domain.users.dto.AdminUserPageDTO;
 import com.safesteps.backend.domain.users.dto.AdminUserDTO;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.AdminUserService;
@@ -13,6 +14,7 @@ import com.safesteps.backend.domain.incidents.service.IncidentService;
 import com.safesteps.backend.domain.incidents.dto.IncidentResponseDTO;
 import java.util.List;
 import java.util.Map;
+import com.safesteps.backend.domain.users.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -21,12 +23,21 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
     private final IncidentService incidentService;
+    private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<Page<AdminUserDTO>> searchUsers(
+    public ResponseEntity<AdminUserPageDTO> searchUsers(
             @RequestParam(required = false) String query,
             Pageable pageable) {
-        return ResponseEntity.ok(adminUserService.searchUsers(query, pageable));
+        Page<AdminUserDTO> page = adminUserService.searchUsers(query, pageable);
+        return ResponseEntity.ok(new AdminUserPageDTO(
+                page.getContent(),
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.isFirst(),
+                page.isLast()
+        ));
     }
 
     @GetMapping("/{id}")
@@ -57,6 +68,8 @@ public class AdminUserController {
 
     @GetMapping("/{id}/incidents")
     public ResponseEntity<List<IncidentResponseDTO>> getUserIncidents(@PathVariable Long id) {
-        return ResponseEntity.ok(incidentService.getIncidentsByUserId(String.valueOf(id)));
+        return userRepository.findById(id)
+                .map(user -> ResponseEntity.ok(incidentService.getIncidentsByUserId(user.getGoogleId())))
+                .orElse(ResponseEntity.notFound().build());
     }
 }
