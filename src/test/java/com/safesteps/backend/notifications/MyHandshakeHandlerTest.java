@@ -37,8 +37,7 @@ class MyHandshakeHandlerTest {
 
         Principal principal = handler.determineUser(request, wsH, new HashMap<>());
 
-        assertNotNull(principal);
-        assertEquals("", principal.getName());
+        assertNull(principal);
     }
 
     @Test

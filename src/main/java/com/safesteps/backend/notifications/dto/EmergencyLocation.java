@@ -8,7 +8,7 @@ public class EmergencyLocation {
     private String username;
     private Coord coord;
 
-    public  EmergencyLocation(String username,Coord coord) {
+    public  EmergencyLocation(String username, Coord coord) {
         this.username = username;
         this.coord = coord;
     }

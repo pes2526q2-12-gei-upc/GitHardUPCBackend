@@ -19,7 +19,7 @@ public class MyHandshakeHandler extends DefaultHandshakeHandler {
                 .getQueryParams()
                 .getFirst("googleId");
 
-        if (googleId == null) return null;
+        if (googleId == null || googleId.isBlank()) return null;
 
         // retorna un principal amb getName = googleId
         return () -> googleId;

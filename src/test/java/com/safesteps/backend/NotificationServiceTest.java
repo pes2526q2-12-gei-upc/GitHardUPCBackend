@@ -37,7 +37,6 @@ class NotificationServiceTest {
     void setUp() {
         googleIds = new ArrayList<>();
         googleIds.add("gId1");
-        googleIds.add("gId2");
         String googleId = "googleId";
         user = new User();
         user.setGoogleId(googleId);

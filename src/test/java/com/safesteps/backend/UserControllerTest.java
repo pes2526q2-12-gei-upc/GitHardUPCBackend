@@ -481,8 +481,6 @@ class UserControllerTest {
     @Test
     @DisplayName("POST /api/v1/users/{googleId}/emergency")
     void toggleUserStatus_OK() throws Exception {
-       // when(userService.getUserStatusEmergency("googleId")).thenReturn(true);
-
         mockMvc.perform(post("/api/v1/users/googleId/emergency"))
                 .andExpect(status().isOk());
     }

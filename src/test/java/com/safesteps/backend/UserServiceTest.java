@@ -844,7 +844,7 @@ class UserServiceTest {
     @Test
     void getEmergencyContacts_NoContacts() {
         String googleId = "googleId";
-        List<String> contacts = List.of("");
+        List<String> contacts = List.of();
 
         when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
         when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
