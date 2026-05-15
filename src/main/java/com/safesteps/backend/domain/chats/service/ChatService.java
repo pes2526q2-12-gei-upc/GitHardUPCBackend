@@ -196,6 +196,18 @@ public class ChatService {
         message.setChat(chat);
         message.setSender(sender);
         message.setContent(req.getContent());
+
+        if (req.getSharedRoute() != null) {
+            SharedRoute sharedRoute = new SharedRoute();
+            sharedRoute.setOriginLat(req.getSharedRoute().getOriginLat());
+            sharedRoute.setOriginLng(req.getSharedRoute().getOriginLng());
+            sharedRoute.setDestLat(req.getSharedRoute().getDestLat());
+            sharedRoute.setDestLng(req.getSharedRoute().getDestLng());
+            sharedRoute.setScheduledDate(req.getSharedRoute().getScheduledDate());
+            sharedRoute.setMessage(message);
+            message.setSharedRoute(sharedRoute);
+        }
+
         return new MessageResponseDTO(messageRepository.save(message));
     }
 
