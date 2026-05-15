@@ -115,7 +115,7 @@ public class ApiAddressController {
             @ApiResponse(responseCode = "400", description = "La ruta enviada no és vàlida o està buida.", content = @Content),
             @ApiResponse(responseCode = "401", description = "Token de seguretat (X-API-KEY) no vàlid o absent.", content = @Content)
     })
-    @GetMapping("/route-events")
+    @PostMapping("/route-events")
     public ResponseEntity<List<PoiDTO>> getEventsForRoute(@RequestBody ExternalRouteRequestDTO request) {
 
         if (request.getRoutePoints() == null || request.getRoutePoints().isEmpty()) {

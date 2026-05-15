@@ -7,7 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
+import com.safesteps.backend.domain.routecalculator.EventExternalResponseDTO.EventDTO;
 import java.util.*;
 
 @Service
@@ -82,11 +82,14 @@ public class EventIntegrationService {
         String cleanedName = rawName;
 
         if (rawName != null) {
-            // 1. Eliminem el prefix 'Exposició "' (ignorant majúscules/minúscules amb (?i))
-            // 2. Eliminem la cometa final '"'
-            cleanedName = rawName
-                    .replaceFirst("(?i)^Exposició\\s+\"", "") // Busca "Exposició " + cometa al principi
-                    .replaceFirst("\"$", "");                // Busca la cometa final a l'últim caràcter
+            // 1. Eliminem les paraules clau, espais i possibles dos punts (:)
+            cleanedName = rawName.replaceFirst("(?i)^(Exposició|Activitat|Taller)\\s*:?\\s*", "");
+
+            // 2. Eliminem la cometa inicial (si ha quedat al descobert)
+            cleanedName = cleanedName.replaceFirst("^\"", "");
+
+            // 3. Eliminem la cometa final (si n'hi ha)
+            cleanedName = cleanedName.replaceFirst("\"$", "");
         }
         return new PoiDTO(
                 type,
