@@ -19,6 +19,7 @@ import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.users.service.UserService;
+import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class UserServiceTest {
 
     @Mock
     private FilterRepository filterRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private UserService userService;
@@ -741,4 +745,120 @@ class UserServiceTest {
 
         assertThrows(UserSuspendedException.class, () -> userService.getUserProfile("g-123"));
     }
+
+    @Test
+    void getUserStatusEmergencyFalse() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(false);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyTrue() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(true);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyNotExists() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserStatusEmergency("googleId"));
+    }
+
+    @Test
+    void toggleToEmergencyTrue() {
+        user.setIsInEmergency(false);
+        List<String> contacts = List.of("contact1", "contact2");
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(googleId);
+
+        assertTrue(user.getIsInEmergency());
+        verify(userRepository).save(user);
+        verify(notificationService).sendEmergency(contacts, true);
+    }
+
+    @Test
+    void toggleToEmergencyFalse() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of("contact1");
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(googleId);
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false);
+    }
+
+    @Test
+    void toggleUserNotFound() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.toggleUserStatusEmergency("googleId"));
+
+        verify(userRepository, never()).save(any());
+        verify(notificationService, never()).sendEmergency(any(), anyBoolean());
+    }
+
+    @Test
+    void toggleToEmergencyNoContacts() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of();
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(googleId);
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false);
+    }
+
+    @Test
+    void getEmergencyContacts_OK() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("contact1", "contact2");
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoContacts() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("");
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoExists() {
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> userService.getEmergencyContactsGoogleIds(googleId));
+    }
+
 }
