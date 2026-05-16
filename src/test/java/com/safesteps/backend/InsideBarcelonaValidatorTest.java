@@ -1,5 +1,8 @@
-package com.safesteps.backend.domain.routecalculator;
+package com.safesteps.backend;
 
+import com.safesteps.backend.domain.routecalculator.BarcelonaBoundaryService;
+import com.safesteps.backend.domain.routecalculator.Coord;
+import com.safesteps.backend.domain.routecalculator.InsideBarcelonaValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

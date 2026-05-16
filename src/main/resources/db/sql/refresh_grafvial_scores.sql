@@ -1,29 +1,3 @@
--- =========================================================================================
--- FASE 0: OPTIMIZACIÓN PREVIA (Forzamos los tipos y el Analizador para evitar Cartesiano)
--- =========================================================================================
-CREATE INDEX IF NOT EXISTS idx_grafvial_nodes_cnus ON bcn_grafvial_nodes("C_Nus");
-CREATE INDEX IF NOT EXISTS idx_grafvial_trams_ni ON bcn_grafvial_trams("C_Nus_I");
-CREATE INDEX IF NOT EXISTS idx_grafvial_trams_nf ON bcn_grafvial_trams("C_Nus_F");
-
--- (El ANALYZE de estas tablas se realiza directamente desde Java antes de entrar en transaccion)
-
--- 1. Añadir todas las columnas y la de geometría general
-ALTER TABLE bcn_grafvial_trams
-ADD COLUMN IF NOT EXISTS cnt_comissaries INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_fonts INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_bancs INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_cameres INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_escales INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_arbres INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS score_comissaries NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_fets_delictius NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_infraccions NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS score_soroll NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS score_aire NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_refugis_climatics INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS cnt_incidents INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS geom geometry(LineString, 25831);
-
 -- 2. CALCULAR GEOMETRÍAS MAESTRAS DE LAS CALLES
 -- Protegido usando subqueries cerradas para evitar una explosión cartesiana (RAM overflow)
 -- si OpenData BCN ha introducido nodos duplicados accidentalmente.
@@ -39,7 +13,6 @@ WHERE t."C_Nus_I" = ni."C_Nus" AND t."C_Nus_F" = nf."C_Nus"
 AND t.geom IS NULL;
 
 -- 3. Crear indice espacial sobre las calles
-CREATE INDEX IF NOT EXISTS idx_trams_geom ON bcn_grafvial_trams USING GIST(geom);
 ANALYZE bcn_grafvial_trams;
 
 -- =========================================================================================
@@ -47,61 +20,35 @@ ANALYZE bcn_grafvial_trams;
 -- =========================================================================================
 
 -- Comisarias
-ALTER TABLE bcn_comissaries ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_comissaries SET geom = ST_SetSRID(ST_MakePoint(geo_epgs_25831_x::numeric, geo_epgs_25831_y::numeric), 25831) WHERE geo_epgs_25831_x IS NOT NULL AND geo_epgs_25831_y IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_comissaries_geom ON bcn_comissaries USING GIST(geom);
 
 -- Fuentes de beber
-ALTER TABLE bcn_fonts_beure ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_fonts_beure SET geom = ST_SetSRID(ST_MakePoint(x_etrs89::numeric, y_etrs89::numeric), 25831) WHERE x_etrs89 IS NOT NULL AND y_etrs89 IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_fonts_geom ON bcn_fonts_beure USING GIST(geom);
 
 -- Cámaras de seguridad
-ALTER TABLE bcn_cameres_seguretat ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_cameres_seguretat SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_cameres_geom ON bcn_cameres_seguretat USING GIST(geom);
 
 -- Escaleras mecánicas
-ALTER TABLE bcn_escales_mecaniques ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_escales_mecaniques SET geom = ST_SetSRID(ST_MakePoint(geo_epgs_25831_x::numeric, geo_epgs_25831_y::numeric), 25831) WHERE geo_epgs_25831_x IS NOT NULL AND geo_epgs_25831_y IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_escales_geom ON bcn_escales_mecaniques USING GIST(geom);
 
 -- Bancos
-ALTER TABLE bcn_bancs ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
-UPDATE bcn_bancs SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;        
-CREATE INDEX IF NOT EXISTS idx_bancs_geom ON bcn_bancs USING GIST(geom);
+UPDATE bcn_bancs SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 
 -- Arbolado Viari
-ALTER TABLE bcn_arbrat_viari ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
-ALTER TABLE bcn_arbrat_viari ALTER COLUMN geom TYPE geometry(Point, 25831) USING ST_SetSRID(ST_GeomFromText(geom::text), 25831);
-UPDATE bcn_arbrat_viari SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;      
-CREATE INDEX IF NOT EXISTS idx_arbrat_viari_geom ON bcn_arbrat_viari USING GIST(geom);
+UPDATE bcn_arbrat_viari SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 
 -- Arbolado Zona
-ALTER TABLE bcn_arbrat_zona ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
-ALTER TABLE bcn_arbrat_zona ALTER COLUMN geom TYPE geometry(Point, 25831) USING ST_SetSRID(ST_GeomFromText(geom::text), 25831);
-UPDATE bcn_arbrat_zona SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;        
-CREATE INDEX IF NOT EXISTS idx_arbrat_zona_geom ON bcn_arbrat_zona USING GIST(geom);
+UPDATE bcn_arbrat_zona SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
 
 -- Contaminación acústica
-ALTER TABLE bcn_contaminacio_acustica ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_contaminacio_acustica SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831) WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_soroll_geom ON bcn_contaminacio_acustica USING GIST(geom);
 
 -- Calidad del aire
-ALTER TABLE bcn_qualitat_aire ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_qualitat_aire SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(longitud::numeric, latitud::numeric), 4326), 25831)
 WHERE longitud IS NOT NULL AND latitud IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_aire_geom ON bcn_qualitat_aire USING GIST(geom);
 
 -- Refugios climáticos
-ALTER TABLE bcn_refugis_climatics ADD COLUMN IF NOT EXISTS geom geometry(Point, 25831);
 UPDATE bcn_refugis_climatics SET geom = ST_Transform(ST_SetSRID(ST_MakePoint(geo_epgs_4326_lon::numeric, geo_epgs_4326_lat::numeric), 4326), 25831) WHERE geo_epgs_4326_lon IS NOT NULL AND geo_epgs_4326_lat IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_refugis_geom ON bcn_refugis_climatics USING GIST(geom);
-
--- Incidents (tabla dinámica generada por la app, siempre en EPSG:4326)
--- Creamos un índice espacial sobre la geometría transformada a EPSG:25831 para acelerar el cruce espacial
-CREATE INDEX IF NOT EXISTS idx_incidents_geom_25831 ON incidents USING GIST(ST_Transform(location, 25831));
 
 -- =========================================================================================
 -- FASE B: CRUCE INSTANTÁNEO 
@@ -197,55 +144,7 @@ SET cnt_incidents = (
 -- =========================================================================================
 -- FASE C: RECONSTRUCCIÓN DEL GRAFO DE ENRUTAMIENTO
 -- =========================================================================================
-DROP TABLE IF EXISTS public.v_trams_nodes CASCADE;
 
--- 2. Creamos la vista materializada SOLO si no existe en la base de datos.
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.v_trams_nodes
-TABLESPACE pg_default
-AS SELECT t."FID" AS fid,
-          n_inici."FID" AS source,
-          n_final."FID" AS target,
-          t."LONGITUD" AS longitud,
-          t."NVia_D" AS nom_carrer,
-          t.cnt_comissaries,
-          t.score_comissaries,
-          t.cnt_fonts,
-          t.cnt_bancs,
-          t.cnt_arbres,
-          t.cnt_escales,
-          t.cnt_cameres,
-          t.cnt_fets_delictius,
-          t.cnt_infraccions,
-          t.score_soroll,
-          t.score_aire,
-          t.cnt_refugis_climatics,
-          t.cnt_incidents
-   FROM bcn_grafvial_trams t
-            JOIN bcn_grafvial_nodes n_inici ON t."C_Nus_I" = n_inici."C_Nus"
-            JOIN bcn_grafvial_nodes n_final ON t."C_Nus_F" = n_final."C_Nus"
-   WHERE t."TVia_D" <> ALL (ARRAY['Viaducte'::text, 'Nus'::text, '-'::text, ' '::text, ''::text])
-              WITH DATA;
+REFRESH MATERIALIZED VIEW CONCURRENTLY public.v_trams_nodes;
+REFRESH MATERIALIZED VIEW public.barcelona_boundary;
 
--- 3. Aseguramos la creación de los índices para que el algoritmo pgRouting/JGraphT vuele.
--- Usamos IF NOT EXISTS para que no dé error si ya se crearon en la ejecución de ayer.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_vtrams_fid ON public.v_trams_nodes USING btree (fid);
-CREATE INDEX IF NOT EXISTS idx_vtrams_source ON public.v_trams_nodes USING btree (source);
-CREATE INDEX IF NOT EXISTS idx_vtrams_target ON public.v_trams_nodes USING btree (target);
-
--- 4. AHORA SÍ: Refrescamos los datos con los cruces espaciales calculados.
--- Omitimos 'CONCURRENTLY' para que sea compatible con las transacciones de Spring Boot.
-REFRESH MATERIALIZED VIEW public.v_trams_nodes;
-
--- =========================================================================================
--- FASE D: CREACIÓN DEL POLÍGONO DE LÍMITES DE BARCELONA (SSOT)
--- =========================================================================================
-
--- 1. Vista materializada para el límite de Barcelona usando ST_ConcaveHull
-CREATE MATERIALIZED VIEW IF NOT EXISTS barcelona_boundary AS
-SELECT ST_Transform(ST_ConcaveHull(ST_Collect(geom), 0.90), 4326) AS boundary_geom
-FROM bcn_grafvial_trams
-WHERE geom IS NOT NULL
-WITH DATA;
-
--- 2. Índice para acelerar consultas
-CREATE INDEX IF NOT EXISTS idx_barcelona_boundary_geom ON barcelona_boundary USING GIST(boundary_geom);

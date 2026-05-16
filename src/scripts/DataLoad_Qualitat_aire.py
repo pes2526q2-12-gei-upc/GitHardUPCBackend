@@ -161,8 +161,8 @@ def main():
         # Pujada a SQL
         logging.info(f"Pujant {len(df_final)} estacions amb dades de PM2.5 a {t_qualitat_aire}...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_qualitat_aire}" CASCADE;'))
-        df_final.to_sql(t_qualitat_aire, engine, if_exists='replace', index=False)
+            conn.execute(text(f'TRUNCATE TABLE "{t_qualitat_aire}" RESTART IDENTITY CASCADE;'))
+        df_final.to_sql(t_qualitat_aire, engine, if_exists='append', index=False)
         logging.info("ÈXIT TOTAL: Dades filtrades i netejades correctament.")
 
     except Exception as e:

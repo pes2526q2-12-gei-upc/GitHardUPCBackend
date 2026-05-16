@@ -222,9 +222,9 @@ def main():
         # 5. Pugem a PostgreSQL
         logging.info(f">>> PAS 4: Pujant {len(df_final)} sensors geolocalitzats a la taula '{t_soroll}'...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_soroll}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_soroll}" RESTART IDENTITY CASCADE;'))
 
-        df_final.to_sql(t_soroll, engine, if_exists='replace', index=False)
+        df_final.to_sql(t_soroll, engine, if_exists='append', index=False)
         logging.info(f"ÈXIT: Taula '{t_soroll}' actualitzada correctament amb les dades de soroll enriquides.")
 
     except Exception as e:

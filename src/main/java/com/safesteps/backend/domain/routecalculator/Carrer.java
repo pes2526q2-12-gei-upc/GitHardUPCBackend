@@ -2,6 +2,7 @@ package com.safesteps.backend.domain.routecalculator;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.Immutable;
 
 /*
 Classe que representa un carrer de la BD
@@ -13,6 +14,7 @@ longitud -> La distancia en metres del carrer (ve a ser el cost de l'aresta)
 
 @Entity
 @Table(name = "v_trams_nodes") // El nom de la taula a la BD
+@Immutable
 @Data
 public class Carrer {
 
