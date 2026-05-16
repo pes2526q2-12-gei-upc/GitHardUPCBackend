@@ -22,6 +22,7 @@ public class UserResponseDTO {
     private OffsetDateTime createdAt;
     private Long recompenses;
     private List<PremiDTO> premis;
+    private Boolean isInEmergency;
 
     public UserResponseDTO(User user) {
         if (user == null) return;
@@ -38,5 +39,6 @@ public class UserResponseDTO {
         this.createdAt = user.getCreatedAt();
         this.recompenses = user.getRecompenses();
         this.premis = user.getPremis() == null ? List.of() : user.getPremis().stream().map(PremiDTO::new).toList();
+        this.isInEmergency = user.getIsInEmergency();
     }
 }

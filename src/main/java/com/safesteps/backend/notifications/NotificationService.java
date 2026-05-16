@@ -5,6 +5,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.notifications.dto.EmergencyLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,6 +25,9 @@ public class NotificationService {
     private static final String EMERGENCY_TITLE = "EMERGENCY_TITLE";
     private static final String EMERGENCY_BODY = "EMERGENCY_BODY";
 
+    private static final String EMERGENCY_END_TITLE = "EMERGENCY_END_TITLE";
+    private static final String EMERGENCY_END_BODY = "EMERGENCY_END_BODY";
+
     private static final String MSG_TITLE = "NEW_MESSAGE_TITLE";
     private static final String MSG_BODY = "NEW_MESSAGE_BODY";
 
@@ -40,11 +44,13 @@ public class NotificationService {
         send(toGoogleId, MSG_TITLE, MSG_BODY, msg, "/queue/messages");
     }
 
-    public void sendEmergency(List<String> toGoogleId, Object emergency) {
-        send(toGoogleId, EMERGENCY_TITLE, EMERGENCY_BODY, emergency, "/queue/emergency");
+    public void sendEmergency(List<String> toGoogleId, boolean isInEmergency) {
+        String title = isInEmergency ? EMERGENCY_TITLE : EMERGENCY_END_TITLE;
+        String body = isInEmergency ? EMERGENCY_BODY : EMERGENCY_END_BODY;
+        send(toGoogleId, title, body, null, "/queue/emergency");
     }
 
-    public void sendLocationUpdate(List<String> toGoogleIds, Object coords) {
+    public void sendLocationUpdate(List<String> toGoogleIds, EmergencyLocation coords) {
         for (String toGoogleId : toGoogleIds) {
             webSocketNotification(toGoogleId, null, null, coords, "/queue/location");
         }
@@ -59,7 +65,7 @@ public class NotificationService {
     public void sendNotification(String toGoogleId, String title, String body, int type) {
         switch (type) {
             case 1 -> sendMessage(List.of(toGoogleId), null);
-            case 2 -> sendEmergency(List.of(toGoogleId), null);
+            case 2 -> sendEmergency(List.of(toGoogleId), true);
             case 3 -> sendFriendRequest(toGoogleId, null);
             case 4 -> sendLocationUpdate(List.of(toGoogleId), null);
             case 5 -> firebaseNotification(userRepository.findByGoogleId(toGoogleId).map(User::getFcmToken).orElse(null), title, body);
