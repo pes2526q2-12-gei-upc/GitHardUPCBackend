@@ -7,6 +7,7 @@ import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.notifications.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +24,7 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ChatParticipantRepository chatParticipantRepository;
+    private final NotificationService notificationService;
 
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
     
@@ -34,11 +36,13 @@ public class ChatService {
     public ChatService(ChatRepository chatRepository,
                        MessageRepository messageRepository,
                        UserRepository userRepository,
-                       ChatParticipantRepository chatParticipantRepository) {
+                       ChatParticipantRepository chatParticipantRepository,
+                       NotificationService notificationService) {
         this.chatRepository = chatRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.chatParticipantRepository = chatParticipantRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -223,7 +227,17 @@ public class ChatService {
             message.setSharedRoute(sharedRoute);
         }
 
-        return new MessageResponseDTO(messageRepository.save(message));
+        Message savedMessage = messageRepository.save(message);
+        MessageResponseDTO responseDTO = new MessageResponseDTO(savedMessage);
+
+        List<String> targetGoogleIds = chat.getParticipants().stream()
+                .map(participant -> participant.getUser().getGoogleId())
+                .filter(googleId -> !googleId.equals(req.getSenderGoogleId()))
+                .toList();
+        if (!targetGoogleIds.isEmpty()) {
+            notificationService.sendMessage(targetGoogleIds, responseDTO);
+        }
+        return responseDTO;
     }
 
     public List<MessageResponseDTO> getMessagesByChatId(Long chatId) {
