@@ -209,4 +209,70 @@ class ChatServiceTest {
         when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(u));
         when(chatParticipantRepository.findByChatIdAndUserId(10L, u.getId())).thenReturn(Optional.of(p));
     }
+
+    @Test
+    void createChat_Private_WrongParticipantCount_ThrowsException() {
+        ChatRequestDTO req = new ChatRequestDTO();
+        req.setType("PRIVATE");
+        req.setParticipantGoogleIds(List.of("userA")); // Només 1 participant en comptes de 2
+
+        assertThrows(BadRequestException.class, () -> chatService.createChat(req));
+    }
+
+    @Test
+    void createChat_Private_AlreadyExists_ThrowsException() {
+        ChatRequestDTO req = new ChatRequestDTO();
+        req.setType("PRIVATE");
+        req.setParticipantGoogleIds(List.of("userA", "userB"));
+
+        // Simulem que ja existeix un xat privat entre ells
+        when(chatRepository.findPrivateChatBetweenUsers("userA", "userB"))
+                .thenReturn(Optional.of(privateChat));
+
+        assertThrows(BadRequestException.class, () -> chatService.createChat(req));
+    }
+
+    @Test
+    void exitGroup_UserNotParticipant_ThrowsException() {
+        when(chatRepository.findById(10L)).thenReturn(Optional.of(groupChat));
+        when(userRepository.findByGoogleId("userA")).thenReturn(Optional.of(userA));
+        // Simulem que l'usuari existeix però no és part d'aquest xat concret
+        when(chatParticipantRepository.findByChatIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(BadRequestException.class, () -> chatService.exitGroup(10L, "userA"));
+    }
+
+    @Test
+    void addUserToGroup_ChatNotGroup_ThrowsException() {
+        // Simulem intentar afegir un usuari a un xat privat
+        when(chatRepository.findById(11L)).thenReturn(Optional.of(privateChat));
+
+        assertThrows(BadRequestException.class, () -> chatService.addUserToGroup(11L, "userA", "userB"));
+    }
+
+    @Test
+    void removeUserFromGroup_Success() {
+        setupAdminMock("userA", "ADMIN");
+        when(userRepository.findByGoogleId("userB")).thenReturn(Optional.of(userB));
+
+        chatService.removeUserFromGroup(10L, "userA", "userB");
+
+        // Verifiquem que crida l'esborrat del repositori
+        verify(chatParticipantRepository).deleteByChatIdAndUserId(10L, 2L);
+    }
+
+    @Test
+    void getMessagesByChatId_Success() {
+        Message msg = new Message();
+        msg.setId(100L);
+        msg.setContent("Test Message");
+        msg.setSender(userA);
+
+        when(messageRepository.findByChatIdOrderByCreatedAtAsc(10L)).thenReturn(List.of(msg));
+
+        List<MessageResponseDTO> res = chatService.getMessagesByChatId(10L);
+
+        assertFalse(res.isEmpty());
+        assertEquals("Test Message", res.get(0).getContent());
+    }
 }
