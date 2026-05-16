@@ -13,6 +13,7 @@ import com.safesteps.backend.domain.routecalculator.Coord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -52,6 +53,9 @@ class IncidentControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Value("${api.internal.token}")
+    private String internalToken;
+
     @BeforeEach
     void setUp() {
         // Coordenadas usadas en los tests están dentro de Barcelona
@@ -60,7 +64,7 @@ class IncidentControllerTest {
 
     @Test
     void getIncidents() throws Exception {
-        mockMvc.perform(get("/api/v1/incidents"))
+        mockMvc.perform(get("/api/v1/incidents").header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
     }
 
@@ -80,6 +84,7 @@ class IncidentControllerTest {
         when(incidentService.createIncident(any(IncidentRequestDTO.class))).thenReturn(expectedResponse);
 
         mockMvc.perform(post("/api/v1/incidents")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated());
@@ -88,6 +93,7 @@ class IncidentControllerTest {
     @Test
     void createIncident_BadRequest() throws Exception {
         mockMvc.perform(post("/api/v1/incidents")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -97,7 +103,7 @@ class IncidentControllerTest {
     void getIncident() throws Exception {
         IncidentResponseDTO exp = new IncidentResponseDTO();
         when(incidentService.findIncidentById(1L)).thenReturn(exp);
-        mockMvc.perform(get("/api/v1/incidents/1"))
+        mockMvc.perform(get("/api/v1/incidents/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
     }
 
@@ -105,7 +111,7 @@ class IncidentControllerTest {
     void getIncident_NOTFOUND() throws Exception {
         when(incidentService.findIncidentById(99L)).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id: 99"));
 
-        mockMvc.perform(get("/api/v1/incidents/99"))
+        mockMvc.perform(get("/api/v1/incidents/99").header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -126,6 +132,7 @@ class IncidentControllerTest {
         when(incidentService.editIncidentById(1L, req)).thenReturn(exp);
 
         mockMvc.perform(put("/api/v1/incidents/1")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk());
@@ -146,6 +153,7 @@ class IncidentControllerTest {
         when(incidentService.editIncidentById(1L, req)).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id: 1"));
 
         mockMvc.perform(put("/api/v1/incidents/1")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isNotFound());
@@ -155,7 +163,7 @@ class IncidentControllerTest {
     @Test
     void deleteIncident() throws Exception {
         doNothing().when(incidentService).deleteIncidentById(1L);
-        mockMvc.perform(delete("/api/v1/incidents/1"))
+        mockMvc.perform(delete("/api/v1/incidents/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isNoContent());
     }
 
@@ -164,14 +172,14 @@ class IncidentControllerTest {
         doThrow(new ResourceNotFoundException("No es pot esborrar: Incidencia no trobada"))
                 .when(incidentService).deleteIncidentById(1L);
 
-        mockMvc.perform(delete("/api/v1/incidents/1"))
+        mockMvc.perform(delete("/api/v1/incidents/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void getIncidentsByUserId() throws Exception {
         when(incidentService.getIncidentsByUserId("1L")).thenReturn(java.util.List.of(new IncidentResponseDTO()));
-        mockMvc.perform(get("/api/v1/incidents/users/1"))
+        mockMvc.perform(get("/api/v1/incidents/users/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
         List<IncidentResponseDTO> exp = incidentService.getIncidentsByUserId("1L");
         assertNotNull(exp);
@@ -184,6 +192,7 @@ class IncidentControllerTest {
         exp.setVoteScore(10);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isBadRequest());
@@ -196,6 +205,7 @@ class IncidentControllerTest {
         exp.setVoteScore(1);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isOk());
@@ -208,6 +218,7 @@ class IncidentControllerTest {
         exp.setVoteScore(-1);
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isOk());
@@ -219,6 +230,7 @@ class IncidentControllerTest {
         exp.setGoogleId("1L");
 
         mockMvc.perform(post("/api/v1/incidents/1/votes")
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(exp)))
                 .andExpect(status().isBadRequest());
@@ -227,7 +239,7 @@ class IncidentControllerTest {
     @Test
     void getInfoVotes_OK() throws Exception {
         when(incidentService.getVoteCount(any())).thenReturn(new VoteCountDTO());
-        mockMvc.perform(get("/api/v1/incidents/1/count-votes"))
+        mockMvc.perform(get("/api/v1/incidents/1/count-votes").header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
     }
 
@@ -235,14 +247,14 @@ class IncidentControllerTest {
     void getInfoVotes_NULL() throws Exception {
         when(incidentService.getVoteCount(any())).thenThrow(new ResourceNotFoundException("Incidencia no trobada amb id 1"));
 
-        mockMvc.perform(get("/api/v1/incidents/1/count-votes"))
+        mockMvc.perform(get("/api/v1/incidents/1/count-votes").header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void delete_OK() throws Exception {
         doNothing().when(voteService).deleteVoteByVoteId(1L);
-        mockMvc.perform(delete("/api/v1/incidents/votes/1"))
+        mockMvc.perform(delete("/api/v1/incidents/votes/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isNoContent());
     }
 
@@ -251,14 +263,14 @@ class IncidentControllerTest {
         doThrow(new ResourceNotFoundException("Vot no trobat amb id: 1"))
                 .when(voteService).deleteVoteByVoteId(1L);
 
-        mockMvc.perform(delete("/api/v1/incidents/votes/1"))
+        mockMvc.perform(delete("/api/v1/incidents/votes/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void deleteByUserIncidence_OK() throws Exception {
         doNothing().when(voteService).deleteByUserAndIncidence(1L, "1");
-        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
+        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote").header("X-API-KEY", internalToken))
                 .andExpect(status().isNoContent());
     }
 
@@ -267,7 +279,7 @@ class IncidentControllerTest {
         doThrow(new ResourceNotFoundException("Vot no trobat amb incidenceId: 1 googleId: 1"))
                 .when(voteService).deleteByUserAndIncidence(1L, "1");
 
-        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote"))
+        mockMvc.perform(delete("/api/v1/incidents/1/users/1/vote").header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -275,7 +287,7 @@ class IncidentControllerTest {
     void getUserVotes_OK() throws Exception {
         when(voteService.getUserVotes(any())).thenReturn(List.of(new VoteResponseDTO()));
 
-        mockMvc.perform(get("/api/v1/incidents/votes/users/1"))
+        mockMvc.perform(get("/api/v1/incidents/votes/users/1").header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
     }
 }

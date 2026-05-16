@@ -77,12 +77,6 @@ public class ApiAddressController {
             summary = "Valorar la seguridad de una ruta",
             description = "Recibe un conjunto de coordenadas que representan una ruta y devuelve una valoración de seguridad basada en datos internos."
     )
-    @io.swagger.v3.oas.annotations.Parameter(
-            name = "X-API-KEY",
-            description = "Token de seguridad para acceder a la API.",
-            required = true,
-            in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER
-    )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Valoración de seguridad calculada exitosamente"),
             @ApiResponse(responseCode = "400", description = "Lista de coordenadas inválida o vacía.", content = @Content),

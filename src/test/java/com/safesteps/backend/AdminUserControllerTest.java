@@ -13,6 +13,7 @@ import com.safesteps.backend.security.AdminSessionInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -57,6 +58,9 @@ public class AdminUserControllerTest {
 
     private AdminUserDTO mockUserDTO;
 
+    @Value("${api.internal.token}")
+    private String internalToken;
+
     // Sessio HTTP simulada amb l'atribut d'autenticacio d'admin
     private MockHttpSession adminSession;
 
@@ -81,7 +85,7 @@ public class AdminUserControllerTest {
         Page<AdminUserDTO> page = new PageImpl<>(List.of(mockUserDTO));
         when(adminUserService.searchUsers(any(), any(Pageable.class))).thenReturn(page);
 
-        mockMvc.perform(get("/api/admin/users").session(adminSession))
+        mockMvc.perform(get("/api/admin/users").session(adminSession).header("X-API-KEY", internalToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].email").value("test@example.com"))
                 .andExpect(jsonPath("$.content[0].status").value("ACTIVE"));
@@ -91,7 +95,7 @@ public class AdminUserControllerTest {
     void getUserProfile_UserExists_ReturnsOk() throws Exception {
         when(adminUserService.getUserProfile(1L)).thenReturn(Optional.of(mockUserDTO));
 
-        mockMvc.perform(get("/api/admin/users/1").session(adminSession))
+        mockMvc.perform(get("/api/admin/users/1").session(adminSession).header("X-API-KEY", internalToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("testuser"))
                 .andExpect(jsonPath("$.level").value(2));
@@ -101,7 +105,7 @@ public class AdminUserControllerTest {
     void getUserProfile_UserNotFound_ReturnsNotFound() throws Exception {
         when(adminUserService.getUserProfile(1L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/admin/users/1").session(adminSession))
+        mockMvc.perform(get("/api/admin/users/1").session(adminSession).header("X-API-KEY", internalToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -112,6 +116,7 @@ public class AdminUserControllerTest {
 
         mockMvc.perform(patch("/api/admin/users/1/status")
                         .session(adminSession)
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("status", "BANNED"))))
                 .andExpect(status().isOk())
@@ -122,6 +127,7 @@ public class AdminUserControllerTest {
     void updateUserStatus_InvalidPayload_ReturnsBadRequest() throws Exception {
         mockMvc.perform(patch("/api/admin/users/1/status")
                         .session(adminSession)
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("invalidKey", "BANNED"))))
                 .andExpect(status().isBadRequest());
@@ -131,6 +137,7 @@ public class AdminUserControllerTest {
     void updateUserStatus_InvalidStatus_ReturnsBadRequest() throws Exception {
         mockMvc.perform(patch("/api/admin/users/1/status")
                         .session(adminSession)
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("status", "INVALID_STATUS"))))
                 .andExpect(status().isBadRequest());
@@ -142,6 +149,7 @@ public class AdminUserControllerTest {
 
         mockMvc.perform(patch("/api/admin/users/1/status")
                         .session(adminSession)
+                        .header("X-API-KEY", internalToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("status", "BANNED"))))
                 .andExpect(status().isNotFound());
@@ -154,7 +162,7 @@ public class AdminUserControllerTest {
         mockUser.setGoogleId("testGoogleId");
         when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
 
-        mockMvc.perform(get("/api/admin/users/1/incidents").session(adminSession))
+        mockMvc.perform(get("/api/admin/users/1/incidents").session(adminSession).header("X-API-KEY", internalToken))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
     }
