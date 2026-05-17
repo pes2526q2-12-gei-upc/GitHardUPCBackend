@@ -106,12 +106,16 @@ public class RouteCalculatorService {
     }
 
     private void addPersonalizedPois(List<PoiDTO> pois, Long[] rutaPrincipalFID, Filtre filtre) {
-        if (filtre.getComissaries() > 0) addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
-        if (filtre.getFontsAigua() > 0) addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
-        if (filtre.getBancs() > 0) addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
-        if (filtre.getCameresSeguretat() > 0) addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
-        if (filtre.getEscalesMecaniques() > 0) addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
-        if (filtre.getRefugisClimatics() > 0) addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
+        double avg = (filtre.getComissaries() + filtre.getFetsPenals() + filtre.getCameresSeguretat() + filtre.getInfraccions() +
+                filtre.getFontsAigua() + filtre.getBancs() + filtre.getContaminacioAcustica() + filtre.getEscalesMecaniques() +
+                filtre.getArbres() + filtre.getRefugisClimatics() + filtre.getQualitatAire()) / 11.0;
+
+        if (filtre.getComissaries() >= avg) addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
+        if (filtre.getFontsAigua() >= avg) addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
+        if (filtre.getBancs() >= avg) addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
+        if (filtre.getCameresSeguretat() >= avg) addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
+        if (filtre.getEscalesMecaniques() >= avg) addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
+        if (filtre.getRefugisClimatics() >= avg) addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
     }
 
     private void addPois(List<PoiDTO> pois, List<PoiDBProjection> dbProjections, String type) {
