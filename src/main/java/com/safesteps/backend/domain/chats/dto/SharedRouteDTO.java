@@ -23,4 +23,19 @@ public class SharedRouteDTO {
 
     @Schema(description = "Scheduled date for planned routes")
     private OffsetDateTime scheduledDate;
+
+    @Schema(description = "Route type", example = "SEGURETAT")
+    private String routeType;
+
+    @Schema(description = "Total distance of the route in meters")
+    private Double distanceMeters;
+
+    @Schema(description = "Estimated duration of the route in minutes")
+    private Integer durationMinutes;
+
+    @Schema(description = "Readable origin address")
+    private String originAddress;
+
+    @Schema(description = "Readable destination address")
+    private String destAddress;
 }

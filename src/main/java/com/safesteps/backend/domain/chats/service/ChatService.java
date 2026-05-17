@@ -223,6 +223,11 @@ public class ChatService {
             sharedRoute.setDestLat(req.getSharedRoute().getDestLat());
             sharedRoute.setDestLng(req.getSharedRoute().getDestLng());
             sharedRoute.setScheduledDate(req.getSharedRoute().getScheduledDate());
+            sharedRoute.setRouteType(req.getSharedRoute().getRouteType());
+            sharedRoute.setDistanceMeters(req.getSharedRoute().getDistanceMeters());
+            sharedRoute.setDurationMinutes(req.getSharedRoute().getDurationMinutes());
+            sharedRoute.setOriginAddress(req.getSharedRoute().getOriginAddress());
+            sharedRoute.setDestAddress(req.getSharedRoute().getDestAddress());
             sharedRoute.setMessage(message);
             message.setSharedRoute(sharedRoute);
         }
