@@ -28,6 +28,21 @@ public class SharedRoute {
     @Column(name = "scheduled_date")
     private OffsetDateTime scheduledDate;
 
+    @Column(name = "route_type")
+    private String routeType;
+
+    @Column(name = "distance_meters")
+    private Double distanceMeters;
+
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
+    @Column(name = "origin_address")
+    private String originAddress;
+
+    @Column(name = "dest_address")
+    private String destAddress;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "message_id", nullable = false)
     private Message message;
