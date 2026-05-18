@@ -39,6 +39,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
+    private final FriendshipService friendshipService;
 
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
@@ -48,10 +49,11 @@ public class UserService {
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
     private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService) {
+    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService, FriendshipService friendshipService) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
         this.notificationService = notificationService;
+        this.friendshipService = friendshipService;
     }
 
     @Transactional(readOnly = true)
@@ -298,8 +300,11 @@ public class UserService {
         if (emergencyContactsGoogleId.contains(userGoogleId))
             throw new BadRequestException("Cannot add yourself as an emergency contact.");
 
-        for (String contactId : emergencyContactsGoogleId)
+        for (String contactId : emergencyContactsGoogleId) {
+            if (!friendshipService.existsFriendship(contactId, userGoogleId))
+                throw new BadRequestException("Cannot add emergency contact if it is not a friend. No friendship exists between " + userGoogleId + " and " + contactId);
             userRepository.addEmergencyContact(userGoogleId, contactId);
+        }
 
         return getEmergencyContacts(userGoogleId);
     }

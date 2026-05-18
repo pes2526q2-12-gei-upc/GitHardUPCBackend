@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FriendshipService {
@@ -94,6 +95,8 @@ public class FriendshipService {
         Friendship friendship = friendshipRepository.findBetweenUsers(googleId, friendGoogleId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No friendship found between users: " + googleId + " and " + friendGoogleId));
+        userRepository.deleteEmergencyContacts(friendship.getSender().getGoogleId(), List.of(friendship.getReceiver().getGoogleId()));
+        userRepository.deleteEmergencyContacts(friendship.getReceiver().getGoogleId(), List.of(friendship.getSender().getGoogleId()));
         friendshipRepository.delete(friendship);
     }
 
@@ -122,5 +125,12 @@ public class FriendshipService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No pending request found from " + senderGoogleId + " to " + receiverGoogleId));
         friendshipRepository.delete(friendship);
+    }
+
+    public boolean existsFriendship(String googleId, String friendGoogleId) {
+        Optional<Friendship> f = friendshipRepository.findBetweenUsers(googleId, friendGoogleId);
+        if (f.isEmpty()) return false;
+        Friendship friendship = f.get();
+        return friendship.getStatus() == FriendshipStatus.ACCEPTED;
     }
 }

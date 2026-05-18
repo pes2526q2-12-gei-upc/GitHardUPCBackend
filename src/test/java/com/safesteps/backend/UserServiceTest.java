@@ -18,6 +18,7 @@ import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.domain.users.service.FriendshipService;
 import com.safesteps.backend.domain.users.service.UserService;
 import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,9 @@ class UserServiceTest {
 
     @Mock
     private NotificationService notificationService;
+
+    @Mock
+    private FriendshipService friendshipService;
 
     @InjectMocks
     private UserService userService;
@@ -603,6 +607,7 @@ class UserServiceTest {
 
         when(userRepository.getEmergencyContacts(googleId)).thenReturn(newContacts);
         when(userRepository.findByGoogleIdIn(newContacts)).thenReturn(List.of(new User()));
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(true);
 
         List<UserProfileDTO> result = userService.newEmergencyContact(googleId, newContacts);
 
@@ -619,6 +624,20 @@ class UserServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> userService.newEmergencyContact(googleId, contacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si no existe 'friendship'")
+    void newEmergencyContact_Friendship_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(false);
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, newContacts));
 
         verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
     }
