@@ -777,31 +777,29 @@ class UserServiceTest {
     void toggleToEmergencyTrue() {
         user.setIsInEmergency(false);
         List<String> contacts = List.of("contact1", "contact2");
-        String googleId = "googleId";
 
-        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
-        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
 
-        userService.toggleUserStatusEmergency(googleId);
+        userService.toggleUserStatusEmergency(user.getGoogleId());
 
         assertTrue(user.getIsInEmergency());
         verify(userRepository).save(user);
-        verify(notificationService).sendEmergency(contacts, true);
+        verify(notificationService).sendEmergency(contacts, true, user.getUsername());
     }
 
     @Test
     void toggleToEmergencyFalse() {
         user.setIsInEmergency(true);
         List<String> contacts = List.of("contact1");
-        String googleId = "googleId";
 
-        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
-        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
 
-        userService.toggleUserStatusEmergency(googleId);
+        userService.toggleUserStatusEmergency(user.getGoogleId());
 
         assertFalse(user.getIsInEmergency());
-        verify(notificationService).sendEmergency(contacts, false);
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
     }
 
     @Test
@@ -811,22 +809,21 @@ class UserServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> userService.toggleUserStatusEmergency("googleId"));
 
         verify(userRepository, never()).save(any());
-        verify(notificationService, never()).sendEmergency(any(), anyBoolean());
+        verify(notificationService, never()).sendEmergency(any(), anyBoolean(), any());
     }
 
     @Test
     void toggleToEmergencyNoContacts() {
         user.setIsInEmergency(true);
         List<String> contacts = List.of();
-        String googleId = "googleId";
 
-        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
-        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
 
-        userService.toggleUserStatusEmergency(googleId);
+        userService.toggleUserStatusEmergency(user.getGoogleId());
 
         assertFalse(user.getIsInEmergency());
-        verify(notificationService).sendEmergency(contacts, false);
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
     }
 
     @Test

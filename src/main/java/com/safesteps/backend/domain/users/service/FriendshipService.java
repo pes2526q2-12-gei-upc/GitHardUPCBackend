@@ -9,20 +9,25 @@ import com.safesteps.backend.domain.users.model.FriendshipStatus;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.FriendshipRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.notifications.NotificationService;
+import com.safesteps.backend.notifications.dto.FriendRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public FriendshipService(FriendshipRepository friendshipRepository, UserRepository userRepository) {
+    public FriendshipService(FriendshipRepository friendshipRepository, UserRepository userRepository, NotificationService notificationService) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -84,6 +89,7 @@ public class FriendshipService {
         friendship.setReceiver(receiver);
         friendship.setStatus(FriendshipStatus.PENDING);
         friendshipRepository.save(friendship);
+        sendFriendNotification(receiverGoogleId, senderGoogleId, FriendshipStatus.PENDING);
     }
 
     /**
@@ -109,6 +115,7 @@ public class FriendshipService {
                         "No pending request found from " + senderGoogleId + " to " + receiverGoogleId));
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendshipRepository.save(friendship);
+        sendFriendNotification(receiverGoogleId, senderGoogleId, FriendshipStatus.ACCEPTED);
     }
 
     /**
@@ -122,5 +129,15 @@ public class FriendshipService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No pending request found from " + senderGoogleId + " to " + receiverGoogleId));
         friendshipRepository.delete(friendship);
+        sendFriendNotification(receiverGoogleId, senderGoogleId, FriendshipStatus.REJECTED);
+    }
+
+    // toGoogleId > A qui va la notificacio. fromGoogleId > Qui ha fet l'accio. friendshipStatus > Quina accio s'ha fet (acceptar, rebutjar, pendent)
+    private void sendFriendNotification(String toGoogleId, String fromGoogleId, FriendshipStatus friendshipStatus) {
+        Optional<User> from = userRepository.findByGoogleId(fromGoogleId);
+        if (from.isEmpty()) throw new ResourceNotFoundException("User not found: " + fromGoogleId);
+        User u = from.get();
+        FriendRequest friendRequest = new FriendRequest(u.getUsername(), friendshipStatus);
+        notificationService.sendFriendRequest(toGoogleId, friendRequest);
     }
 }

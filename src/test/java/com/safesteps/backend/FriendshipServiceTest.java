@@ -10,6 +10,7 @@ import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.FriendshipRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.users.service.FriendshipService;
+import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class FriendshipServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private FriendshipService friendshipService;
@@ -238,9 +242,12 @@ class FriendshipServiceTest {
         f.setSender(userB);
         f.setReceiver(userA);
         f.setStatus(FriendshipStatus.PENDING);
+        User u = new User();
+        u.setUsername("us");
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
+        when (userRepository.findByGoogleId("googleB")).thenReturn(Optional.of(u));
 
         friendshipService.acceptFriendRequest("googleA", "googleB");
 
@@ -268,9 +275,13 @@ class FriendshipServiceTest {
         f.setSender(userB);
         f.setReceiver(userA);
         f.setStatus(FriendshipStatus.PENDING);
+        User u = new User();
+        u.setUsername("us");
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
+        when (userRepository.findByGoogleId("googleB")).thenReturn(Optional.of(u));
+
 
         friendshipService.declineFriendRequest("googleA", "googleB");
 

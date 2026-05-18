@@ -329,15 +329,6 @@ public class UserService {
         userRepository.save(u);
     }
 
-    public void sendPushNotification(String googleId, String title, String body, int type) {
-        try {
-            notificationService.sendNotification(googleId, title, body, type);
-        } catch (ResourceNotFoundException e) {
-            // si no existeix l'usuari o no te token, NO petem l'execucio, nomes loggem l'error i retornem (l'user no ho ha de saber)
-            logger.error("Error while getting fcm token for googleId: {}.", googleId);
-        }
-
-    }
 
     public boolean getUserStatusEmergency(String googleId) {
         User u = userRepository.findByGoogleId(googleId)
@@ -358,7 +349,7 @@ public class UserService {
 
         //emergencia -> status = 1 -> avisa als contactes que estiguin pendents.
         //no emergencia -> status = 0 -> avisa als contactes que ja ha acabat tot.
-        notificationService.sendEmergency(users, status);
+        notificationService.sendEmergency(users, status, u.getUsername());
     }
 
     @Transactional
