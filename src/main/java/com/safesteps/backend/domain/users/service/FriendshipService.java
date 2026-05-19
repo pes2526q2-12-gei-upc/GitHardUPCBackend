@@ -100,6 +100,8 @@ public class FriendshipService {
         Friendship friendship = friendshipRepository.findBetweenUsers(googleId, friendGoogleId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No friendship found between users: " + googleId + " and " + friendGoogleId));
+        userRepository.deleteEmergencyContacts(friendship.getSender().getGoogleId(), List.of(friendship.getReceiver().getGoogleId()));
+        userRepository.deleteEmergencyContacts(friendship.getReceiver().getGoogleId(), List.of(friendship.getSender().getGoogleId()));
         friendshipRepository.delete(friendship);
     }
 
@@ -139,5 +141,12 @@ public class FriendshipService {
         User u = from.get();
         FriendRequest friendRequest = new FriendRequest(u.getUsername(), friendshipStatus);
         notificationService.sendFriendRequest(toGoogleId, friendRequest);
+    }
+
+    public boolean existsFriendship(String googleId, String friendGoogleId) {
+        Optional<Friendship> f = friendshipRepository.findBetweenUsers(googleId, friendGoogleId);
+        if (f.isEmpty()) return false;
+        Friendship friendship = f.get();
+        return friendship.getStatus() == FriendshipStatus.ACCEPTED;
     }
 }
