@@ -10,12 +10,17 @@ import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.notifications.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +34,12 @@ import static java.lang.Math.sqrt;
 @Service
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
+    private final FriendshipService friendshipService;
 
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
@@ -38,10 +47,13 @@ public class UserService {
     private static final int WALKING_METERS_PER_MINUTE = 75;
     private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
+    private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository, FilterRepository filterRepository) {
+    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService, FriendshipService friendshipService) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
+        this.notificationService = notificationService;
+        this.friendshipService = friendshipService;
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +76,47 @@ public class UserService {
         }
 
         return new UserResponseDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfile(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new UserBannedException(USER_BANNED_MESSAGE);
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UserSuspendedException(USER_SUSPENDED_MESSAGE);
+        }
+
+        return new UserProfileDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSearchResultDTO> searchUsersByUsername(String query) {
+        return userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query)
+                .stream()
+                .filter(u -> Boolean.FALSE.equals(u.getIsAnonymous()))
+                .filter(u -> u.getStatus() != UserStatus.BANNED)
+                .map(UserSearchResultDTO::new)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfileByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for email: " + email));
+
+        return new UserProfileDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfileByGoogleId(String googleId) {
+        User user = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for googleId: " + googleId));
+
+        return new UserProfileDTO(user);
     }
 
     @Transactional(readOnly = true)
@@ -242,7 +295,76 @@ public class UserService {
         );
     }
 
+    @Transactional
+    public List<UserProfileDTO> newEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId.contains(userGoogleId))
+            throw new BadRequestException("Cannot add yourself as an emergency contact.");
+
+        for (String contactId : emergencyContactsGoogleId) {
+            if (!friendshipService.existsFriendship(contactId, userGoogleId))
+                throw new BadRequestException("Cannot add emergency contact if it is not a friend. No friendship exists between " + userGoogleId + " and " + contactId);
+            userRepository.addEmergencyContact(userGoogleId, contactId);
+        }
+
+        return getEmergencyContacts(userGoogleId);
+    }
+
+    @Transactional
+    public void deleteEmergencyContact(String userGoogleId, List<String> emergencyContactsGoogleId) {
+        if (emergencyContactsGoogleId != null && !emergencyContactsGoogleId.isEmpty())
+            userRepository.deleteEmergencyContacts(userGoogleId, emergencyContactsGoogleId);
+
+    }
+
+    public List<UserProfileDTO> getEmergencyContacts(String googleId) {
+        List<String> contactIds = userRepository.getEmergencyContacts(googleId);
+        if (contactIds.isEmpty()) return List.of();
+
+        List<User> contacts = userRepository.findByGoogleIdIn(contactIds);
+
+        return contacts.stream()
+                .map(UserProfileDTO::new)
+                .toList();
+    }
+
+    public void updateToken(String googleId, String token) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        u.setFcmToken(token);
+        userRepository.save(u);
+    }
+
+
+    public boolean getUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        return u.getIsInEmergency();
+    }
+
+    @Transactional
+    public void toggleUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        boolean status = !u.getIsInEmergency();
+        u.setIsInEmergency(status);
+        userRepository.save(u);
+
+        List<String> users = getEmergencyContactsGoogleIds(googleId);
+
+        //emergencia -> status = 1 -> avisa als contactes que estiguin pendents.
+        //no emergencia -> status = 0 -> avisa als contactes que ja ha acabat tot.
+        notificationService.sendEmergency(users, status, u.getUsername());
+    }
+
+    @Transactional
+    public List<String> getEmergencyContactsGoogleIds(String googleId) {
+        getUserProfileByGoogleId(googleId);
+        return userRepository.getEmergencyContacts(googleId);
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
+
 
     private PremiDTO pickRandomPrize(List<Premi> premis) {
         double totalWeight = 0;

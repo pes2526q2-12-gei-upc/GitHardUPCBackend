@@ -8,15 +8,19 @@ import com.safesteps.backend.domain.incidents.model.Vote;
 import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
 import com.safesteps.backend.domain.users.dto.PremiDTO;
 import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
+import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
 import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.domain.users.service.FriendshipService;
 import com.safesteps.backend.domain.users.service.UserService;
+import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +30,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +47,12 @@ class UserServiceTest {
 
     @Mock
     private FilterRepository filterRepository;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private FriendshipService friendshipService;
 
     @InjectMocks
     private UserService userService;
@@ -430,4 +441,440 @@ class UserServiceTest {
         assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
         verify(userRepository, never()).insertUserPrize(anyString(), anyString());
     }
+
+    // --- TESTS PARA BÚSQUEDA POR USERNAME O EMAIL ---
+
+    @Test
+    @DisplayName("Debe retornar resultados cuando coincide el username")
+    void searchUsers_WhenUsernameMatches_ReturnsList() {
+        User u1 = new User(); u1.setUsername("marc_dev"); u1.setEmail("marc@example.com"); u1.setPictureUrl("url1"); u1.setIsAnonymous(false); u1.setStatus(UserStatus.ACTIVE);
+        User u2 = new User(); u2.setUsername("marceline"); u2.setEmail("marc2@example.com"); u2.setPictureUrl("url2"); u2.setIsAnonymous(false); u2.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(u1, u2));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(2, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+        assertEquals("marc@example.com", result.get(0).getEmail());
+        assertEquals("url1", result.get(0).getPictureUrl());
+    }
+
+    @Test
+    @DisplayName("Debe retornar resultados cuando coincide el email")
+    void searchUsers_WhenEmailMatches_ReturnsList() {
+        User u1 = new User(); u1.setUsername("otheruser"); u1.setEmail("marc@company.com"); u1.setPictureUrl("url1"); u1.setIsAnonymous(false); u1.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc@", "marc@")).thenReturn(List.of(u1));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc@");
+
+        assertEquals(1, result.size());
+        assertEquals("otheruser", result.get(0).getUsername());
+        assertEquals("marc@company.com", result.get(0).getEmail());
+    }
+
+    @Test
+    @DisplayName("Debe retornar lista vacía cuando no hay coincidencias")
+    void searchUsers_WhenNoMatches_ReturnsEmptyList() {
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("zzz", "zzz")).thenReturn(List.of());
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("zzz");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios anónimos de la búsqueda")
+    void searchUsers_ExcludesAnonymousUsers() {
+        User visible  = new User(); visible.setUsername("marc_dev"); visible.setIsAnonymous(false); visible.setStatus(UserStatus.ACTIVE);
+        User anonymous = new User(); anonymous.setUsername("marc_anon"); anonymous.setIsAnonymous(true); anonymous.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(visible, anonymous));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    @Test
+    @DisplayName("Debe excluir usuarios baneados de la búsqueda")
+    void searchUsers_ExcludesBannedUsers() {
+        User active = new User(); active.setUsername("marc_dev"); active.setIsAnonymous(false); active.setStatus(UserStatus.ACTIVE);
+        User banned = new User(); banned.setUsername("marc_bad"); banned.setIsAnonymous(false); banned.setStatus(UserStatus.BANNED);
+        when(userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase("marc", "marc")).thenReturn(List.of(active, banned));
+
+        List<UserSearchResultDTO> result = userService.searchUsersByUsername("marc");
+
+        assertEquals(1, result.size());
+        assertEquals("marc_dev", result.get(0).getUsername());
+    }
+
+    // --- TESTS PARA PERFIL POR EMAIL ---
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el email existe")
+    void getUserProfileByEmail_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("test@test.com");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el email no existe")
+    void getUserProfileByEmail_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByEmail("nobody@test.com"));
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status BANNED (no lanza excepción)")
+    void getUserProfileByEmail_WhenBanned_ReturnsProfileWithBannedStatus() {
+        User bannedUser = new User();
+        bannedUser.setUsername("banned_user");
+        bannedUser.setEmail("banned@example.com");
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByEmail("banned@example.com")).thenReturn(Optional.of(bannedUser));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("banned@example.com");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.BANNED, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe devolver el perfil con status SUSPENDED (no lanza excepción)")
+    void getUserProfileByEmail_WhenSuspended_ReturnsProfileWithSuspendedStatus() {
+        User suspendedUser = new User();
+        suspendedUser.setUsername("suspended_user");
+        suspendedUser.setEmail("suspended@example.com");
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByEmail("suspended@example.com")).thenReturn(Optional.of(suspendedUser));
+
+        UserProfileDTO result = userService.getUserProfileByEmail("suspended@example.com");
+
+        assertNotNull(result);
+        assertEquals(UserStatus.SUSPENDED, result.getStatus());
+    }
+
+
+    @Test
+    @DisplayName("Debe devolver la lista de perfiles de los contactos de emergencia")
+    void getEmergencyContacts_WhenExist_ReturnsProfileList() {
+        String googleId = "googleId";
+        List<String> contactIds = List.of("u1", "u2");
+
+        User c1 = new User(); c1.setGoogleId("u1"); c1.setUsername("user1");
+        User c2 = new User(); c2.setGoogleId("u2"); c2.setUsername("user2");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contactIds);
+        when(userRepository.findByGoogleIdIn(contactIds)).thenReturn(List.of(c1, c2));
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertEquals(2, result.size());
+        assertEquals("user1", result.get(0).getUsername());
+        assertEquals("user2", result.get(1).getUsername());
+        verify(userRepository).getEmergencyContacts(googleId);
+        verify(userRepository).findByGoogleIdIn(contactIds);
+    }
+
+    @Test
+    @DisplayName("Debe devolver una lista vacia si el usuario no tiene contactos de emergencia")
+    void getEmergencyContacts_WhenNone_ReturnsEmptyList() {
+        String googleId = "googleId";
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(List.of());
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertTrue(result.isEmpty());
+        verify(userRepository, never()).findByGoogleIdIn(anyList());
+    }
+
+    @Test
+    @DisplayName("Debe añadir contactos y retornar la lista actualizada")
+    void newEmergencyContact_Success_AddsAndReturnsList() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(newContacts);
+        when(userRepository.findByGoogleIdIn(newContacts)).thenReturn(List.of(new User()));
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(true);
+
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, newContacts);
+
+        assertNotNull(result);
+        verify(userRepository).addEmergencyContact(googleId, "u1");
+        verify(userRepository).getEmergencyContacts(googleId);
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si el usuario se intenta añadir a si mismo")
+    void newEmergencyContact_SelfAddition_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("googleId");
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, contacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si no existe 'friendship'")
+    void newEmergencyContact_Friendship_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(false);
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, newContacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe llamar al repositorio para borrar si la lista no es nula ni vacía")
+    void deleteEmergencyContact_Ok_CallsRepository() {
+        String googleId = "googleId";
+        List<String> toDelete = List.of("u1", "u2");
+
+        userService.deleteEmergencyContact(googleId, toDelete);
+
+        verify(userRepository).deleteEmergencyContacts(googleId, toDelete);
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es nula")
+    void deleteEmergencyContact_Null_DoesNothing() {
+        String googleId = "googleId";
+
+        userService.deleteEmergencyContact(googleId, null);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es vacía")
+    void deleteEmergencyContact_Empty_DoesNothing() {
+        String googleId = "googleId";
+        List<String> aux = new ArrayList<>();
+        userService.deleteEmergencyContact(googleId, aux);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    // --- Test per a fcm notificacions
+    @Test
+    void updateToken_OK() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        User user = new User();
+        user.setGoogleId(googleId);
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        userService.updateToken(googleId, token);
+
+        assertEquals(token, user.getFcmToken());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    void updateToken_UserNotExists() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+            userService.updateToken(googleId, token)
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfileByGoogleId("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ResourceNotFoundException si el googleId no existe (getUserProfileByGoogleId)")
+    void getUserProfileByGoogleId_WhenNotExists_ThrowsResourceNotFoundException() {
+        when(userRepository.findByGoogleId("none")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.getUserProfileByGoogleId("none"));
+    }
+
+    @Test
+    @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfile)")
+    void getUserProfile_WhenExists_ReturnsProfile() {
+        user.setPoints(200L);
+        user.setLevel(4L);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+
+        UserProfileDTO result = userService.getUserProfile("g-123");
+
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertEquals(200L, result.getPoints());
+        assertEquals(4L, result.getLevel());
+        assertEquals(UserStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserBannedException al obtener perfil baneado por GoogleId (getUserProfile)")
+    void getUserProfile_WhenBanned_ThrowsUserBannedException() {
+        User bannedUser = new User();
+        bannedUser.setStatus(UserStatus.BANNED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(bannedUser));
+
+        assertThrows(UserBannedException.class, () -> userService.getUserProfile("g-123"));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar UserSuspendedException al obtener perfil suspendido por GoogleId (getUserProfile)")
+    void getUserProfile_WhenSuspended_ThrowsUserSuspendedException() {
+        User suspendedUser = new User();
+        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(suspendedUser));
+
+        assertThrows(UserSuspendedException.class, () -> userService.getUserProfile("g-123"));
+    }
+
+    @Test
+    void getUserStatusEmergencyFalse() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(false);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyTrue() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(true);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyNotExists() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserStatusEmergency("googleId"));
+    }
+
+    @Test
+    void toggleToEmergencyTrue() {
+        user.setIsInEmergency(false);
+        List<String> contacts = List.of("contact1", "contact2");
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertTrue(user.getIsInEmergency());
+        verify(userRepository).save(user);
+        verify(notificationService).sendEmergency(contacts, true, user.getUsername());
+    }
+
+    @Test
+    void toggleToEmergencyFalse() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of("contact1");
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
+    }
+
+    @Test
+    void toggleUserNotFound() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.toggleUserStatusEmergency("googleId"));
+
+        verify(userRepository, never()).save(any());
+        verify(notificationService, never()).sendEmergency(any(), anyBoolean(), any());
+    }
+
+    @Test
+    void toggleToEmergencyNoContacts() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of();
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
+    }
+
+    @Test
+    void getEmergencyContacts_OK() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("contact1", "contact2");
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoContacts() {
+        String googleId = "googleId";
+        List<String> contacts = List.of();
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoExists() {
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> userService.getEmergencyContactsGoogleIds(googleId));
+    }
+
 }

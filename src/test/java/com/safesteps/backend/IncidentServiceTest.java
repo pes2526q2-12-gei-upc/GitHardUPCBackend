@@ -1,4 +1,3 @@
-
 package com.safesteps.backend;
 
 import com.safesteps.backend.domain.common.exception.BadRequestException;

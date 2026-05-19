@@ -145,9 +145,9 @@ def main():
 
         logging.info(f"Pujant {len(df)} files a la taula '{t_refugis}'...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_refugis}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_refugis}" RESTART IDENTITY CASCADE;'))
 
-        df.to_sql(t_refugis, engine, if_exists='replace', index=False)
+        df.to_sql(t_refugis, engine, if_exists='append', index=False)
         logging.info(f"ÈXIT: Taula '{t_refugis}' actualitzada correctament.")
 
     except Exception as e:

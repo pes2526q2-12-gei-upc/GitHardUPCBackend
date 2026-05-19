@@ -142,9 +142,9 @@ if __name__ == "__main__":
 
         # Actualització a la BD
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_infraccions}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_infraccions}" RESTART IDENTITY CASCADE;'))
 
-        df.to_sql(t_infraccions, engine, if_exists='replace', index=False)
+        df.to_sql(t_infraccions, engine, if_exists='append', index=False)
 
         logging.info(f"Procés completat amb èxit! Taula '{t_infraccions}' creada.")
 

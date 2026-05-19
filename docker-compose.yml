@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:12-3.4 # Ja ve amb PostgreSQL 12 i PostGIS de sèrie
+    container_name: safesteps-test-db-local
+    environment:
+      POSTGRES_DB: safesteps_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: ${SAFESTEPS_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - safesteps_data:/var/lib/postgresql/data
+    entrypoint: >
+      bash -c "
+      apt-get update && apt-get install -y postgresql-12-pgrouting &&
+      exec docker-entrypoint.sh postgres
+      "
+volumes:
+  safesteps_data:
