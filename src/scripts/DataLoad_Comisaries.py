@@ -120,9 +120,9 @@ def main():
         # Actualització a la BD
         logging.info(f"Pujant {len(df)} files a la taula '{t_comissaries}'...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_comissaries}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_comissaries}" RESTART IDENTITY CASCADE;'))
 
-        df.to_sql(t_comissaries, engine, if_exists='replace', index=False)
+        df.to_sql(t_comissaries, engine, if_exists='append', index=False)
         logging.info(f"ÈXIT: Taula '{t_comissaries}' creada amb {df.shape[1]} columnes.")
 
     except Exception as e:

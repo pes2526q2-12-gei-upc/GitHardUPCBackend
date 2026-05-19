@@ -39,10 +39,18 @@ public class DatabaseUpdateScheduler {
             "DataLoad_Bancs.py",
             "DataLoad_Arbrat_viari.py",
             "DataLoad_Arbrat_zona.py",
-            "DataLoad_Fets_Penals.py");
+            "DataLoad_Fets_Penals.py",
+            "DataLoad_Infraccions.py",
+            "DataLoad_Qualitat_aire.py",
+            "DataLoad_Refugis_climatics.py",
+            "DataLoad_Soroll.py"
+    );
 
     private final PostgisCalculationService postgisCalculationService;
     private final AdminMetricsService adminMetricsService;
+
+    @Autowired
+    private BarcelonaBoundaryService barcelonaBoundaryService;
 
     @Autowired
     public DatabaseUpdateScheduler(PostgisCalculationService postgisCalculationService,
@@ -51,7 +59,7 @@ public class DatabaseUpdateScheduler {
         this.adminMetricsService = adminMetricsService;
     }
 
-    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
         if (!schedulerEnabled) {
@@ -77,6 +85,7 @@ public class DatabaseUpdateScheduler {
 
             postgisCalculationService.executePreAnalysis();
             postgisCalculationService.performDatabaseCalculations();
+            barcelonaBoundaryService.refresh();
             logger.info("Pipeline completado con exito.");
 
         } catch (Exception e) {

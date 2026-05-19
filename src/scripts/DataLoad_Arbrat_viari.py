@@ -115,16 +115,46 @@ def main():
         # Neteja estricta de noms de columnes per a PostgreSQL
         df.columns = [c.strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
 
-        # Actualització a la BD
-        logging.info(f"Pujant {len(df)} files a la taula '{t_arbrat_viari}'...")
-        with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_arbrat_viari}" CASCADE;'))
+        staging_table = f"{t_arbrat_viari}_staging"
 
-        df.to_sql(t_arbrat_viari, engine, if_exists='replace', index=False)
-        logging.info(f"ÈXIT: Taula '{t_arbrat_viari}' creada amb {df.shape[1]} columnes.")
+        # 1. Pujar dades brutes a una taula temporal (aquí entra com a text, sense queixes de PostGIS)
+        logging.info(f"Pujant {len(df)} files brutes a la taula temporal '{staging_table}'...")
+        df.to_sql(staging_table, engine, if_exists='replace', index=False)
+
+        # 2. Detectar com es diu la columna de geometria al CSV (geometria o geom)
+        geom_col = 'geometria' if 'geometria' in df.columns else ('geom' if 'geom' in df.columns else None)
+
+        if not geom_col:
+            raise Exception("No s'ha trobat cap columna de geometria (geometria/geom) al CSV de l'Arbrat Viari.")
+
+        # 3. Preparar les columnes restants (les fiquem entre cometes dobles per si de cas)
+        other_cols = [f'"{c}"' for c in df.columns if c != geom_col]
+        cols_str = ", ".join(other_cols)
+
+        # Construim la query que fa la màgia del canvi de SRID a 25831
+        sql_insert = f"""
+            INSERT INTO "{t_arbrat_viari}" ({cols_str}, "{geom_col}")
+            SELECT {cols_str}, ST_SetSRID(ST_GeomFromText("{geom_col}"), 25831)
+            FROM "{staging_table}";
+        """
+
+        # 4. Executar el buidat, el traspàs espacial i la neteja en una sola transacció segura
+        logging.info(f"Passant dades a la taula real '{t_arbrat_viari}' aplicant SRID 25831...")
+        with engine.begin() as conn:
+            # Buidem la taula definitiva que ha creat Flyway
+            conn.execute(text(f'TRUNCATE TABLE "{t_arbrat_viari}" RESTART IDENTITY CASCADE;'))
+
+            # Inserim les dades convertint el text a geometria real de Barcelona
+            conn.execute(text(sql_insert))
+
+            # Esborrem la taula temporal per no deixar brossa a la base de dades
+            conn.execute(text(f'DROP TABLE IF EXISTS "{staging_table}";'))
+
+        logging.info(f"ÈXIT: Taula '{t_arbrat_viari}' actualitzada correctament amb PostGIS.")
 
     except Exception as e:
-        logging.error(f"Error en el processament: {e}")
+        logging.error(f"Error durant el bolcat a la base de dades: {e}")
+        raise e
 
     logging.info("---------- Dades de l'API d'Arbrat Viari actualitzades ----------")
 
