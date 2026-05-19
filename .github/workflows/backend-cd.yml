@@ -49,7 +49,6 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          background: true
           script: |
             BASE_DIR="/home/${{ secrets.SERVER_USER }}/backend"
             
@@ -91,8 +90,8 @@ jobs:
               # Aturem el procés que estigués usant el port 8081
               fuser -k 8081/tcp || true
 
-              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_DB_PASSWORD }}"
-              nohup java -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 &
+              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
+              nohup java -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 < /dev/null &
 
             # Deploy develop
             elif [ "$BRANCH" = "develop" ]; then
@@ -120,8 +119,8 @@ jobs:
               # Aturem el procés que estigués usant el port 8082
               fuser -k 8082/tcp || true
 
-              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_DB_PASSWORD }}"
-              nohup java -jar $BASE_DIR/releases/$NEW_JAR_NAME --server.port=8082 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 &
+              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
+              nohup java -jar $BASE_DIR/releases/$NEW_JAR_NAME --server.port=8082 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 < /dev/null &
             fi
 
             # Netejem la carpeta temporal target creada pel SCP
