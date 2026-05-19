@@ -50,13 +50,16 @@ public class DatabaseUpdateScheduler {
     private final AdminMetricsService adminMetricsService;
 
     @Autowired
+    private BarcelonaBoundaryService barcelonaBoundaryService;
+
+    @Autowired
     public DatabaseUpdateScheduler(PostgisCalculationService postgisCalculationService,
                                    AdminMetricsService adminMetricsService) {
         this.postgisCalculationService = postgisCalculationService;
         this.adminMetricsService = adminMetricsService;
     }
 
-    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
         if (!schedulerEnabled) {
@@ -82,6 +85,7 @@ public class DatabaseUpdateScheduler {
 
             postgisCalculationService.executePreAnalysis();
             postgisCalculationService.performDatabaseCalculations();
+            barcelonaBoundaryService.refresh();
             logger.info("Pipeline completado con exito.");
 
         } catch (Exception e) {
