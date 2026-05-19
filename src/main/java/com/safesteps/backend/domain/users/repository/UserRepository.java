@@ -65,6 +65,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<String> getEmergencyContacts(@Param("userGoogleId") String userGoogleId);
 
     List<User> findByGoogleIdIn(List<String> googleIds);
+
+    @Modifying
     @Transactional
     @Query("UPDATE User u SET u.isOnline = :status WHERE u.googleId = :googleId")
     void updateOnlineStatus(@Param("googleId") String googleId, @Param("status") boolean status);

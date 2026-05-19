@@ -36,6 +36,11 @@ public class MessageResponseDTO {
             this.sharedRoute.setDestLat(message.getSharedRoute().getDestLat());
             this.sharedRoute.setDestLng(message.getSharedRoute().getDestLng());
             this.sharedRoute.setScheduledDate(message.getSharedRoute().getScheduledDate());
+            this.sharedRoute.setRouteType(message.getSharedRoute().getRouteType());
+            this.sharedRoute.setDistanceMeters(message.getSharedRoute().getDistanceMeters());
+            this.sharedRoute.setDurationMinutes(message.getSharedRoute().getDurationMinutes());
+            this.sharedRoute.setOriginAddress(message.getSharedRoute().getOriginAddress());
+            this.sharedRoute.setDestAddress(message.getSharedRoute().getDestAddress());
         }
     }
 }

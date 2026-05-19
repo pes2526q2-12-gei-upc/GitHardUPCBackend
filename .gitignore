@@ -63,7 +63,6 @@ __pycache__/
 *.pyc
 .venv
 
-
 #Firebase configuration file
 config/safesteps-githardupc-firebase-adminsdk-fbsvc-f86e9f5bf2.json
 safesteps-githardupc-firebase-adminsdk-fbsvc-f86e9f5bf2.json

@@ -39,6 +39,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
+    private final FriendshipService friendshipService;
 
     private static final String USER_NOT_FOUND = "User not found for Google ID: ";
     private static final int XP_VOTED_INC = 10;
@@ -48,10 +49,11 @@ public class UserService {
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
     private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService) {
+    public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService, FriendshipService friendshipService) {
         this.userRepository = userRepository;
         this.filterRepository = filterRepository;
         this.notificationService = notificationService;
+        this.friendshipService = friendshipService;
     }
 
     @Transactional(readOnly = true)
@@ -298,8 +300,11 @@ public class UserService {
         if (emergencyContactsGoogleId.contains(userGoogleId))
             throw new BadRequestException("Cannot add yourself as an emergency contact.");
 
-        for (String contactId : emergencyContactsGoogleId)
+        for (String contactId : emergencyContactsGoogleId) {
+            if (!friendshipService.existsFriendship(contactId, userGoogleId))
+                throw new BadRequestException("Cannot add emergency contact if it is not a friend. No friendship exists between " + userGoogleId + " and " + contactId);
             userRepository.addEmergencyContact(userGoogleId, contactId);
+        }
 
         return getEmergencyContacts(userGoogleId);
     }
@@ -329,14 +334,33 @@ public class UserService {
         userRepository.save(u);
     }
 
-    public void sendPushNotification(String googleId, String title, String body, int type) {
-        try {
-            notificationService.sendNotification(googleId, title, body, type);
-        } catch (ResourceNotFoundException e) {
-            // si no existeix l'usuari o no te token, NO petem l'execucio, nomes loggem l'error i retornem (l'user no ho ha de saber)
-            logger.error("Error while getting fcm token for googleId: {}.", googleId);
-        }
 
+    public boolean getUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+        return u.getIsInEmergency();
+    }
+
+    @Transactional
+    public void toggleUserStatusEmergency(String googleId) {
+        User u = userRepository.findByGoogleId(googleId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + googleId));
+
+        boolean status = !u.getIsInEmergency();
+        u.setIsInEmergency(status);
+        userRepository.save(u);
+
+        List<String> users = getEmergencyContactsGoogleIds(googleId);
+
+        //emergencia -> status = 1 -> avisa als contactes que estiguin pendents.
+        //no emergencia -> status = 0 -> avisa als contactes que ja ha acabat tot.
+        notificationService.sendEmergency(users, status, u.getUsername());
+    }
+
+    @Transactional
+    public List<String> getEmergencyContactsGoogleIds(String googleId) {
+        getUserProfileByGoogleId(googleId);
+        return userRepository.getEmergencyContacts(googleId);
     }
 
     // --- MÉTODOS PRIVADOS DE AYUDA ---
