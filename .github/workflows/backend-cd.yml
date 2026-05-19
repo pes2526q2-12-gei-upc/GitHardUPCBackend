@@ -1,0 +1,128 @@
+name: SafeSteps Backend CD
+
+on:
+  workflow_run:
+    workflows: ["SafeSteps Backend CI"] # Fer cd al verd en el CI
+    types:
+      - completed
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-deploy:
+    # Condició: El CI en verd i la branca ha de ser main o develop
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'develop') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Generem el JAR (els tests ja els hem passat)
+      - name: Package Application (Generar JAR)
+        run: ./mvnw package -DskipTests
+
+      # Enviar jar via scp
+      - name: Copy JAR to Server via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "target/backend-*.jar"
+          target: "/home/${{ secrets.SERVER_USER }}/backend"
+
+      # 2. Entrem per SSH de forma segura i aixequem els ports corresponents
+      - name: Deploy to VirTech Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            BASE_DIR="/home/${{ secrets.SERVER_USER }}/backend"
+            
+            mkdir -p $BASE_DIR/releases
+            mkdir -p $BASE_DIR/logs
+
+            # Busquem el JAR que acaba d'arribar per SCP (el de Maven)
+            JAR_NAME=$(ls $BASE_DIR/target/backend-*.jar | head -n 1 | xargs basename)
+            BRANCH="${{ github.event.workflow_run.head_branch }}"
+
+            # Calcul de la versio que li toca
+            # busqueda de la ultima versio main que hi ha a la carpeta base
+            LATEST_MAIN_JAR=$(ls $BASE_DIR/releases/backend-v*.0.jar 2>/dev/null | sort -V | tail -n 1)
+
+            if [ -z "$LATEST_MAIN_JAR" ]; then
+              # primer deploy (v 0.0) current version = 0
+              CURRENT_MAJOR=0
+            else
+              # current version de la versio main
+              CURRENT_MAJOR=$(basename "$LATEST_MAIN_JAR" | sed -E 's/backend-v([0-9]+)\.0\.jar/\1/')
+            fi
+
+            # Deploy del main
+            if [ "$BRANCH" = "main" ]; then
+              # versio anterior +1
+              NEXT_MAJOR=$((CURRENT_MAJOR + 1))
+              NEW_JAR_NAME="backend-v${NEXT_MAJOR}.0.jar"
+              VERSION_TAG="v${NEXT_MAJOR}.0"
+
+              echo "Desplegant PRODUCCIÓ (main) al port 8081..."
+              echo "Nova versió: $NEW_JAR_NAME amb log tag: $VERSION_TAG"
+
+              # movem el fitxer a releases amb el seu nou nom (ex: backend-v2.0.jar)
+              mv $BASE_DIR/target/$JAR_NAME $BASE_DIR/releases/$NEW_JAR_NAME
+
+              # Actualitzem el soft link apuntant sempre a l'última versió de producció
+              ln -sf $BASE_DIR/releases/$NEW_JAR_NAME $BASE_DIR/deployedVersion.jar
+
+              # Aturem el procés que estigués usant el port 8081
+              fuser -k 8081/tcp || true
+
+              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
+              nohup java -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 < /dev/null &
+
+            # Deploy develop
+            elif [ "$BRANCH" = "develop" ]; then
+              # ultim develop deployed
+              LATEST_DEVELOP_JAR=$(ls $BASE_DIR/releases/backend-v${CURRENT_MAJOR}.*.jar 2>/dev/null | sort -V | tail -n 1)
+
+              if [ -z "$LATEST_DEVELOP_JAR" ]; then
+                # primer deployed de l'sprint
+                NEXT_MINOR=1
+              else
+                # altres deploys de l'sprint, incrementem el minor
+                LATEST_MINOR=$(basename "$LATEST_DEVELOP_JAR" | sed -E "s/backend-v${CURRENT_MAJOR}\.([0-9]+)\.jar/\1/")
+                NEXT_MINOR=$((LATEST_MINOR + 1))
+              fi
+
+              NEW_JAR_NAME="backend-v${CURRENT_MAJOR}.${NEXT_MINOR}.jar"
+              VERSION_TAG="v${CURRENT_MAJOR}.${NEXT_MINOR}"
+
+              echo "Desplegant STAGING (develop) al port 8082..."
+              echo "Nova versió de l'Sprint detectada: $NEW_JAR_NAME amb log tag: $VERSION_TAG"
+
+              # Movem el fitxer cap a la carpeta d'historial /releases amb el seu nou nom
+              mv $BASE_DIR/target/$JAR_NAME $BASE_DIR/releases/$NEW_JAR_NAME
+
+              # Aturem el procés que estigués usant el port 8082
+              fuser -k 8082/tcp || true
+
+              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
+              nohup java -jar $BASE_DIR/releases/$NEW_JAR_NAME --server.port=8082 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1 < /dev/null &
+            fi
+
+            # Netejem la carpeta temporal target creada pel SCP
+            rm -rf $BASE_DIR/target
+            echo "✅ Desplegament completat correctament al port assignat!"
