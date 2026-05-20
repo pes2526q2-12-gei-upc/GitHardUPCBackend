@@ -401,7 +401,10 @@ public class UserService {
             return premi.getUrl();
         }
 
-        String cleanBaseUrl = baseUrl.replaceAll("/+$", "");
+        String cleanBaseUrl = baseUrl;
+        while (cleanBaseUrl.endsWith("/")) {
+            cleanBaseUrl = cleanBaseUrl.substring(0, cleanBaseUrl.length() - 1);
+        }
         String cleanPort = port != null && !port.isEmpty() ? port : "8080";
 
         for (String extension : AVATAR_EXTENSIONS) {
