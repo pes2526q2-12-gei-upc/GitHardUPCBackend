@@ -42,8 +42,8 @@ public class DatabaseUpdateScheduler {
             "DataLoad_Fets_Penals.py",
             "DataLoad_Infraccions.py",
             "DataLoad_Qualitat_aire.py",
-            "DataLoad_Refugis_climatics.py",
-            "DataLoad_Soroll.py"
+            "DataLoad_Refugis_climatics.py"//,
+//            "DataLoad_Soroll.py"
     );
 
     private final PostgisCalculationService postgisCalculationService;
