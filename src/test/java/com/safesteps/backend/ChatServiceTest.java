@@ -275,4 +275,33 @@ class ChatServiceTest {
         assertFalse(res.isEmpty());
         assertEquals("Test Message", res.get(0).getContent());
     }
+
+    @Test
+    void messageResponse_GetSharedRouteNull() {
+        User u = new User();
+        u.setGoogleId("userA");
+        u.setGoogleId("gId");
+        Message msg = new Message();
+        msg.setId(100L);
+        msg.setSender(u);
+        MessageResponseDTO dto = new MessageResponseDTO(msg);
+        assertNull(dto.getSharedRoute());
+    }
+
+    @Test
+    void messageResponse_SenderNull() {
+        Message msg = new Message();
+        msg.setId(100L);
+        msg.setSender(null);
+        MessageResponseDTO dto = new MessageResponseDTO(msg);
+        assertNull(dto.getSenderUsername());
+        assertNull(dto.getSenderGoogleId());
+    }
+
+    @Test
+    void messageResponse_Null() {
+        Message msg = new Message();
+        MessageResponseDTO dto = new MessageResponseDTO(msg);
+        assertNull(dto.getId());
+    }
 }

@@ -12,22 +12,23 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
-import com.safesteps.backend.domain.users.model.Premi;
-import com.safesteps.backend.domain.users.model.User;
-import com.safesteps.backend.domain.users.model.UserFilter;
-import com.safesteps.backend.domain.users.model.UserStatus;
+import com.safesteps.backend.domain.users.model.*;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.notifications.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import static java.lang.Math.sqrt;
 
@@ -36,6 +37,11 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    @Value("${app.backend.url:http://localhost}")
+    private String baseUrl;
+
+    @Value("${app.avatars.port:8080}")
+    private String port;
 
     private final UserRepository userRepository;
     private final FilterRepository filterRepository;
@@ -47,7 +53,10 @@ public class UserService {
     private static final int WALKING_METERS_PER_MINUTE = 75;
     private static final String USER_BANNED_MESSAGE = "El compte esta permanentment baneiat i no pot accedir a l'aplicacio.";
     private static final String USER_SUSPENDED_MESSAGE = "El compte esta suspes temporalment i no pot accedir a l'aplicacio.";
+    private static final Pattern AVATAR_PRIZE_ID_PATTERN = Pattern.compile("^A\\d+_AVT(?:_.*)?$");
+    private static final List<String> AVATAR_EXTENSIONS = List.of(".jpeg", ".jpg");
     private final NotificationService notificationService;
+    private static final SecureRandom sr = new SecureRandom();
 
     public UserService(UserRepository userRepository, FilterRepository filterRepository, NotificationService notificationService, FriendshipService friendshipService) {
         this.userRepository = userRepository;
@@ -262,12 +271,12 @@ public class UserService {
 
     @Transactional
     public PremiDTO openPrize(String googleId) {
-        this.getUserByGoogleId(googleId);
+        UserResponseDTO u = this.getUserByGoogleId(googleId);
         int rowsAffected = userRepository.decrementPendingRewards(googleId);
         if (rowsAffected == 0) throw new BadRequestException("No rewards available to open.");
-        List<Premi> premis = userRepository.getUserAvailablePrizes(googleId);
-        PremiDTO p = pickRandomPrize(premis);
-        userRepository.insertUserPrize(googleId, p.getId());
+        PremiDTO p = pickRandomPrize(u);
+        if (!Objects.equals(p.getUrl(), "XP")) userRepository.insertUserPrize(googleId, p.getId());
+        else p.setUrl("NONE");
         return p;
     }
 
@@ -365,28 +374,76 @@ public class UserService {
 
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
+    private PremiDTO pickRandomPrize(UserResponseDTO u) {
+        Oddity oddity = pickRandomOddity();
+        List<Premi> premisOddity = userRepository.getPrizesByOddity(oddity.getId());
 
-    private PremiDTO pickRandomPrize(List<Premi> premis) {
-        double totalWeight = 0;
-        for (Premi p : premis) totalWeight += p.getProbability();
+        if (premisOddity.isEmpty()) throw new BadRequestException("No prizes found for oddity " + oddity.getId());
 
-        SecureRandom sr = new SecureRandom();
+        int random = sr.nextInt(premisOddity.size());
+        Premi premi = premisOddity.get(random);
+        if (userRepository.userHasPrize(u.getGoogleId(), premi.getId())) {
+            logger.warn("Prize {} already obtained by user, picking another one.", premi.getId());
+            PremiDTO p = new PremiDTO();
+            p.setUrl("XP");
+            long xp = compensationXP(oddity, u);
+            p.setId("XP_" + oddity.getId() + "_" + xp);
+            return p;
+        }
+        PremiDTO prizeDto = new PremiDTO(premi);
+        prizeDto.setUrl(resolvePrizeUrl(premi));
+        return prizeDto;
+    }
+
+    private String resolvePrizeUrl(Premi premi) {
+        String prizeId = premi.getId();
+        if (prizeId == null || !AVATAR_PRIZE_ID_PATTERN.matcher(prizeId).matches()) {
+            return premi.getUrl();
+        }
+
+        String cleanBaseUrl = baseUrl;
+        while (cleanBaseUrl.endsWith("/")) {
+            cleanBaseUrl = cleanBaseUrl.substring(0, cleanBaseUrl.length() - 1);
+        }
+        String cleanPort = port != null && !port.isEmpty() ? port : "8080";
+
+        for (String extension : AVATAR_EXTENSIONS) {
+            String resourcePath = "static/avatars/" + prizeId + extension;
+            if (new ClassPathResource(resourcePath).exists()) {
+                return cleanBaseUrl + ":" + cleanPort + "/avatars/" + prizeId + extension;
+            }
+        }
+
+        return premi.getUrl();
+    }
+
+    private long compensationXP(Oddity oddity, UserResponseDTO us) {
+        long lvl = us.getLevel();
+        long nextLevelXp = getPointsByLevel(lvl + 1) - getPointsByLevel(lvl) ;
+        long xp = Math.round(nextLevelXp * oddity.getPercentageLvlCompensation());
+        userRepository.findByGoogleId(us.getGoogleId()).ifPresent(u -> {
+            u.setPoints(u.getPoints() + xp);
+            userRepository.save(u);
+            calculateLevel(u);
+        });
+        return xp;
+    }
+
+    private Oddity pickRandomOddity() {
+        List<Oddity> oddities = userRepository.getOdities();
+        if (oddities.isEmpty()) throw new BadRequestException("No hi ha rareses configurades.");
+
+        double totalWeight = oddities.stream().mapToDouble(Oddity::getProbability).sum();
         double r = sr.nextDouble() * totalWeight;
 
         double sum = 0.0;
-
-        Premi result = null;
-
-        for (Premi p : premis) {
+        for (Oddity p : oddities) {
             sum += p.getProbability();
             if (r <= sum) {
-                result = p;
-                break;
+                return p;
             }
         }
-        if (!premis.isEmpty() && result == null) result = premis.getFirst();
-        if (result == null) throw new BadRequestException("No prizes available to open.");
-        return new PremiDTO(result);
+        return oddities.getLast();
     }
 
     private void processUserReliability(User user, Vote vote, boolean isIncidentAccepted) {
@@ -428,6 +485,10 @@ public class UserService {
 
     private Long getLevelByPoints(Long points) {
         return (long) (0.1*sqrt(points) + 1);
+    }
+
+    private Long getPointsByLevel(Long level) {
+        return (long) Math.pow((level-1)/0.1, 2);
     }
 
     private Long calculateRoutePoints(double meters) {
