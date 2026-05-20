@@ -518,7 +518,8 @@ class UserServiceTest {
         PremiDTO p = userService.openPrize(user.getGoogleId());
         assertNotNull(p);
         //(900 - 400) * 0.8
-        assertEquals("XP_COMMON_400", p.getId());
+        assertEquals("XP_400", p.getId());
+        assertEquals("COMMON", p.getOddity());
         verify(userRepository).decrementPendingRewards(googleId);
         verify(userRepository, never()).insertUserPrize(any(), any());
     }

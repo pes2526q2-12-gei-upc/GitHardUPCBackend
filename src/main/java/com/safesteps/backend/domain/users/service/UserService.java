@@ -275,7 +275,7 @@ public class UserService {
         int rowsAffected = userRepository.decrementPendingRewards(googleId);
         if (rowsAffected == 0) throw new BadRequestException("No rewards available to open.");
         PremiDTO p = pickRandomPrize(u);
-        if (!Objects.equals(p.getUrl(), "XP")) userRepository.insertUserPrize(googleId, p.getId());
+        if (!Objects.equals(p.getName(), "XP")) userRepository.insertUserPrize(googleId, p.getId());
         else p.setUrl("NONE");
         return p;
     }
@@ -385,9 +385,11 @@ public class UserService {
         if (userRepository.userHasPrize(u.getGoogleId(), premi.getId())) {
             logger.warn("Prize {} already obtained by user, picking another one.", premi.getId());
             PremiDTO p = new PremiDTO();
-            p.setUrl("XP");
+            p.setOddity(oddity.getId());
+            p.setUrl("NULL");
+            p.setName("XP");
             long xp = compensationXP(oddity, u);
-            p.setId("XP_" + oddity.getId() + "_" + xp);
+            p.setId("XP_" + xp);
             return p;
         }
         PremiDTO prizeDto = new PremiDTO(premi);

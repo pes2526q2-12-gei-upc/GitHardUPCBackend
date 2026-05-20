@@ -59,7 +59,7 @@ public class DatabaseUpdateScheduler {
         this.adminMetricsService = adminMetricsService;
     }
 
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
         if (!schedulerEnabled) {
