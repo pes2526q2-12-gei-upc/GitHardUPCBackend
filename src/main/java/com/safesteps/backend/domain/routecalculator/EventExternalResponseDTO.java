@@ -16,8 +16,7 @@ public class EventExternalResponseDTO {
         private String denomination;
         private Double latitude;
         private Double longitude;
-        private Boolean free;
-        private List<CategoryDTO> categories;
+        private String description;
     }
 
     @Data

@@ -94,30 +94,4 @@ public class ApiAddressController {
 
         return ResponseEntity.ok(response);
     }
-
-    @Operation(
-            summary = "Obtenir esdeveniments culturals propers a una ruta",
-            description = "Rep una llista de coordenades i retorna una col·lecció de punts d'interès (POIs) gratuïts amb esdeveniments culturals propers a la trajectòria."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Llista de POIs d'esdeveniments recuperada correctament", content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(
-                            value = "[\n  {\n    \"type\": \"RUTES-I-VISITES\",\n    \"name\": \"Ramblejant pels arxius\",\n    \"lat\": 41.3843969,\n    \"lon\": 2.1747666\n  },\n  {\n    \"type\": \"EXPOSICIONS\",\n    \"name\": \"Ciutats en guerra, cartografies i narratives en dos temps\",\n    \"lat\": 41.3844687,\n    \"lon\": 2.1750078\n  }\n]"
-                    )
-            )),
-            @ApiResponse(responseCode = "400", description = "La ruta enviada no és vàlida o està buida.", content = @Content),
-            @ApiResponse(responseCode = "401", description = "Token de seguretat (X-API-KEY) no vàlid o absent.", content = @Content)
-    })
-    @PostMapping("/route-events")
-    public ResponseEntity<List<PoiDTO>> getEventsForRoute(@RequestBody ExternalRouteRequestDTO request) {
-
-        if (request.getRoutePoints() == null || request.getRoutePoints().isEmpty()) {
-            throw new BadRequestException("La llista de coordenades no pot estar buida.");
-        }
-
-        List<PoiDTO> eventPois = eventIntegrationService.getEventsForRoute(request.getRoutePoints());
-
-        return ResponseEntity.ok(eventPois);
-    }
 }

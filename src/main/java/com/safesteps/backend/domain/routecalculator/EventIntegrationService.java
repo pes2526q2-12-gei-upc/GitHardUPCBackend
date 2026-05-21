@@ -73,11 +73,6 @@ public class EventIntegrationService {
     private PoiDTO mapToPoiDTO(EventDTO event) {
         String type = "ESDEVENIMENT"; // Valor per defecte
 
-        // Si tenim la llista de categories, agafem la primera i la posem en majúscules
-        if (event.getCategories() != null && !event.getCategories().isEmpty()) {
-            type = event.getCategories().get(0).getName().toUpperCase();
-        }
-
         String rawName = event.getDenomination();
         String cleanedName = rawName;
 
@@ -94,6 +89,7 @@ public class EventIntegrationService {
         return new PoiDTO(
                 type,
                 cleanedName,
+                event.getDescription(),
                 event.getLatitude(),
                 event.getLongitude()
         );

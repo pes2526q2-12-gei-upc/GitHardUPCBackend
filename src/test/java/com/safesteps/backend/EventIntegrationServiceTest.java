@@ -1,7 +1,6 @@
 package com.safesteps.backend;
 
 import com.safesteps.backend.domain.routecalculator.Coord;
-import com.safesteps.backend.domain.routecalculator.EventExternalResponseDTO.CategoryDTO;
 import com.safesteps.backend.domain.routecalculator.EventExternalResponseDTO.EventDTO;
 import com.safesteps.backend.domain.routecalculator.EventExternalResponseDTO;
 import com.safesteps.backend.domain.routecalculator.EventIntegrationService;
@@ -43,7 +42,6 @@ class EventIntegrationServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Injectem les variables d'entorn simulades i el RestTemplate fals
         ReflectionTestUtils.setField(eventIntegrationService, "apiUrl", "http://fake-api.com/events/");
         ReflectionTestUtils.setField(eventIntegrationService, "apiToken", "fake-token");
         ReflectionTestUtils.setField(eventIntegrationService, "restTemplate", restTemplate);
@@ -55,20 +53,18 @@ class EventIntegrationServiceTest {
 
     @Test
     void getEventsForRoute_ShouldCleanNamesAndProcessAllEvents() {
-        // Arrange: Preparem 2 esdeveniments (ja no importa si són gratis o de pagament)
-        CategoryDTO cat = new CategoryDTO();
-        cat.setName("exposicions");
-
+        // Arrange: Preparem 2 esdeveniments sense el flag 'free' ni categories
         EventDTO ev1 = new EventDTO();
         ev1.setDenomination("Exposició \"Art Modern\"");
         ev1.setLatitude(41.3851);
         ev1.setLongitude(2.1735);
-        ev1.setCategories(Collections.singletonList(cat));
+        ev1.setDescription("Descripció de l'art modern");
 
         EventDTO ev2 = new EventDTO();
         ev2.setDenomination("Concert Privat");
         ev2.setLatitude(41.3852);
         ev2.setLongitude(2.1736);
+        ev2.setDescription("Descripció del concert");
 
         EventExternalResponseDTO responseDTO = new EventExternalResponseDTO();
         responseDTO.setResults(Arrays.asList(ev1, ev2));
@@ -79,21 +75,22 @@ class EventIntegrationServiceTest {
         // Act
         List<PoiDTO> result = eventIntegrationService.getEventsForRoute(Collections.singletonList(sampleCoord));
 
-        // Assert: Ara esperem 2 resultats perquè ja no hi ha filtre de gratuïtat
+        // Assert: Esperem 2 resultats
         assertEquals(2, result.size());
 
-        // Comprovem que la neteja de nom funciona perfectament en el primer esdeveniment
-        boolean foundCleanedName = result.stream().anyMatch(p -> p.getName().equals("Art Modern") && p.getType().equals("EXPOSICIONS"));
+        // Comprovem que la neteja de nom funciona.
+        // Com que hem tret categories, el type serà el defecte: "ESDEVENIMENT"
+        boolean foundCleanedName = result.stream().anyMatch(p -> p.getName().equals("Art Modern") && p.getType().equals("ESDEVENIMENT"));
         assertTrue(foundCleanedName);
     }
 
     @Test
     void getEventsForRoute_ShouldLimitToThreeEventsPerPoint() {
-        // Arrange: Creem 4 esdeveniments gratuïts
-        EventDTO ev1 = createBasicFreeEvent("Ev1");
-        EventDTO ev2 = createBasicFreeEvent("Ev2");
-        EventDTO ev3 = createBasicFreeEvent("Ev3");
-        EventDTO ev4 = createBasicFreeEvent("Ev4");
+        // Arrange
+        EventDTO ev1 = createBasicEvent("Ev1");
+        EventDTO ev2 = createBasicEvent("Ev2");
+        EventDTO ev3 = createBasicEvent("Ev3");
+        EventDTO ev4 = createBasicEvent("Ev4");
 
         EventExternalResponseDTO responseDTO = new EventExternalResponseDTO();
         responseDTO.setResults(Arrays.asList(ev1, ev2, ev3, ev4));
@@ -104,30 +101,30 @@ class EventIntegrationServiceTest {
         // Act
         List<PoiDTO> result = eventIntegrationService.getEventsForRoute(Collections.singletonList(sampleCoord));
 
-        // Assert: El codi hauria de parar al tercer i ignorar el quart
+        // Assert: S'ha de limitar a 3
         assertEquals(3, result.size());
     }
 
     @Test
     void getEventsForRoute_ShouldHandleApiExceptionsGracefully() {
-        // Arrange: Forcem un error de xarxa o de connexió
+        // Arrange
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(EventExternalResponseDTO.class)))
                 .thenThrow(new RestClientException("Error de connexió simulada"));
 
         // Act
         List<PoiDTO> result = eventIntegrationService.getEventsForRoute(Collections.singletonList(sampleCoord));
 
-        // Assert: El codi ha d'atrapar l'excepció i retornar una llista buida sense petar
+        // Assert
         assertTrue(result.isEmpty());
     }
 
-    // --- Mètode d'ajuda per crear dades ràpidament ---
-    private EventDTO createBasicFreeEvent(String name) {
+    // --- Mètode d'ajuda actualitzat ---
+    private EventDTO createBasicEvent(String name) {
         EventDTO ev = new EventDTO();
         ev.setDenomination(name);
-        ev.setFree(true);
         ev.setLatitude(41.0);
         ev.setLongitude(2.0);
+        ev.setDescription("Descripció de prova");
         return ev;
     }
 }

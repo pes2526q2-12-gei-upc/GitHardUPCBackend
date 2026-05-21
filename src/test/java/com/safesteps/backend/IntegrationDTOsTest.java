@@ -17,22 +17,17 @@ class IntegrationDTOsTest {
 
     @Test
     void testEventDTO() {
-        EventExternalResponseDTO.CategoryDTO cat = new EventExternalResponseDTO.CategoryDTO();
-        cat.setName("Concerts");
-
         EventExternalResponseDTO.EventDTO event = new EventExternalResponseDTO.EventDTO();
         event.setDenomination("Festival");
         event.setLatitude(41.38);
         event.setLongitude(2.17);
-        event.setFree(true);
-        event.setCategories(Collections.singletonList(cat));
+        // Comprovem el nou camp de descripció
+        event.setDescription("Música en directe tot el dia");
 
         assertEquals("Festival", event.getDenomination());
         assertEquals(41.38, event.getLatitude());
         assertEquals(2.17, event.getLongitude());
-        assertTrue(event.getFree());
-        assertEquals(1, event.getCategories().size());
-        assertEquals("Concerts", event.getCategories().get(0).getName());
+        assertEquals("Música en directe tot el dia", event.getDescription());
     }
 
     @Test
