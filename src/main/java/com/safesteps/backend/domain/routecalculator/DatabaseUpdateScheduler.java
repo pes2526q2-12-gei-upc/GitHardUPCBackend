@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class DatabaseUpdateScheduler {
 
+    @Value("${spring.config.location:}")
+    private String localPropertiesPath;
+
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUpdateScheduler.class);
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -39,10 +42,18 @@ public class DatabaseUpdateScheduler {
             "DataLoad_Bancs.py",
             "DataLoad_Arbrat_viari.py",
             "DataLoad_Arbrat_zona.py",
-            "DataLoad_Fets_Penals.py");
+            "DataLoad_Fets_Penals.py",
+            "DataLoad_Infraccions.py",
+            "DataLoad_Qualitat_aire.py",
+            "DataLoad_Refugis_climatics.py"//,
+//            "DataLoad_Soroll.py"
+    );
 
     private final PostgisCalculationService postgisCalculationService;
     private final AdminMetricsService adminMetricsService;
+
+    @Autowired
+    private BarcelonaBoundaryService barcelonaBoundaryService;
 
     @Autowired
     public DatabaseUpdateScheduler(PostgisCalculationService postgisCalculationService,
@@ -77,6 +88,7 @@ public class DatabaseUpdateScheduler {
 
             postgisCalculationService.executePreAnalysis();
             postgisCalculationService.performDatabaseCalculations();
+            barcelonaBoundaryService.refresh();
             logger.info("Pipeline completado con exito.");
 
         } catch (Exception e) {
@@ -113,7 +125,15 @@ public class DatabaseUpdateScheduler {
             }
 
             logger.info("Ejecutando [{}]...", scriptName);
-            ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            ProcessBuilder pb;
+            if (localPropertiesPath != null && !localPropertiesPath.isEmpty()) {
+                String cleanPath = localPropertiesPath.replace("file:", "").trim();
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString(), cleanPath);
+            } else {
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            }
+
+
             pb.redirectErrorStream(true);
             Process process = pb.start();
 

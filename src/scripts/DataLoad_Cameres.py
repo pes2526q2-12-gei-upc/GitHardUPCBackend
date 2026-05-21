@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -55,7 +56,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 def get_latest_resource_info(api_url):
@@ -139,9 +141,9 @@ def main():
             df.columns = [str(c).strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
 
             with engine.begin() as conn:
-                conn.execute(text(f'DROP TABLE IF EXISTS "{t_cameres}" CASCADE;'))
+                conn.execute(text(f'TRUNCATE TABLE "{t_cameres}" RESTART IDENTITY CASCADE;'))
 
-            df.to_sql(t_cameres, engine, if_exists='replace', index=False)
+            df.to_sql(t_cameres, engine, if_exists='append', index=False)
             logger.info("ÈXIT: Taula '%s' creada amb %s files.", t_cameres, len(df))
 
     except Exception as e:

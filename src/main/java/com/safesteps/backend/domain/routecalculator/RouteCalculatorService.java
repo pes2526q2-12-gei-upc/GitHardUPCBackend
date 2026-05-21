@@ -80,6 +80,7 @@ public class RouteCalculatorService {
 
         if (isFiltreSeguretat(filtre)) {
             addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
+            addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
         } else if (isFiltreConfort(filtre)) {
             addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
             addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
@@ -130,12 +131,12 @@ public class RouteCalculatorService {
                 filtre.getFontsAigua() + filtre.getBancs() + filtre.getContaminacioAcustica() + filtre.getEscalesMecaniques() +
                 filtre.getArbres() + filtre.getRefugisClimatics() + filtre.getQualitatAire()) / 11.0;
 
-        if (filtre.getComissaries() > avg) addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
-        if (filtre.getFontsAigua() > avg) addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
-        if (filtre.getBancs() > avg) addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
-        if (filtre.getCameresSeguretat() > avg) addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
-        if (filtre.getEscalesMecaniques() > avg) addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
-        if (filtre.getRefugisClimatics() > avg) addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
+        if (filtre.getComissaries() >= avg) addPois(pois, carrerRepository.findComissariesNearRoute(rutaPrincipalFID, 500.0), "COMISSARIA");
+        if (filtre.getFontsAigua() >= avg) addPois(pois, carrerRepository.findFontsNearRoute(rutaPrincipalFID, 75.0), "FONT");
+        if (filtre.getBancs() >= avg) addPois(pois, carrerRepository.findBancsNearRoute(rutaPrincipalFID, 30.0), "BANC");
+        if (filtre.getCameresSeguretat() >= avg) addPois(pois, carrerRepository.findCameresNearRoute(rutaPrincipalFID, 100.0), "CAMERA");
+        if (filtre.getEscalesMecaniques() >= avg) addPois(pois, carrerRepository.findEscalesNearRoute(rutaPrincipalFID, 50.0), "ESCALA_MECANICA");
+        if (filtre.getRefugisClimatics() >= avg) addPois(pois, carrerRepository.findRefugisNearRoute(rutaPrincipalFID, 100.0), "REFUGI_CLIMATIC");
     }
 
     private void addPois(List<PoiDTO> pois, List<PoiDBProjection> dbProjections, String type) {

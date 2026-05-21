@@ -10,6 +10,7 @@ import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.FriendshipRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.users.service.FriendshipService;
+import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class FriendshipServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private FriendshipService friendshipService;
@@ -212,11 +216,23 @@ class FriendshipServiceTest {
     @DisplayName("removeFriend: elimina la amistad correctamente")
     void removeFriend_WhenExists_DeletesFriendship() {
         Friendship f = new Friendship();
-        when(friendshipRepository.findBetweenUsers("googleA", "googleB")).thenReturn(Optional.of(f));
+        String g1 = "googleA";
+        String g2 = "googleB";
+        User u = new User();
+        User u2 = new User();
+        u.setGoogleId(g1);
+        u2.setGoogleId(g2);
 
-        friendshipService.removeFriend("googleA", "googleB");
+
+        f.setReceiver(u);
+        f.setSender(u2);
+        when(friendshipRepository.findBetweenUsers(g1, g2)).thenReturn(Optional.of(f));
+
+        friendshipService.removeFriend(g1, g2);
 
         verify(friendshipRepository, times(1)).delete(f);
+        verify(userRepository, times(1)).deleteEmergencyContacts(g1,List.of(g2));
+        verify(userRepository, times(1)).deleteEmergencyContacts(g2,List.of(g1));
     }
 
     @Test
@@ -238,9 +254,12 @@ class FriendshipServiceTest {
         f.setSender(userB);
         f.setReceiver(userA);
         f.setStatus(FriendshipStatus.PENDING);
+        User u = new User();
+        u.setUsername("us");
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
+        when (userRepository.findByGoogleId("googleA")).thenReturn(Optional.of(u));
 
         friendshipService.acceptFriendRequest("googleA", "googleB");
 
@@ -268,9 +287,13 @@ class FriendshipServiceTest {
         f.setSender(userB);
         f.setReceiver(userA);
         f.setStatus(FriendshipStatus.PENDING);
+        User u = new User();
+        u.setUsername("us");
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
+        when (userRepository.findByGoogleId("googleA")).thenReturn(Optional.of(u));
+
 
         friendshipService.declineFriendRequest("googleA", "googleB");
 
@@ -286,5 +309,41 @@ class FriendshipServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> friendshipService.declineFriendRequest("googleA", "googleB"));
         verify(friendshipRepository, never()).delete(any());
+    }
+
+
+    @Test
+    @DisplayName("Existe una amistad entre los dos -> true")
+    void existsFriendship_OK() {
+        Friendship f = new Friendship();
+        f.setStatus(FriendshipStatus.ACCEPTED);
+        when(friendshipRepository.findBetweenUsers("googleB", "googleA"))
+                .thenReturn(Optional.of(f));
+
+        boolean b = friendshipService.existsFriendship("googleB", "googleA");
+
+        assertTrue(b);
+    }
+
+    @Test
+    @DisplayName("No existe una amistad entre los dos -> false")
+    void existsFriendship_NotExists_False() {
+        when(friendshipRepository.findBetweenUsers("googleB", "googleA"))
+                .thenReturn(Optional.empty());
+        boolean b = friendshipService.existsFriendship("googleB", "googleA");
+        assertFalse(b);
+    }
+
+    @Test
+    @DisplayName("Existe una amistad entre los dos -> true")
+    void existsFriendship_Exists_Pending_False() {
+        Friendship f = new Friendship();
+        f.setStatus(FriendshipStatus.PENDING);
+        when(friendshipRepository.findBetweenUsers("googleB", "googleA"))
+                .thenReturn(Optional.of(f));
+
+        boolean b = friendshipService.existsFriendship("googleB", "googleA");
+
+        assertFalse(b);
     }
 }

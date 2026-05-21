@@ -9,9 +9,13 @@ import lombok.NoArgsConstructor;
 public class PremiDTO {
     private String id;
     private String url;
+    private String oddity;
+    private String name;
 
     public PremiDTO(Premi p) {
         this.id = p.getId();
         this.url = p.getUrl();
+        this.oddity = p.getOddity();
+        this.name = p.getName();
     }
 }

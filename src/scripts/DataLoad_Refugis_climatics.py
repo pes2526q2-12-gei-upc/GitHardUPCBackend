@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -46,7 +47,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 def get_latest_resource_info(api_url):
@@ -145,9 +147,9 @@ def main():
 
         logging.info(f"Pujant {len(df)} files a la taula '{t_refugis}'...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_refugis}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_refugis}" RESTART IDENTITY CASCADE;'))
 
-        df.to_sql(t_refugis, engine, if_exists='replace', index=False)
+        df.to_sql(t_refugis, engine, if_exists='append', index=False)
         logging.info(f"ÈXIT: Taula '{t_refugis}' actualitzada correctament.")
 
     except Exception as e:

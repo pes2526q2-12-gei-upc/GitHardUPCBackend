@@ -1,5 +1,6 @@
-package com.safesteps.backend.domain.routecalculator;
+package com.safesteps.backend;
 
+import com.safesteps.backend.domain.routecalculator.BarcelonaBoundaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

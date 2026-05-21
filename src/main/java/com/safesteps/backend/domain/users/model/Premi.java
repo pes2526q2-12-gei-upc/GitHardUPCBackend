@@ -16,7 +16,7 @@ public class Premi {
     @Column(name = "url")
     private String url;
 
-    @Column(name = "probability")
-    private double probability;
+    @Column(name = "oddity")
+    private String oddity;
 
 }

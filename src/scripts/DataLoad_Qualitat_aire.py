@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -44,8 +45,11 @@ def load_properties(file_path, current_config):
         return current_config
 
 def get_config():
-    config = load_properties(APP_PROPERTIES_PATH, {})
-    return load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    config = {}
+    config = load_properties(APP_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
+    return config
 
 def get_latest_resource_info(api_url):
     logging.info(f"Consultant l'API per: {api_url}")
@@ -161,8 +165,8 @@ def main():
         # Pujada a SQL
         logging.info(f"Pujant {len(df_final)} estacions amb dades de PM2.5 a {t_qualitat_aire}...")
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_qualitat_aire}" CASCADE;'))
-        df_final.to_sql(t_qualitat_aire, engine, if_exists='replace', index=False)
+            conn.execute(text(f'TRUNCATE TABLE "{t_qualitat_aire}" RESTART IDENTITY CASCADE;'))
+        df_final.to_sql(t_qualitat_aire, engine, if_exists='append', index=False)
         logging.info("ÈXIT TOTAL: Dades filtrades i netejades correctament.")
 
     except Exception as e:

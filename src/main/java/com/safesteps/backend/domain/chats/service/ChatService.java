@@ -7,6 +7,7 @@ import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.notifications.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ChatService {
@@ -22,6 +24,7 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ChatParticipantRepository chatParticipantRepository;
+    private final NotificationService notificationService;
 
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
     
@@ -33,15 +36,31 @@ public class ChatService {
     public ChatService(ChatRepository chatRepository,
                        MessageRepository messageRepository,
                        UserRepository userRepository,
-                       ChatParticipantRepository chatParticipantRepository) {
+                       ChatParticipantRepository chatParticipantRepository,
+                       NotificationService notificationService) {
         this.chatRepository = chatRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.chatParticipantRepository = chatParticipantRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
     public ChatResponseDTO createChat(ChatRequestDTO req) {
+
+        if ("PRIVATE".equals(req.getType())) {
+            if (req.getParticipantGoogleIds() == null || req.getParticipantGoogleIds().size() != 2) {
+                throw new BadRequestException("Un xat privat ha de tenir exactament 2 participants.");
+            }
+
+            String user1 = req.getParticipantGoogleIds().get(0);
+            String user2 = req.getParticipantGoogleIds().get(1);
+            Optional<Chat> existingChat = chatRepository.findPrivateChatBetweenUsers(user1, user2);
+
+            if (existingChat.isPresent()) {
+                throw new BadRequestException("Ja existeix un xat privat entre aquests dos usuaris.");
+            }
+        }
         Chat chat = new Chat();
         chat.setType(req.getType());
         chat.setName(req.getName());
@@ -196,7 +215,34 @@ public class ChatService {
         message.setChat(chat);
         message.setSender(sender);
         message.setContent(req.getContent());
-        return new MessageResponseDTO(messageRepository.save(message));
+
+        if (req.getSharedRoute() != null) {
+            SharedRoute sharedRoute = new SharedRoute();
+            sharedRoute.setOriginLat(req.getSharedRoute().getOriginLat());
+            sharedRoute.setOriginLng(req.getSharedRoute().getOriginLng());
+            sharedRoute.setDestLat(req.getSharedRoute().getDestLat());
+            sharedRoute.setDestLng(req.getSharedRoute().getDestLng());
+            sharedRoute.setScheduledDate(req.getSharedRoute().getScheduledDate());
+            sharedRoute.setRouteType(req.getSharedRoute().getRouteType());
+            sharedRoute.setDistanceMeters(req.getSharedRoute().getDistanceMeters());
+            sharedRoute.setDurationMinutes(req.getSharedRoute().getDurationMinutes());
+            sharedRoute.setOriginAddress(req.getSharedRoute().getOriginAddress());
+            sharedRoute.setDestAddress(req.getSharedRoute().getDestAddress());
+            sharedRoute.setMessage(message);
+            message.setSharedRoute(sharedRoute);
+        }
+
+        Message savedMessage = messageRepository.save(message);
+        MessageResponseDTO responseDTO = new MessageResponseDTO(savedMessage);
+
+        List<String> targetGoogleIds = chat.getParticipants().stream()
+                .map(participant -> participant.getUser().getGoogleId())
+                .filter(googleId -> !googleId.equals(req.getSenderGoogleId()))
+                .toList();
+        if (!targetGoogleIds.isEmpty()) {
+            notificationService.sendMessage(targetGoogleIds, responseDTO);
+        }
+        return responseDTO;
     }
 
     public List<MessageResponseDTO> getMessagesByChatId(Long chatId) {

@@ -27,4 +27,7 @@ public class Message {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @OneToOne(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private SharedRoute sharedRoute;
 }
