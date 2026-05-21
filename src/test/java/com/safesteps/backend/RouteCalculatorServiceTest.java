@@ -26,6 +26,9 @@ class RouteCalculatorServiceTest {
     @Mock
     private CarrerRepository carrerRepository;
 
+    @Mock
+    private EventIntegrationService eventIntegrationService;
+
     @InjectMocks
     private RouteCalculatorService routeCalculatorService;
 
@@ -41,6 +44,8 @@ class RouteCalculatorServiceTest {
         destination = new Coord();
         destination.setLat(41.3986);
         destination.setLon(2.1686);
+
+        lenient().when(eventIntegrationService.getEventsForRoute(anyList())).thenReturn(Collections.emptyList());
     }
 
     @Test
@@ -354,4 +359,3 @@ class RouteCalculatorServiceTest {
 
     }
 }
-
