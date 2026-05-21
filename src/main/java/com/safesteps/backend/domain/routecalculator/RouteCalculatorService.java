@@ -15,9 +15,11 @@ public class RouteCalculatorService {
 
     //Injeccio per constructor (Clean Architecture)
     private final CarrerRepository carrerRepository;
+    private final EventIntegrationService eventIntegrationService;
 
-    public RouteCalculatorService(CarrerRepository carrerRepository) {
+    public RouteCalculatorService(CarrerRepository carrerRepository, EventIntegrationService eventIntegrationService) {
         this.carrerRepository = carrerRepository;
+        this.eventIntegrationService = eventIntegrationService;
     }
 
     public RouteResponseDTO getBestRoute(Coord org, Coord dest, int nRoutes, Filtre filtre) {
@@ -61,6 +63,8 @@ public class RouteCalculatorService {
                 .toList();
 
         List<PoiDTO> pois = fetchRoutePois(rutaPrincipalFID, filtre);
+        List<PoiDTO> esdevenimentsPois = fetchExternalEvents(rutaFIDCoords);
+        pois.addAll(esdevenimentsPois);
 
         // 3. Retornem la Ruta enriquida (Ara el constructor de Route demana els POIs al final)
         return new Route(
@@ -92,6 +96,23 @@ public class RouteCalculatorService {
 
         return pois;
     }
+
+
+    private List<PoiDTO> fetchExternalEvents(List<CoordDBProjection> rutaFIDCoords) {
+        // Transformem els resultats de la BD als objectes Coord
+        List<Coord> routeCoords = rutaFIDCoords.stream()
+                .map(r -> {
+                    Coord c = new Coord();
+                    c.setLat(r.getLat());
+                    c.setLon(r.getLon());
+                    return c;
+                })
+                .toList();
+
+        // Cridem la API del grup extern
+        return eventIntegrationService.getEventsForRoute(routeCoords);
+    }
+
 
     private boolean isFiltreSeguretat(Filtre filtre) {
         return filtre.getComissaries() == 1 && filtre.getFetsPenals() == 1 && filtre.getCameresSeguretat() == 1 && filtre.getInfraccions() == 1 && filtre.getFontsAigua() == 0;
