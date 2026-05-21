@@ -117,7 +117,7 @@ public class FriendshipService {
                         "No pending request found from " + senderGoogleId + " to " + receiverGoogleId));
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendshipRepository.save(friendship);
-        sendFriendNotification(receiverGoogleId, senderGoogleId, FriendshipStatus.ACCEPTED);
+        sendFriendNotification(senderGoogleId, receiverGoogleId, FriendshipStatus.ACCEPTED);
     }
 
     /**
@@ -131,7 +131,7 @@ public class FriendshipService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No pending request found from " + senderGoogleId + " to " + receiverGoogleId));
         friendshipRepository.delete(friendship);
-        sendFriendNotification(receiverGoogleId, senderGoogleId, FriendshipStatus.REJECTED);
+        sendFriendNotification(senderGoogleId, receiverGoogleId, FriendshipStatus.REJECTED);
     }
 
     // toGoogleId > A qui va la notificacio. fromGoogleId > Qui ha fet l'accio. friendshipStatus > Quina accio s'ha fet (acceptar, rebutjar, pendent)

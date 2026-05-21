@@ -397,7 +397,7 @@ public class UserService {
         return prizeDto;
     }
 
-    private String resolvePrizeUrl(Premi premi) {
+    public String resolvePrizeUrl(Premi premi) {
         String prizeId = premi.getId();
         if (prizeId == null || !AVATAR_PRIZE_ID_PATTERN.matcher(prizeId).matches()) {
             return premi.getUrl();

@@ -8,6 +8,7 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
+import com.safesteps.backend.domain.users.model.Premi;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,17 @@ public class UserController {
     @GetMapping("/{googleId}")
     public ResponseEntity<UserResponseDTO> getByGoogleId(@PathVariable String googleId) {
         UserResponseDTO user = userService.getUserByGoogleId(googleId);
+        List<PremiDTO> premis = user.getPremis();
+        if (premis == null ||premis.isEmpty()) return ResponseEntity.ok(user);
+        for (PremiDTO p : premis) {
+            Premi premi = new Premi();
+            premi.setId(p.getId());
+            premi.setName(p.getName());
+            premi.setOddity(p.getOddity());
+            premi.setUrl(p.getUrl());
+            p.setUrl(userService.resolvePrizeUrl(premi));
+        }
+        user.setPremis(premis);
         return ResponseEntity.ok(user);
     }
 
