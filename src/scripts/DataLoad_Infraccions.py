@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -50,7 +51,8 @@ if __name__ == "__main__":
     # Llegir configuració dels fitxers properties
     db_config = {}
     db_config = load_properties(APP_PROPERTIES_PATH, db_config)
-    db_config = load_properties(APP_LOCAL_PROPERTIES_PATH, db_config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    db_config = load_properties(local_path, db_config)
 
     # Configuració de base de dades
     db_url_jdbc = db_config.get("spring.datasource.url")
@@ -142,9 +144,9 @@ if __name__ == "__main__":
 
         # Actualització a la BD
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_infraccions}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_infraccions}" RESTART IDENTITY CASCADE;'))
 
-        df.to_sql(t_infraccions, engine, if_exists='replace', index=False)
+        df.to_sql(t_infraccions, engine, if_exists='append', index=False)
 
         logging.info(f"Procés completat amb èxit! Taula '{t_infraccions}' creada.")
 

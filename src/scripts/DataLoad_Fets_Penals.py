@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -54,7 +55,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 def main():
@@ -146,10 +148,10 @@ def main():
 
         logger.info("Dades filtrades i agrupades. Pujant %s districtes a la taula '%s'...", len(df_agrupat), t_fets)
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_fets}" CASCADE;'))
+            conn.execute(text(f'TRUNCATE TABLE "{t_fets}" RESTART IDENTITY CASCADE;'))
 
         # Pugem el DataFrame AGRUPAT, no l'original
-        df_agrupat.to_sql(t_fets, engine, if_exists='replace', index=False)
+        df_agrupat.to_sql(t_fets, engine, if_exists='append', index=False)
 
         logger.info("ÈXIT: Taula '%s' actualitzada correctament només amb els districtes de Barcelona i delictes rellevants.", t_fets)
 

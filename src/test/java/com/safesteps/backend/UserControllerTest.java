@@ -13,6 +13,7 @@ import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
+import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.model.UserFilter;
 import com.safesteps.backend.domain.users.model.UserStatus;
 import com.safesteps.backend.domain.users.service.UserService;
@@ -30,8 +31,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -71,6 +71,8 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/v1/users/{googleId} - Existe (OK)")
     void getByGoogleId_WhenExists_ReturnsOk() throws Exception {
+        UserResponseDTO u = new UserResponseDTO();
+        u.setPremis(List.of(new PremiDTO()));
         when(userService.getUserByGoogleId("g-123")).thenReturn(new UserResponseDTO());
 
         mockMvc.perform(get("/api/v1/users/g-123"))
@@ -341,6 +343,23 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+
+    // -- Update token
+
+    @Test
+    void updateToken_Ok() throws Exception {
+        String googleId = "googleId";
+        String token = "fcm-token";
+
+        mockMvc.perform(post("/api/v1/users/" + googleId + "/fcm-token") // Si el teu controlador té un prefix (ex: /api/users), afegeix-lo aquí
+                        .param("token", token)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(status().isOk());
+
+        verify(userService, times(1)).updateToken(googleId, token);
+    }
+
+
     // --- HELPER METHOD ---
 
     private UserRequestDTO createValidRequest(String email, String username) {
@@ -351,4 +370,121 @@ class UserControllerTest {
         request.setIsAnonymous(false);
         return request;
     }
+
+
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency-contacts")
+    void getEmergencyContacts() throws Exception {
+        User u = new User();
+        u.setGoogleId("googleId");
+        u.setUsername("username");
+        List<UserProfileDTO> users = List.of(new UserProfileDTO(u));
+
+        when(userService.getEmergencyContacts("googleId")).thenReturn(users);
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency-contacts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].username").value("username"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency-contacts NotExists")
+    void getEmergencyContactsNotExists() throws Exception {
+        when(userService.getEmergencyContacts("googleId")).thenThrow(new ResourceNotFoundException(""));
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency-contacts"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/users/{googleId}/emergency-contacts Null")
+    void deleteNullEmergencyContacts() throws Exception {
+        mockMvc.perform(delete("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", ""))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/users/{googleId}/emergency-contacts")
+    void deleteEmergencyContacts() throws Exception {
+        List<String> users = List.of("u1", "u2", "u3");
+
+        mockMvc.perform(delete("/api/v1/users/googleId/emergency-contacts")
+                .param("emergencyContacts", users.toArray(new String[0])))
+                .andExpect(status().isNoContent());
+        verify(userService).deleteEmergencyContact("googleId", users);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts adding my as my emergency contact")
+    void newEmergencyContactImMyContact() throws Exception {
+        List<String> users = List.of("googleId");
+
+        when(userService.newEmergencyContact(any(), any())).thenThrow(new BadRequestException("Cannot add yourself as an emergency contact."));
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", users.toArray(new String[0])))
+                .andExpect(status().isBadRequest());
+        verify(userService).newEmergencyContact("googleId", users);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts none")
+    void newEmergencyContactNone() throws Exception {
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", ""))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency-contacts none")
+    void newEmergencyContact() throws Exception {
+        List<String> users = List.of("googleId");
+
+        mockMvc.perform(post("/api/v1/users/googleId/emergency-contacts")
+                        .param("emergencyContacts", users.toArray(new String[0])))
+                .andExpect(status().isCreated());
+        verify(userService).newEmergencyContact("googleId", users);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency")
+    void getUserStatus_OKFalse() throws Exception {
+        when(userService.getUserStatusEmergency("googleId")).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency")
+    void getUserStatus_OKTrue() throws Exception {
+        when(userService.getUserStatusEmergency("googleId")).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/{googleId}/emergency")
+    void getUserStatus_NotFound() throws Exception {
+        when(userService.getUserStatusEmergency("googleId")).thenThrow(new ResourceNotFoundException("User not found for Google ID: googleId"));
+
+        mockMvc.perform(get("/api/v1/users/googleId/emergency"))
+                .andExpect(status().isNotFound());
+    }
+
+
+    @Test
+    @DisplayName("POST /api/v1/users/{googleId}/emergency")
+    void toggleUserStatus_OK() throws Exception {
+        mockMvc.perform(post("/api/v1/users/googleId/emergency"))
+                .andExpect(status().isOk());
+    }
+
 }

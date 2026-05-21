@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -45,7 +46,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 def get_latest_csv_url(api_url):
@@ -115,16 +117,49 @@ def main():
         # Neteja estricta de noms de columnes per a PostgreSQL
         df.columns = [c.strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
 
-        # Actualització a la BD
-        logging.info(f"Pujant {len(df)} files a la taula '{t_arbrat_zona}'...")
-        with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{t_arbrat_zona}" CASCADE;'))
+        # --- ESTRATÈGIA DE STAGING PER A POSTGIS (ARBRAT ZONA - SRID 25831) ---
 
-        df.to_sql(t_arbrat_zona, engine, if_exists='replace', index=False)
-        logging.info(f"ÈXIT: Taula '{t_arbrat_zona}' creada amb {df.shape[1]} columnes.")
+        # Definim la taula temporal per a zona
+        staging_table = f"{t_arbrat_zona}_staging"
+
+        # 1. Pujar dades brutes a la taula temporal (aquí entra com a text)
+        logging.info(f"Pujant {len(df)} files brutes a la taula temporal '{staging_table}'...")
+        df.to_sql(staging_table, engine, if_exists='replace', index=False)
+
+        # 2. Detectar com es diu la columna de geometria al CSV (geometria o geom)
+        geom_col = 'geometria' if 'geometria' in df.columns else ('geom' if 'geom' in df.columns else None)
+
+        if not geom_col:
+            raise Exception("No s'ha trobat cap columna de geometria (geometria/geom) al CSV de l'Arbrat de Zona.")
+
+        # 3. Preparar les columnes restants entre cometes dobles
+        other_cols = [f'"{c}"' for c in df.columns if c != geom_col]
+        cols_str = ", ".join(other_cols)
+
+        # Construïm la query que fa la conversió geogràfica a 25831
+        sql_insert = f"""
+            INSERT INTO "{t_arbrat_zona}" ({cols_str}, "{geom_col}")
+            SELECT {cols_str}, ST_SetSRID(ST_GeomFromText("{geom_col}"), 25831)
+            FROM "{staging_table}";
+        """
+
+        # 4. Executar el buidat, el traspàs espacial de PostGIS i la neteja de la temporal
+        logging.info(f"Passant dades a la taula real '{t_arbrat_zona}' aplicant SRID 25831...")
+        with engine.begin() as conn:
+            # Buidem la taula definitiva de Flyway
+            conn.execute(text(f'TRUNCATE TABLE "{t_arbrat_zona}" RESTART IDENTITY CASCADE;'))
+
+            # Inserim les geometries de les zones verdes ben etiquetades
+            conn.execute(text(sql_insert))
+
+            # Esborrem la taula de staging brossa
+            conn.execute(text(f'DROP TABLE IF EXISTS "{staging_table}";'))
+
+        logging.info(f"ÈXIT: Taula '{t_arbrat_zona}' actualitzada correctament amb PostGIS.")
 
     except Exception as e:
-        logging.error(f"Error en el processament: {e}")
+        logging.error(f"Error durant el bolcat d'Arbrat Zona a la base de dades: {e}")
+        raise e
 
     logging.info("---------- Dades de l'API d'Arbrat Zona actualitzades ----------")
 

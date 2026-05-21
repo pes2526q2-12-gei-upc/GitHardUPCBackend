@@ -15,7 +15,25 @@
 #   setx SAFESTEPS_DB_PASSWORD "password"
 
 #Configuracio de la base de dades PostgreSQL
-spring.datasource.url=jdbc:postgresql://nattech.fib.upc.edu:40390/safesteps
-spring.datasource.username=admin_safesteps
+spring.datasource.url=jdbc:postgresql://vostra_url:port/nom_bd
+spring.datasource.username=usuari
 spring.datasource.password=${SAFESTEPS_DB_PASSWORD}
-api.external.token=token_extern
+
+#Configurar port deploy
+server.port=8080
+
+#Configurar port d'acces als avatars
+app.avatars.port=8081
+
+#Configurar api externa i contrassenya admin
+api.external.token=token_extern # Ja sigui amb EV o el token
+admin.password=PosarContrassenyaAdmin
+
+# Posar el link al arxiu de configuracio de firebase
+app.firebase.config=
+
+#Si cadascu te un python diferent utilitzar aixo:
+backend.scheduler.python.command=python
+
+# Url del backend
+app.backend.url=http://localhost

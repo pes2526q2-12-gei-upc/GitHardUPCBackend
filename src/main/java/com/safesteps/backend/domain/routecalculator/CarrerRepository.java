@@ -150,17 +150,11 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                         +
                         "  FROM unnest(cast(:fids as bigint[])) WITH ORDINALITY AS t(fid, seq) " +
                         "  JOIN bcn_grafvial_nodes n ON n.\"FID\" = t.fid " +
-                        "), " +
-                        "filtered_bancs AS ( " +
-                        "  SELECT b.descripcio, b.latitud, b.longitud, ST_SetSRID(ST_MakePoint(b.x_etrs89, b.y_etrs89), 25831) as geom "
-                        +
-                        "  FROM bcn_bancs b, route_geom rg " +
-                        "  WHERE ST_DWithin(ST_SetSRID(ST_MakePoint(b.x_etrs89, b.y_etrs89), 25831), rg.geom, :radi) " +
                         ") " +
-                        "SELECT COALESCE(MAX(descripcio), 'Banc públic') as name, AVG(latitud) as lat, AVG(longitud) as lon "
+                        "SELECT COALESCE(b.descripcio, 'Banc públic') as name, b.latitud as lat, b.longitud as lon "
                         +
-                        "FROM filtered_bancs " +
-                        "GROUP BY ST_SnapToGrid(geom, 15)", nativeQuery = true)
+                        "FROM bcn_bancs b, route_geom rg " +
+                        "WHERE ST_DWithin(b.geom, rg.geom, :radi)", nativeQuery = true)
         List<PoiDBProjection> findBancsNearRoute(@Param("fids") Long[] fids, @Param("radi") Double radiMetres);
 
         /*
@@ -176,7 +170,7 @@ public interface CarrerRepository extends JpaRepository<Carrer, Long> {
                         ") " +
                         "SELECT 'Càmera de seguretat' as name, c.latitud as lat, c.longitud as lon " +
                         "FROM bcn_cameres_seguretat c, route_geom rg " +
-                        "WHERE ST_DWithin(ST_SetSRID(ST_MakePoint(c.x_etrs89, c.y_etrs89), 25831), rg.geom, :radi)", nativeQuery = true)
+                        "WHERE ST_DWithin(c.geom, rg.geom, :radi)", nativeQuery = true)
         List<PoiDBProjection> findCameresNearRoute(@Param("fids") Long[] fids, @Param("radi") Double radiMetres);
 
         /*

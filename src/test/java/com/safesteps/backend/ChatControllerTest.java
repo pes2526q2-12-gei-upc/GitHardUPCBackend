@@ -169,4 +169,44 @@ class ChatControllerTest {
                         .param("adminId", "userA"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void getMessages_EmptyList_ShouldReturnOk() throws Exception {
+        when(chatService.getMessagesByChatId(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/chats/1/messages"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @Test
+    void removeUser_UserNotFound_ShouldReturnNotFound() throws Exception {
+        doThrow(new ResourceNotFoundException("Usuari no trobat"))
+                .when(chatService).removeUserFromGroup(1L, "admin", "targetA");
+
+        mockMvc.perform(delete("/api/v1/chats/1/participants/targetA")
+                        .param("adminId", "admin"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void exitGroup_PrivateChat_ShouldReturnBadRequest() throws Exception {
+        doThrow(new BadRequestException("No pots sortir d'un xat privat."))
+                .when(chatService).exitGroup(1L, "userA");
+
+        mockMvc.perform(delete("/api/v1/chats/1/participants/exit")
+                        .param("googleId", "userA"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addUser_NotAdmin_ShouldReturnBadRequest() throws Exception {
+        doThrow(new BadRequestException("Només els administradors poden fer això."))
+                .when(chatService).addUserToGroup(1L, "userA", "newUser");
+
+        mockMvc.perform(post("/api/v1/chats/1/participants")
+                        .param("adminId", "userA")
+                        .param("newUserGoogleId", "newUser"))
+                .andExpect(status().isBadRequest());
+    }
 }

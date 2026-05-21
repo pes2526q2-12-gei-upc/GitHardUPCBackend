@@ -121,4 +121,9 @@ public class BarcelonaBoundaryService {
     public boolean isUsingFallbackBoundary() {
         return isUsingFallback;
     }
+
+    public void refresh() {
+        logger.info("Refrescando el polígono de límites de Barcelona...");
+        loadBarcelonaBoundary();
+    }
 }

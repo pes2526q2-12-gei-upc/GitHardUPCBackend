@@ -12,13 +12,12 @@ import com.safesteps.backend.domain.users.dto.UserProfileDTO;
 import com.safesteps.backend.domain.users.dto.UserRequestDTO;
 import com.safesteps.backend.domain.users.dto.UserResponseDTO;
 import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
-import com.safesteps.backend.domain.users.model.Premi;
-import com.safesteps.backend.domain.users.model.User;
-import com.safesteps.backend.domain.users.model.UserFilter;
-import com.safesteps.backend.domain.users.model.UserStatus;
+import com.safesteps.backend.domain.users.model.*;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
+import com.safesteps.backend.domain.users.service.FriendshipService;
 import com.safesteps.backend.domain.users.service.UserService;
+import com.safesteps.backend.notifications.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,12 @@ class UserServiceTest {
     @Mock
     private FilterRepository filterRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private FriendshipService friendshipService;
+
     @InjectMocks
     private UserService userService;
 
@@ -60,6 +67,7 @@ class UserServiceTest {
         user.setUsername("testuser");
         user.setLanguage("ca");
         user.setReputacio(1);
+        user.setLevel(3L);
         user.setIsAnonymous(false);
         user.setStatus(UserStatus.ACTIVE);
 
@@ -401,36 +409,214 @@ class UserServiceTest {
 
     @Test
     void openPrize_OK() {
+        Oddity o =  new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+        o.setPercentageLvlCompensation(0.8F);
         String googleId = user.getGoogleId();
-        Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setProbability(0.1);
-        Premi p2  = new Premi(); p2.setId("p2"); p2.setUrl("url2"); p2.setProbability(0.5);
-        List<Premi> lp = List.of(p1, p2);
+        Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setOddity(o.getId());
+        List<Premi> lp = List.of(p1);
         user.setRecompenses(1L);
 
         when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
-        when(userRepository.getUserAvailablePrizes(googleId)).thenReturn(lp);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(lp);
+
+        when(userRepository.userHasPrize(googleId, p1.getId())).thenReturn(false);
+
         when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
 
         PremiDTO p = userService.openPrize(user.getGoogleId());
         assertNotNull(p);
-        assertTrue(lp.stream().anyMatch(pr -> pr.getId().equals(p.getId())));
+        assertEquals(p1.getId(), p.getId());
         verify(userRepository).decrementPendingRewards(googleId);
         verify(userRepository).insertUserPrize(googleId, p.getId());
     }
 
     @Test
-    void openPrize_NOK() {
-        assertThrows(ResourceNotFoundException.class, () -> userService.openPrize("voter1"));
+    void openPrize_No_OK_UserDoesNotExists() {
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.openPrize(googleId));
+
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
     }
 
     @Test
-    void openPrize_ERROR() {
+    void openPrize_ERROR_NoUserPrizes() {
         String googleId = user.getGoogleId();
         when(userRepository.decrementPendingRewards(googleId)).thenReturn(0);
         when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
 
         assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
         verify(userRepository, never()).insertUserPrize(anyString(), anyString());
+    }
+
+    @Test
+    void openPrize_No_OK_NoOdds() {
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of());
+
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
+
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
+    }
+
+    @Test
+    void openPrize_No_OKNoPrizes() {
+        Oddity o =  new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+        o.setPercentageLvlCompensation(0.8F);
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(List.of());
+
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> userService.openPrize(googleId));
+
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository, never()).insertUserPrize(anyString(), anyString());
+    }
+
+    @Test
+    void openPrize_OK_XP() {
+        Oddity o =  new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+        o.setPercentageLvlCompensation(0.8F);
+        String googleId = user.getGoogleId();
+        Premi p1  = new Premi(); p1.setId("p1"); p1.setUrl("url1"); p1.setOddity(o.getId());
+        List<Premi> lp = List.of(p1);
+        user.setRecompenses(1L);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(lp);
+
+        when(userRepository.userHasPrize(googleId, p1.getId())).thenReturn(true);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(user.getGoogleId());
+        assertNotNull(p);
+        //(900 - 400) * 0.8
+        assertEquals("XP_400", p.getId());
+        assertEquals("COMMON", p.getOddity());
+        verify(userRepository).decrementPendingRewards(googleId);
+        verify(userRepository, never()).insertUserPrize(any(), any());
+    }
+
+    @Test
+    void openPrize_OK_AvatarUrl() {
+        ReflectionTestUtils.setField(userService, "baseUrl", "http://localhost");
+        ReflectionTestUtils.setField(userService, "port", "8090");
+
+        Oddity o = new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        Premi p1 = new Premi();
+        p1.setId("A001_AVT_BUS_TURISTIC");
+        p1.setUrl("NONE");
+        p1.setOddity(o.getId());
+
+        List<Premi> lp = List.of(p1);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(lp);
+        when(userRepository.userHasPrize(googleId, p1.getId())).thenReturn(false);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(googleId);
+
+        assertNotNull(p);
+        assertEquals("A001_AVT_BUS_TURISTIC", p.getId());
+        assertEquals("http://localhost:8090/avatars/A001_AVT_BUS_TURISTIC.jpeg", p.getUrl());
+
+        verify(userRepository).insertUserPrize(googleId, p.getId());
+    }
+
+    @Test
+    void openPrize_OK_AvatarNotExist() {
+        ReflectionTestUtils.setField(userService, "baseUrl", "http://localhost");
+        ReflectionTestUtils.setField(userService, "port", "8090");
+        Oddity o = new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        Premi p1 = new Premi();
+        p1.setId("A999_AVT_NOT_EXIST");
+        p1.setUrl("URL_NOT_EXISTS");
+        p1.setOddity(o.getId());
+
+        List<Premi> lp = List.of(p1);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(lp);
+        when(userRepository.userHasPrize(googleId, p1.getId())).thenReturn(false);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(googleId);
+
+        assertNotNull(p);
+        assertEquals("URL_NOT_EXISTS", p.getUrl());
+        verify(userRepository).insertUserPrize(googleId, p.getId());
+    }
+
+    @Test
+    void openPrize_OK_PrizeIdInUrlNull() {
+        ReflectionTestUtils.setField(userService, "baseUrl", "http://localhost");
+        ReflectionTestUtils.setField(userService, "port", "8090");
+        Oddity o = new Oddity();
+        o.setProbability(1.0f);
+        o.setId("COMMON");
+
+        String googleId = user.getGoogleId();
+        user.setRecompenses(1L);
+
+        Premi p1 = new Premi();
+        p1.setUrl("URL_NOT_EXISTS");
+        p1.setOddity(o.getId());
+
+        List<Premi> lp = List.of(p1);
+
+        when(userRepository.decrementPendingRewards(googleId)).thenReturn(1);
+        when(userRepository.getOdities()).thenReturn(List.of(o));
+        when(userRepository.getPrizesByOddity(o.getId())).thenReturn(lp);
+        when(userRepository.userHasPrize(googleId, p1.getId())).thenReturn(false);
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        PremiDTO p = userService.openPrize(googleId);
+
+        assertNotNull(p);
+        assertEquals("URL_NOT_EXISTS", p.getUrl());
+        verify(userRepository).insertUserPrize(googleId, p.getId());
     }
 
     // --- TESTS PARA BÚSQUEDA POR USERNAME O EMAIL ---
@@ -556,6 +742,145 @@ class UserServiceTest {
         assertEquals(UserStatus.SUSPENDED, result.getStatus());
     }
 
+
+    @Test
+    @DisplayName("Debe devolver la lista de perfiles de los contactos de emergencia")
+    void getEmergencyContacts_WhenExist_ReturnsProfileList() {
+        String googleId = "googleId";
+        List<String> contactIds = List.of("u1", "u2");
+
+        User c1 = new User(); c1.setGoogleId("u1"); c1.setUsername("user1");
+        User c2 = new User(); c2.setGoogleId("u2"); c2.setUsername("user2");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contactIds);
+        when(userRepository.findByGoogleIdIn(contactIds)).thenReturn(List.of(c1, c2));
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertEquals(2, result.size());
+        assertEquals("user1", result.get(0).getUsername());
+        assertEquals("user2", result.get(1).getUsername());
+        verify(userRepository).getEmergencyContacts(googleId);
+        verify(userRepository).findByGoogleIdIn(contactIds);
+    }
+
+    @Test
+    @DisplayName("Debe devolver una lista vacia si el usuario no tiene contactos de emergencia")
+    void getEmergencyContacts_WhenNone_ReturnsEmptyList() {
+        String googleId = "googleId";
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(List.of());
+
+        List<UserProfileDTO> result = userService.getEmergencyContacts(googleId);
+
+        assertTrue(result.isEmpty());
+        verify(userRepository, never()).findByGoogleIdIn(anyList());
+    }
+
+    @Test
+    @DisplayName("Debe añadir contactos y retornar la lista actualizada")
+    void newEmergencyContact_Success_AddsAndReturnsList() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(newContacts);
+        when(userRepository.findByGoogleIdIn(newContacts)).thenReturn(List.of(new User()));
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(true);
+
+        List<UserProfileDTO> result = userService.newEmergencyContact(googleId, newContacts);
+
+        assertNotNull(result);
+        verify(userRepository).addEmergencyContact(googleId, "u1");
+        verify(userRepository).getEmergencyContacts(googleId);
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si el usuario se intenta añadir a si mismo")
+    void newEmergencyContact_SelfAddition_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("googleId");
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, contacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar BadRequestException si no existe 'friendship'")
+    void newEmergencyContact_Friendship_ThrowsBadRequestException() {
+        String googleId = "googleId";
+        List<String> newContacts = List.of("u1");
+
+        when(friendshipService.existsFriendship(any(), any())).thenReturn(false);
+
+        assertThrows(BadRequestException.class,
+                () -> userService.newEmergencyContact(googleId, newContacts));
+
+        verify(userRepository, never()).addEmergencyContact(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Debe llamar al repositorio para borrar si la lista no es nula ni vacía")
+    void deleteEmergencyContact_Ok_CallsRepository() {
+        String googleId = "googleId";
+        List<String> toDelete = List.of("u1", "u2");
+
+        userService.deleteEmergencyContact(googleId, toDelete);
+
+        verify(userRepository).deleteEmergencyContacts(googleId, toDelete);
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es nula")
+    void deleteEmergencyContact_Null_DoesNothing() {
+        String googleId = "googleId";
+
+        userService.deleteEmergencyContact(googleId, null);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("No debe hacer nada si la lista para borrar es vacía")
+    void deleteEmergencyContact_Empty_DoesNothing() {
+        String googleId = "googleId";
+        List<String> aux = new ArrayList<>();
+        userService.deleteEmergencyContact(googleId, aux);
+        userService.deleteEmergencyContact(googleId, List.of());
+
+        verify(userRepository, never()).deleteEmergencyContacts(anyString(), anyList());
+    }
+
+    // --- Test per a fcm notificacions
+    @Test
+    void updateToken_OK() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        User user = new User();
+        user.setGoogleId(googleId);
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+
+        userService.updateToken(googleId, token);
+
+        assertEquals(token, user.getFcmToken());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    void updateToken_UserNotExists() {
+        String googleId = "googleId";
+        String token = "fcm-token";
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+            userService.updateToken(googleId, token)
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
     @Test
     @DisplayName("Debe retornar el perfil completo cuando el googleId existe (getUserProfileByGoogleId)")
     void getUserProfileByGoogleId_WhenExists_ReturnsProfile() {
@@ -616,4 +941,117 @@ class UserServiceTest {
 
         assertThrows(UserSuspendedException.class, () -> userService.getUserProfile("g-123"));
     }
+
+    @Test
+    void getUserStatusEmergencyFalse() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(false);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyTrue() {
+        user.setGoogleId("googleId");
+        user.setIsInEmergency(true);
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.of(user));
+
+        boolean status = userService.getUserStatusEmergency("googleId");
+        assertEquals(status, user.getIsInEmergency());
+    }
+
+    @Test
+    void getUserStatusEmergencyNotExists() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserStatusEmergency("googleId"));
+    }
+
+    @Test
+    void toggleToEmergencyTrue() {
+        user.setIsInEmergency(false);
+        List<String> contacts = List.of("contact1", "contact2");
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertTrue(user.getIsInEmergency());
+        verify(userRepository).save(user);
+        verify(notificationService).sendEmergency(contacts, true, user.getUsername());
+    }
+
+    @Test
+    void toggleToEmergencyFalse() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of("contact1");
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
+    }
+
+    @Test
+    void toggleUserNotFound() {
+        when(userRepository.findByGoogleId("googleId")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.toggleUserStatusEmergency("googleId"));
+
+        verify(userRepository, never()).save(any());
+        verify(notificationService, never()).sendEmergency(any(), anyBoolean(), any());
+    }
+
+    @Test
+    void toggleToEmergencyNoContacts() {
+        user.setIsInEmergency(true);
+        List<String> contacts = List.of();
+
+        when(userRepository.findByGoogleId(user.getGoogleId())).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(user.getGoogleId())).thenReturn(contacts);
+
+        userService.toggleUserStatusEmergency(user.getGoogleId());
+
+        assertFalse(user.getIsInEmergency());
+        verify(notificationService).sendEmergency(contacts, false, user.getUsername());
+    }
+
+    @Test
+    void getEmergencyContacts_OK() {
+        String googleId = "googleId";
+        List<String> contacts = List.of("contact1", "contact2");
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoContacts() {
+        String googleId = "googleId";
+        List<String> contacts = List.of();
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(user));
+        when(userRepository.getEmergencyContacts(googleId)).thenReturn(contacts);
+
+        List<String> ec = userService.getEmergencyContactsGoogleIds(googleId);
+        assertEquals(ec, contacts);
+    }
+
+    @Test
+    void getEmergencyContacts_NoExists() {
+        String googleId = "googleId";
+
+        when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> userService.getEmergencyContactsGoogleIds(googleId));
+    }
+
 }

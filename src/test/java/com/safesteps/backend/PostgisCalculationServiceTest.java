@@ -1,5 +1,6 @@
-package com.safesteps.backend.domain.routecalculator;
+package com.safesteps.backend;
 
+import com.safesteps.backend.domain.routecalculator.PostgisCalculationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

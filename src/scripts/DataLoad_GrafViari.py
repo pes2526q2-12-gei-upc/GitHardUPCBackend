@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import zipfile
 import io
@@ -63,30 +64,9 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
-
-# Funcio per refrescar la vista SQL
-def refresh_routing_view(engine, v_name, t_trams, t_nodes):
-    view_sql = f"""
-    CREATE OR REPLACE VIEW {v_name} AS
-    SELECT 
-        t."FID" AS fid, 
-        n_inici."FID" AS source, 
-        n_final."FID" AS target,
-        t."LONGITUD" AS longitud, 
-        t."NVia_D" AS nom_carrer
-    FROM {t_trams} t
-    JOIN {t_nodes} n_inici ON t."C_Nus_I" = n_inici."C_Nus"
-    JOIN {t_nodes} n_final ON t."C_Nus_F" = n_final."C_Nus"
-    WHERE t."TVia_D" NOT IN ('Viaducte', 'Nus', '-', ' ', '');
-    """
-    try:
-        with engine.begin() as conn:
-            conn.execute(text(view_sql))
-            logging.info(f"Vista '{v_name}' actualitzada correctament.")
-    except Exception as e:
-        logging.error(f"Error creant la vista {v_name}: {e}")
 
 # Funcio per obtenir la URL del ZIP
 def get_latest_zip_url(api_url):
@@ -119,6 +99,9 @@ def _process_and_swap_table(engine, zip_file, filename, target_table_name):
     logging.info(f"Processant el fitxer '{filename}' cap a la taula '{target_table_name}'...")
     df = pd.read_csv(zip_file.open(filename), sep=';', encoding='latin1', low_memory=False)
 
+    columnes_vides = ", ".join([f'"{col}"' for col in df.columns])
+
+
     # 1. Health Check (Validación de qualitat)
     MIN_EXPECTED_ROWS = 1000
     if df.empty or len(df) < MIN_EXPECTED_ROWS:
@@ -128,14 +111,16 @@ def _process_and_swap_table(engine, zip_file, filename, target_table_name):
 
     logging.info(f"Carregant {len(df)} registres a la taula temporal '{staging_table}'...")
     # 2. Càrrega a Staging
-    df.to_sql(staging_table, engine, if_exists='replace', index=False)
+    df.to_sql(staging_table, engine, if_exists='append', index=False)
 
     # 3. Transacció Atòmica (Swapping)
     logging.info(f"Iniciant Swap Atòmic: '{staging_table}' -> '{target_table_name}'...")
     try:
         with engine.begin() as conn:
-            conn.execute(text(f'DROP TABLE IF EXISTS "{target_table_name}" CASCADE;'))
-            conn.execute(text(f'ALTER TABLE "{staging_table}" RENAME TO "{target_table_name}";'))
+            conn.execute(text(f'TRUNCATE TABLE "{target_table_name}" RESTART IDENTITY CASCADE;'))
+            conn.execute(text(f'INSERT INTO "{target_table_name}" ({columnes_vides}) SELECT {columnes_vides} FROM "{staging_table}";'))
+            conn.execute(text(f'DROP TABLE "{staging_table}";'))
+
         logging.info(f"¡Èxit! La taula '{target_table_name}' està ara en producció.")
     except Exception as e:
         logging.critical(f"Error crític en el swap de la taula '{target_table_name}': {e}")
@@ -188,8 +173,10 @@ def main():
                 elif "nodes" in filename.lower():
                     _process_and_swap_table(engine, zip_file, filename, t_nodes)
 
-        # Refrescar vista si tot ha anat be
-        refresh_routing_view(engine, v_rutes, t_trams, t_nodes)
+        logging.info("Refrescant la vista materialitzada v_trams_nodes")
+        with engine.connect() as conn:
+            # Com que usem CONCURRENTLY, l'app de Java pot continuar calculant rutes mentre es refresca
+            conn.execute(text('REFRESH MATERIALIZED VIEW CONCURRENTLY public.v_trams_nodes;'))
 
     except Exception as e:
         logging.error(f"Error durant el proces d'actualitzacio: {e}")

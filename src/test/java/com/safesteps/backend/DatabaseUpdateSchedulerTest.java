@@ -1,5 +1,7 @@
-package com.safesteps.backend.domain.routecalculator;
+package com.safesteps.backend;
 
+import com.safesteps.backend.domain.routecalculator.DatabaseUpdateScheduler;
+import com.safesteps.backend.domain.routecalculator.PostgisCalculationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,7 +12,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import com.safesteps.backend.domain.admin.service.AdminMetricsService;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -63,7 +64,9 @@ class DatabaseUpdateSchedulerTest {
                 "DataLoad_Fonts_beure.py", "DataLoad_Cameres.py",
                 "DataLoad_Escales_mecaniques.py", "DataLoad_Bancs.py",
                 "DataLoad_Arbrat_viari.py", "DataLoad_Arbrat_zona.py",
-                "DataLoad_Fets_Penals.py");
+                "DataLoad_Fets_Penals.py", "DataLoad_Infraccions.py",
+                "DataLoad_Qualitat_aire.py", "DataLoad_Refugis_climatics.py",
+                "DataLoad_Soroll.py");
 
         for (String script : scripts) {
             java.nio.file.Files.createFile(tempScriptsDir.resolve(script));
