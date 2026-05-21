@@ -78,7 +78,7 @@ jobs:
               screen -X -S safesteps-main quit || true
 
               export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
-              RUNNER_TRACKING_ID="" screen -d -m -S safesteps-main bash -c "java -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1"
+              RUNNER_TRACKING_ID="" screen -d -m -S safesteps-main bash -c "java -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local_prod.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1"
             # Deploy develop
             elif [ "$BRANCH" = "develop" ]; then
               # ultim develop deployed
