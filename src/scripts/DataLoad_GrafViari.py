@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import zipfile
 import io
@@ -63,7 +64,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 # Funcio per obtenir la URL del ZIP

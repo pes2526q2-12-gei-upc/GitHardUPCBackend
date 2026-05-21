@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class DatabaseUpdateScheduler {
 
+    @Value("${spring.config.location:}")
+    private String localPropertiesPath;
+
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUpdateScheduler.class);
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -122,7 +125,15 @@ public class DatabaseUpdateScheduler {
             }
 
             logger.info("Ejecutando [{}]...", scriptName);
-            ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            ProcessBuilder pb;
+            if (localPropertiesPath != null && !localPropertiesPath.isEmpty()) {
+                String cleanPath = localPropertiesPath.replace("file:", "").trim();
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString(), cleanPath);
+            } else {
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            }
+
+
             pb.redirectErrorStream(true);
             Process process = pb.start();
 

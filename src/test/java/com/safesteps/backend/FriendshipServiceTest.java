@@ -259,7 +259,7 @@ class FriendshipServiceTest {
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
-        when (userRepository.findByGoogleId("googleB")).thenReturn(Optional.of(u));
+        when (userRepository.findByGoogleId("googleA")).thenReturn(Optional.of(u));
 
         friendshipService.acceptFriendRequest("googleA", "googleB");
 
@@ -292,7 +292,7 @@ class FriendshipServiceTest {
 
         when(friendshipRepository.findByStatusAndSenderAndReceiver("googleB", "googleA", FriendshipStatus.PENDING))
                 .thenReturn(Optional.of(f));
-        when (userRepository.findByGoogleId("googleB")).thenReturn(Optional.of(u));
+        when (userRepository.findByGoogleId("googleA")).thenReturn(Optional.of(u));
 
 
         friendshipService.declineFriendRequest("googleA", "googleB");
