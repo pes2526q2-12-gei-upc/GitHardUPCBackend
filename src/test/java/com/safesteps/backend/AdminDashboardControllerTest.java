@@ -7,6 +7,7 @@ import com.safesteps.backend.security.AdminSessionInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -33,10 +34,13 @@ public class AdminDashboardControllerTest {
     private AdminDashboardDTO dashboardDTO;
     private MockHttpSession adminSession;
 
+    @Value("${api.internal.token}")
+    private String internalToken;
+
     @BeforeEach
     void setUp() {
         dashboardDTO = new AdminDashboardDTO();
-        
+
         adminSession = new MockHttpSession();
         adminSession.setAttribute(AdminSessionInterceptor.SESSION_ATTR, true);
     }
@@ -45,7 +49,7 @@ public class AdminDashboardControllerTest {
     void getDashboard_ReturnsOk() throws Exception {
         when(adminDashboardService.getDashboard()).thenReturn(dashboardDTO);
 
-        mockMvc.perform(get("/api/admin/dashboard").session(adminSession))
+        mockMvc.perform(get("/api/admin/dashboard").session(adminSession).header("X-API-KEY", internalToken))
                 .andExpect(status().isOk());
     }
 }

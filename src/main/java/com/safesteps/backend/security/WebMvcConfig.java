@@ -28,9 +28,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/v1/**")
                 .excludePathPatterns("/api/v1/evaluate-route-security");
 
-        // Interceptor per a l'API externa de calcul de rutes
+
         registry.addInterceptor(apiAuthInterceptor)
-                .addPathPatterns("/api/v1/evaluate-route-security");
+                .addPathPatterns("/api/**");
 
         // Interceptor que protegeix el panell d'administracio amb sessio HTTP.
         // Protegim /api/admin/** i /admin/index.html pero excloem:

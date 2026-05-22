@@ -9,24 +9,51 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class ExternalApiAuthInterceptor implements HandlerInterceptor {
 
-    // Llegim el token segur des del application.properties
-    @Value("${api.external.token:1234}")
-    private String validToken;
+    // 1. Definim els dos tokens que llegirem del application.properties
+    @Value("${api.internal.token}")
+    private String internalApiKey;
+
+    @Value("${api.external.token}")
+    private String externalApiKey;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        // Busquem la capçalera anomenada "X-API-KEY"
-        String providedToken = request.getHeader("X-API-KEY");
+        String path = request.getRequestURI();
 
-        // Si el token és correcte, deixem passar la petició (return true)
-        if (validToken.equals(providedToken)) {
+        // 2. Deixem passar rutes públiques (com el Swagger o errors) sense demanar token
+        if (path.contains("/swagger-ui") || path.contains("/v3/api-docs") || path.contains("/error")) {
             return true;
         }
 
-        // Si no hi ha token o és incorrecte, retornem un error 401 (No Autoritzat)
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write("Error 401: No tens autoritzacio. Falta el X-API-KEY correcte.");
-        return false;
+        // Busquem la capçalera
+        String requestApiKey = request.getHeader("X-API-KEY");
+
+        if (requestApiKey == null || requestApiKey.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Error 401: Falta el token de seguretat X-API-KEY.");
+            return false;
+        }
+
+        // 3. EXCEPCIÓ: El servei que oferim a fora
+        if (path.contains("/api/v1/evaluate-route-security")) {
+            // Aquí acceptem TANT el token de l'altre grup COM el vostre intern (per si el frontend ho vol provar)
+            if (requestApiKey.equals(externalApiKey) || requestApiKey.equals(internalApiKey)) {
+                return true;
+            } else {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Error 401: Token extern invalid.");
+                return false;
+            }
+        }
+
+        // 4. REGLA GENERAL: Tota la resta de la vostra API (calcular rutes, perfils, events, etc.)
+        if (requestApiKey.equals(internalApiKey)) {
+            return true;
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Error 401: Token intern invalid. Acces denegat a l'API de SafeSteps.");
+            return false;
+        }
     }
 }
