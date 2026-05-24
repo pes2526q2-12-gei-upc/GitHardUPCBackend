@@ -1,0 +1,1 @@
+ALTER TABLE chats ADD COLUMN creator_google_id VARCHAR(50);
