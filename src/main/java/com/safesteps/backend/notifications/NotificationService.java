@@ -97,17 +97,17 @@ public class NotificationService {
                 boolean beenSent = webSocketNotification(googleId, title, body, payload, path);
                 if (!beenSent) {
                     logger.error("WebSocket failed, falling back to Push for: {}", googleId);
-                    firebaseNotification(user.getFcmToken(), title, body);
+                    firebaseNotification(user.getFcmToken(), title, body, payload);
                 }
             } else {
-                firebaseNotification(user.getFcmToken(), title, body);
+                firebaseNotification(user.getFcmToken(), title, body, payload);
             }
         }
     }
 
 
     //push notifications
-    private void firebaseNotification(String fcmToken, String title, String body) {
+    private void firebaseNotification(String fcmToken, String title, String body, Object payload) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             logger.warn("Skipping push: No FCM token for this user.");
             return;
@@ -117,12 +117,19 @@ public class NotificationService {
             return;
         }
         try {
-            Message message = Message.builder()
+            Message.Builder builder = Message.builder()
                     .setToken(fcmToken)
                     .putData("title_loc_key", title)
-                    .putData("body_loc_key", body)
-                    .build();
-
+                    .putData("body_loc_key", body);
+            if (payload instanceof MessageResponseDTO msg) {
+                if (msg.getSenderUsername() != null) {
+                    builder.putData("sender_username", msg.getSenderUsername());
+                }
+                if (msg.getContent() != null) {
+                    builder.putData("message_content", msg.getContent());
+                }
+            }
+            Message message = builder.build();
             FirebaseMessaging.getInstance().send(message);
             logger.info("Push notification sent to token: {}.", fcmToken);
         } catch (Exception e) {
@@ -137,6 +144,11 @@ public class NotificationService {
             newPayload.put("data", payload);
             newPayload.put("titleKey", titleKey);
             newPayload.put("bodyKey", bodyKey);
+
+            if (payload instanceof MessageResponseDTO msg) {
+                newPayload.put("senderUsername", msg.getSenderUsername());
+                newPayload.put("messageContent", msg.getContent());
+            }
 
             messagingTemplate.convertAndSendToUser(googleId, path, newPayload);
             logger.info("Notification sent via WebSocket to googleId: {}", googleId);

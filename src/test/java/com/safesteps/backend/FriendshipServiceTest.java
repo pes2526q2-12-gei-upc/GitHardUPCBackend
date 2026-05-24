@@ -1,5 +1,6 @@
 package com.safesteps.backend;
 
+import com.safesteps.backend.domain.chats.repository.ChatRepository;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FriendDTO;
@@ -40,6 +41,9 @@ class FriendshipServiceTest {
 
     @InjectMocks
     private FriendshipService friendshipService;
+
+    @Mock
+    private ChatRepository chatRepository;
 
     private User userA;
     private User userB;
@@ -223,16 +227,16 @@ class FriendshipServiceTest {
         u.setGoogleId(g1);
         u2.setGoogleId(g2);
 
-
         f.setReceiver(u);
         f.setSender(u2);
         when(friendshipRepository.findBetweenUsers(g1, g2)).thenReturn(Optional.of(f));
-
+        when(chatRepository.findPrivateChatBetweenUsers(g1, g2)).thenReturn(Optional.empty());
         friendshipService.removeFriend(g1, g2);
 
         verify(friendshipRepository, times(1)).delete(f);
         verify(userRepository, times(1)).deleteEmergencyContacts(g1,List.of(g2));
         verify(userRepository, times(1)).deleteEmergencyContacts(g2,List.of(g1));
+        verify(chatRepository, times(1)).findPrivateChatBetweenUsers(g1, g2);
     }
 
     @Test
