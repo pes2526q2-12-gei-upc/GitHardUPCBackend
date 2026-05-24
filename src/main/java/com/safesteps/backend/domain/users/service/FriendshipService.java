@@ -1,5 +1,6 @@
 package com.safesteps.backend.domain.users.service;
 
+import com.safesteps.backend.domain.chats.repository.ChatRepository;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.users.dto.FriendDTO;
@@ -23,11 +24,13 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ChatRepository chatRepository;
 
-    public FriendshipService(FriendshipRepository friendshipRepository, UserRepository userRepository, NotificationService notificationService) {
+    public FriendshipService(FriendshipRepository friendshipRepository, UserRepository userRepository, NotificationService notificationService, ChatRepository chatRepository) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.chatRepository = chatRepository;
     }
 
     /**
@@ -103,6 +106,10 @@ public class FriendshipService {
         userRepository.deleteEmergencyContacts(friendship.getSender().getGoogleId(), List.of(friendship.getReceiver().getGoogleId()));
         userRepository.deleteEmergencyContacts(friendship.getReceiver().getGoogleId(), List.of(friendship.getSender().getGoogleId()));
         friendshipRepository.delete(friendship);
+        chatRepository.findPrivateChatBetweenUsers(googleId, friendGoogleId)
+                .ifPresent(chat -> {
+                    chatRepository.delete(chat);
+                });
     }
 
     /**
