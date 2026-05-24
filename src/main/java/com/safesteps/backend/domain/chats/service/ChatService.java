@@ -73,6 +73,10 @@ public class ChatService {
         chat.setType(req.getType());
         chat.setName(req.getName());
 
+        if (req.getParticipantGoogleIds() != null && !req.getParticipantGoogleIds().isEmpty()) {
+            chat.setCreatorGoogleId(req.getParticipantGoogleIds().get(0));
+        }
+
         Chat savedChat = chatRepository.save(chat);
 
         for (int i = 0; i < req.getParticipantGoogleIds().size(); i++) {
