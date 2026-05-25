@@ -126,9 +126,10 @@ public class DatabaseUpdateScheduler {
 
             logger.info("Ejecutando [{}]...", scriptName);
             ProcessBuilder pb;
-            if (localPropertiesPath != null && !localPropertiesPath.isEmpty()) {
-                String cleanPath = localPropertiesPath.replace("file:", "").trim();
-                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString(), cleanPath);
+            String resolvedPath = resolvePropertiesPath(localPropertiesPath);
+            if (resolvedPath != null && !resolvedPath.isEmpty()) {
+                logger.info("Usando archivo de propiedades resuelto: {}", resolvedPath);
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString(), resolvedPath);
             } else {
                 pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
             }
@@ -170,5 +171,40 @@ public class DatabaseUpdateScheduler {
     private void recordScript(Long pipelineRunId, String scriptName, String status, long scriptStart, Integer exitCode, String errorMessage) {
         long durationMs = (System.nanoTime() - scriptStart) / 1_000_000;
         adminMetricsService.recordPipelineScript(pipelineRunId, scriptName, status, durationMs, exitCode, errorMessage);
+    }
+
+    private String resolvePropertiesPath(String configLocation) {
+        String optional = "optional:";
+        String fileS = "file:";
+        String classpath = "classpath:";
+        if (configLocation == null || configLocation.isEmpty()) {
+            return null;
+        }
+        String[] locations = configLocation.split(",");
+        for (String location : locations) {
+            String clean = location.trim();
+            if (clean.startsWith(optional)) {
+                clean = clean.substring(optional.length()).trim();
+            }
+            if (clean.startsWith(fileS)) {
+                clean = clean.substring(fileS.length()).trim();
+            } else if (clean.startsWith(classpath)) {
+                clean = clean.substring(classpath.length()).trim();
+            }
+            if (clean.endsWith(".properties")) {
+                File file = new File(clean);
+                return file.getAbsolutePath();
+            }
+        }
+        String fallback = locations[0].trim();
+        if (fallback.startsWith(optional)) {
+            fallback = fallback.substring(optional.length()).trim();
+        }
+        if (fallback.startsWith(fileS)) {
+            fallback = fallback.substring(fileS.length()).trim();
+        } else if (fallback.startsWith(classpath)) {
+            fallback = fallback.substring(classpath.length()).trim();
+        }
+        return new File(fallback).getAbsolutePath();
     }
 }
