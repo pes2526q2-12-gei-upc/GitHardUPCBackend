@@ -562,7 +562,7 @@ async function viewIncidents(userId) {
             incidentsList.innerHTML = `<p style="text-align:center; color: var(--text-secondary); padding: 1rem;">Este usuario no tiene incidencias registradas.</p>`;
         } else {
             incidentsList.innerHTML = incidents.map(inc => {
-                const date = new Date(inc.created).toLocaleDateString('es-ES', {
+                const date = new Date(inc.createdAt).toLocaleDateString('es-ES', {
                     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                 });
 
