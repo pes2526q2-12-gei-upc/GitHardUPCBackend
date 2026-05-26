@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -50,7 +51,8 @@ if __name__ == "__main__":
     # Llegir configuració dels fitxers properties
     db_config = {}
     db_config = load_properties(APP_PROPERTIES_PATH, db_config)
-    db_config = load_properties(APP_LOCAL_PROPERTIES_PATH, db_config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    db_config = load_properties(local_path, db_config)
 
     # Configuració de base de dades
     db_url_jdbc = db_config.get("spring.datasource.url")

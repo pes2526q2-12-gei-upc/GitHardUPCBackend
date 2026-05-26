@@ -71,6 +71,8 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/v1/users/{googleId} - Existe (OK)")
     void getByGoogleId_WhenExists_ReturnsOk() throws Exception {
+        UserResponseDTO u = new UserResponseDTO();
+        u.setPremis(List.of(new PremiDTO()));
         when(userService.getUserByGoogleId("g-123")).thenReturn(new UserResponseDTO());
 
         mockMvc.perform(get("/api/v1/users/g-123"))

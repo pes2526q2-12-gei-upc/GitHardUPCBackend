@@ -15,6 +15,8 @@ public class ChatResponseDTO {
     private OffsetDateTime createdAt;
     private List<String> participantUsernames;
     private List<String> participantGoogleIds;
+    private String creatorGoogleId;
+    private List<String> adminGoogleIds;
 
     public ChatResponseDTO(Chat chat) {
         if (chat == null) return;
@@ -22,6 +24,7 @@ public class ChatResponseDTO {
         this.type = chat.getType();
         this.name = chat.getName();
         this.createdAt = chat.getCreatedAt();
+        this.creatorGoogleId = chat.getCreatorGoogleId();
 
         if (chat.getParticipants() != null) {
             this.participantUsernames = chat.getParticipants().stream()
@@ -30,9 +33,14 @@ public class ChatResponseDTO {
             this.participantGoogleIds = chat.getParticipants().stream()
                     .map(p -> p.getUser().getGoogleId())
                     .toList();
+            this.adminGoogleIds = chat.getParticipants().stream()
+                    .filter(p -> "ADMIN".equalsIgnoreCase(p.getRole()))
+                    .map(p -> p.getUser().getGoogleId())
+                    .toList();
         } else {
             this.participantUsernames = List.of();
             this.participantGoogleIds = List.of();
+            this.adminGoogleIds = List.of();
         }
     }
 }

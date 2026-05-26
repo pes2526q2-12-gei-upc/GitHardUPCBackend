@@ -7,6 +7,7 @@ import com.safesteps.backend.domain.users.model.User;
 import com.safesteps.backend.domain.users.repository.UserRepository;
 import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.BadRequestException;
+import com.safesteps.backend.domain.users.service.FriendshipService;
 import com.safesteps.backend.notifications.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class ChatService {
     private final UserRepository userRepository;
     private final ChatParticipantRepository chatParticipantRepository;
     private final NotificationService notificationService;
+    private final FriendshipService friendshipService;
 
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
     
@@ -37,12 +39,14 @@ public class ChatService {
                        MessageRepository messageRepository,
                        UserRepository userRepository,
                        ChatParticipantRepository chatParticipantRepository,
-                       NotificationService notificationService) {
+                       NotificationService notificationService,
+                       FriendshipService friendshipService) {
         this.chatRepository = chatRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.notificationService = notificationService;
+        this.friendshipService = friendshipService;
     }
 
     @Transactional
@@ -60,10 +64,18 @@ public class ChatService {
             if (existingChat.isPresent()) {
                 throw new BadRequestException("Ja existeix un xat privat entre aquests dos usuaris.");
             }
+
+            if (!friendshipService.existsFriendship(user1, user2)) {
+                throw new BadRequestException("Només pots iniciar un xat privat amb els teus amics.");
+            }
         }
         Chat chat = new Chat();
         chat.setType(req.getType());
         chat.setName(req.getName());
+
+        if (req.getParticipantGoogleIds() != null && !req.getParticipantGoogleIds().isEmpty()) {
+            chat.setCreatorGoogleId(req.getParticipantGoogleIds().get(0));
+        }
 
         Chat savedChat = chatRepository.save(chat);
 

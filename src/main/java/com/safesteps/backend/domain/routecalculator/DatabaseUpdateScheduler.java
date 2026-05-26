@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class DatabaseUpdateScheduler {
 
+    @Value("${spring.config.location:}")
+    private String localPropertiesPath;
+
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUpdateScheduler.class);
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -59,7 +62,7 @@ public class DatabaseUpdateScheduler {
         this.adminMetricsService = adminMetricsService;
     }
 
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    //@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Scheduled(cron = "${backend.scheduler.cron:0 0 2 * * *}")
     public void updateDatabaseAndCalculations() {
         if (!schedulerEnabled) {
@@ -122,7 +125,16 @@ public class DatabaseUpdateScheduler {
             }
 
             logger.info("Ejecutando [{}]...", scriptName);
-            ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            ProcessBuilder pb;
+            String resolvedPath = resolvePropertiesPath(localPropertiesPath);
+            if (resolvedPath != null && !resolvedPath.isEmpty()) {
+                logger.info("Usando archivo de propiedades resuelto: {}", resolvedPath);
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString(), resolvedPath);
+            } else {
+                pb = new ProcessBuilder(pythonCommand, scriptAbsPath.toString());
+            }
+
+
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
@@ -159,5 +171,40 @@ public class DatabaseUpdateScheduler {
     private void recordScript(Long pipelineRunId, String scriptName, String status, long scriptStart, Integer exitCode, String errorMessage) {
         long durationMs = (System.nanoTime() - scriptStart) / 1_000_000;
         adminMetricsService.recordPipelineScript(pipelineRunId, scriptName, status, durationMs, exitCode, errorMessage);
+    }
+
+    private String resolvePropertiesPath(String configLocation) {
+        String optional = "optional:";
+        String fileS = "file:";
+        String classpath = "classpath:";
+        if (configLocation == null || configLocation.isEmpty()) {
+            return null;
+        }
+        String[] locations = configLocation.split(",");
+        for (String location : locations) {
+            String clean = location.trim();
+            if (clean.startsWith(optional)) {
+                clean = clean.substring(optional.length()).trim();
+            }
+            if (clean.startsWith(fileS)) {
+                clean = clean.substring(fileS.length()).trim();
+            } else if (clean.startsWith(classpath)) {
+                clean = clean.substring(classpath.length()).trim();
+            }
+            if (clean.endsWith(".properties")) {
+                File file = new File(clean);
+                return file.getAbsolutePath();
+            }
+        }
+        String fallback = locations[0].trim();
+        if (fallback.startsWith(optional)) {
+            fallback = fallback.substring(optional.length()).trim();
+        }
+        if (fallback.startsWith(fileS)) {
+            fallback = fallback.substring(fileS.length()).trim();
+        } else if (fallback.startsWith(classpath)) {
+            fallback = fallback.substring(classpath.length()).trim();
+        }
+        return new File(fallback).getAbsolutePath();
     }
 }

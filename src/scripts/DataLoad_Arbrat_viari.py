@@ -1,10 +1,11 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
+import tempfile
 from datetime import datetime
 from sqlalchemy import create_engine, text
-from io import StringIO
 
 # Configuracio dels paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +46,8 @@ def load_properties(file_path, current_config):
 def get_config():
     config = {}
     config = load_properties(APP_PROPERTIES_PATH, config)
-    config = load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
     return config
 
 def get_latest_csv_url(api_url):
@@ -93,43 +95,66 @@ def main():
         return
 
     try:
-        logging.info("Iniciant descàrrega del contingut...")
-        r = requests.get(download_url, headers={'User-Agent': 'Mozilla/5.0'})
-        r.raise_for_status()
-
-        # --- TRACTAMENT D'ENCODING ESPECIAL PER A BCN ---
-        # Si detectem el caràcter nul \x00, és UTF-16
-        if b'\x00' in r.content:
-            logging.info("Format UTF-16 detectat. Decodificant...")
-            contingut = r.content.decode('utf-16')
-        else:
-            contingut = r.text
-
-        csv_data = StringIO(contingut)
-        df = pd.read_csv(csv_data, sep=',', on_bad_lines='skip', engine='python')
-
-        if df.shape[1] <= 1:
-            logging.error("L'estructura continua tenint una sola columna.")
-            return
-
-        # Neteja estricta de noms de columnes per a PostgreSQL
-        df.columns = [c.strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in df.columns]
-
         staging_table = f"{t_arbrat_viari}_staging"
+        geom_col = None
+        cols_str = None
 
-        # 1. Pujar dades brutes a una taula temporal (aquí entra com a text, sense queixes de PostGIS)
-        logging.info(f"Pujant {len(df)} files brutes a la taula temporal '{staging_table}'...")
-        df.to_sql(staging_table, engine, if_exists='replace', index=False)
+        logging.info("Iniciant descàrrega del contingut a un fitxer temporal...")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp_file:
+            temp_csv_path = tmp_file.name
+            with requests.get(download_url, headers={'User-Agent': 'Mozilla/5.0'}, stream=True) as r:
+                r.raise_for_status()
+                for chunk in r.iter_content(chunk_size=8192):
+                    tmp_file.write(chunk)
+                    
+        try:
+            # --- TRACTAMENT D'ENCODING ESPECIAL PER A BCN ---
+            # Detectar encoding llegint els primers bytes
+            encoding = 'utf-8'
+            with open(temp_csv_path, 'rb') as f:
+                head = f.read(1024)
+                if b'\x00' in head:
+                    encoding = 'utf-16'
+                    logging.info("Format UTF-16 detectat. Processant amb aquest encoding...")
+                else:
+                    logging.info("Processant amb encoding UTF-8...")
 
-        # 2. Detectar com es diu la columna de geometria al CSV (geometria o geom)
-        geom_col = 'geometria' if 'geometria' in df.columns else ('geom' if 'geom' in df.columns else None)
-
-        if not geom_col:
-            raise Exception("No s'ha trobat cap columna de geometria (geometria/geom) al CSV de l'Arbrat Viari.")
-
-        # 3. Preparar les columnes restants (les fiquem entre cometes dobles per si de cas)
-        other_cols = [f'"{c}"' for c in df.columns if c != geom_col]
-        cols_str = ", ".join(other_cols)
+            logging.info("Processant i pujant dades en blocs (chunks) per estalviar memòria...")
+            chunksize = 20000
+            first_chunk = True
+            
+            for i, chunk in enumerate(pd.read_csv(temp_csv_path, sep=',', on_bad_lines='skip', engine='python', encoding=encoding, chunksize=chunksize)):
+                if chunk.shape[1] <= 1:
+                    logging.error("L'estructura continua tenint una sola columna.")
+                    if first_chunk:
+                        return
+                
+                # Neteja estricta de noms de columnes per a PostgreSQL
+                chunk.columns = [c.strip().lower().replace(' ', '_').replace('.', '').replace('(', '').replace(')', '') for c in chunk.columns]
+                
+                if first_chunk:
+                    # 2. Detectar com es diu la columna de geometria al CSV (geometria o geom)
+                    geom_col = 'geometria' if 'geometria' in chunk.columns else ('geom' if 'geom' in chunk.columns else None)
+                    if not geom_col:
+                        raise Exception("No s'ha trobat cap columna de geometria (geometria/geom) al CSV de l'Arbrat Viari.")
+                    
+                    # 3. Preparar les columnes restants (les fiquem entre cometes dobles per si de cas)
+                    other_cols = [f'"{c}"' for c in chunk.columns if c != geom_col]
+                    cols_str = ", ".join(other_cols)
+                    
+                # 1. Pujar dades brutes a una taula temporal en blocs
+                chunk.to_sql(staging_table, engine, if_exists='replace' if first_chunk else 'append', index=False)
+                logging.info(f"Pujades {len(chunk)} files brutes a la taula temporal '{staging_table}' (Bloc {i+1})...")
+                first_chunk = False
+            
+            if first_chunk:
+                logging.error("El fitxer CSV sembla estar buit.")
+                return
+                
+        finally:
+            if os.path.exists(temp_csv_path):
+                os.remove(temp_csv_path)
+                logging.info("Fitxer temporal eliminat.")
 
         # Construim la query que fa la màgia del canvi de SRID a 25831
         sql_insert = f"""

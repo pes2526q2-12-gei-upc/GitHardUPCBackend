@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import pandas as pd
 import logging
@@ -44,8 +45,11 @@ def load_properties(file_path, current_config):
         return current_config
 
 def get_config():
-    config = load_properties(APP_PROPERTIES_PATH, {})
-    return load_properties(APP_LOCAL_PROPERTIES_PATH, config)
+    config = {}
+    config = load_properties(APP_PROPERTIES_PATH, config)
+    local_path = sys.argv[1] if len(sys.argv) > 1 else APP_LOCAL_PROPERTIES_PATH
+    config = load_properties(local_path, config)
+    return config
 
 def get_latest_resource_info(api_url):
     logging.info(f"Consultant l'API per: {api_url}")
