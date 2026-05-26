@@ -152,6 +152,34 @@ class IncidentServiceTest {
 
         Incident i = new Incident();
         i.setId(1L);
+        i.setDescription("PROVA");
+
+        IncidentDBProjection mockProjection = mock(IncidentDBProjection.class);
+
+        when(incidentRepo.findById(1L)).thenReturn(Optional.of(i));
+        when(incidentRepo.save(any(Incident.class))).thenReturn(i);
+        when(incidentRepo.findIncidentWithUserById(1L)).thenReturn(Optional.of(mockProjection));
+
+        IncidentResponseDTO result = incidentService.editIncidentById(1L, req);
+
+        assertNotNull(result);
+        assertEquals(IncidentTypeEnum.OBRES, i.getType());
+        assertEquals("test", i.getDescription());
+        verify(incidentRepo, times(1)).save(i);
+    }
+
+    @Test
+    void editIncidentById_DTO_DescNull() {
+        Coord mockCoord = mock(Coord.class);
+        IncidentRequestDTO req = new IncidentRequestDTO();
+        req.setGoogleId("1L");
+        req.setType(IncidentTypeEnum.OBRES);
+        req.setDescription(null);
+        req.setCoordinates(mockCoord);
+
+        Incident i = new Incident();
+        i.setId(1L);
+        i.setDescription("test");
 
         IncidentDBProjection mockProjection = mock(IncidentDBProjection.class);
 
@@ -381,6 +409,14 @@ class IncidentServiceTest {
     }
 
     @Test
+    void updateIncidentStatus_ThrowsResourceNotFoundException() {
+        Incident i = new Incident();
+        when(incidentRepo.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> incidentService.updateIncidentStatus(1L, IncidentStatusEnum.ACCEPTED));
+    }
+
+    @Test
     void updateExpirationIndex_DoesNotReachThreshold() {
         Incident incident = new Incident();
         incident.setId(1L);
@@ -410,5 +446,17 @@ class IncidentServiceTest {
         assertEquals(-11.0, incident.getExpirationIndex());
         assertEquals(IncidentStatusEnum.RESOLVED.name(), incident.getStatus());
         verify(incidentRepo).save(incident);
+    }
+
+    @Test
+    void updateExpirationIndex_ThrowsResourceNotFoundException() {
+        Incident incident = new Incident();
+        incident.setId(1L);
+        incident.setExpirationIndex(-8.0);
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+
+        when(incidentRepo.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> incidentService.updateExpirationIndex(-2.0, 1L));
     }
 }

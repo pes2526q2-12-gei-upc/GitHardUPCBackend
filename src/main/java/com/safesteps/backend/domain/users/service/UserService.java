@@ -372,6 +372,20 @@ public class UserService {
         return userRepository.getEmergencyContacts(googleId);
     }
 
+    @Transactional
+    public UserResponseDTO updateProfilePicture(String googleId, String url) {
+        UserRequestDTO req = new UserRequestDTO();
+        UserResponseDTO last = this.getUserByGoogleId(googleId);
+        req.setUsername(last.getUsername());
+        req.setEmail(last.getEmail());
+        req.setGoogleId(googleId);
+        req.setPictureUrl(url);
+        req.setLanguage(last.getLanguage());
+        req.setIsAnonymous(last.getIsAnonymous());
+
+        return this.updateUser(googleId, req);
+    }
+
     // --- MÉTODOS PRIVADOS DE AYUDA ---
 
     private PremiDTO pickRandomPrize(UserResponseDTO u) {

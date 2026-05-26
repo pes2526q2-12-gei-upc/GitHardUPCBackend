@@ -93,6 +93,12 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{googleId}/picture")
+    @Operation(summary = "Actualizar la foto de perfil del usuario")
+    public ResponseEntity<UserResponseDTO> updateProfilePicture(@PathVariable String googleId, @Valid @RequestBody String url) {
+        return ResponseEntity.ok(userService.updateProfilePicture(googleId, url));
+    }
+
     @PutMapping("/{googleId}/filters")
     @Operation(summary = "Actualizar los filtros de seguridad del usuario")
     public ResponseEntity<UserFilter> updateFilters(
