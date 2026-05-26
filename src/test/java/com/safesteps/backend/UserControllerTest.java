@@ -234,6 +234,31 @@ class UserControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("PUT /api/v1/users/{googleId} - Usuario existe (OK)")
+    void updatePicture_WhenUserExists_ReturnsOk() throws Exception {
+        String url = "http://test.url/avatar.png";
+        when(userService.updateProfilePicture(eq("g-123"), eq(url))).thenReturn(new UserResponseDTO());
+
+        mockMvc.perform(post("/api/v1/users/g-123/picture")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(url))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/users/{googleId} - Usuario no existe (Not Found)")
+    void updatePicture_WhenUserNotExists_ReturnsNotFound() throws Exception {
+        String url = "http://test.url/avatar.png";
+        when(userService.updateProfilePicture(eq("none"), eq(url)))
+                .thenThrow(new ResourceNotFoundException("User not found for Google ID: none"));
+
+        mockMvc.perform(post("/api/v1/users/none/picture")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(url))
+                .andExpect(status().isNotFound());
+    }
+
     // --- TESTS PARA DELETE ---
     @Test
     @DisplayName("DELETE /api/v1/users/{googleId} - Borrado exitoso (No Content)")

@@ -30,7 +30,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
 
         registry.addInterceptor(apiAuthInterceptor)
-                .addPathPatterns("/api/**");
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/admin/**");
 
         // Interceptor que protegeix el panell d'administracio amb sessio HTTP.
         // Protegim /api/admin/** i /admin/index.html pero excloem:

@@ -5,13 +5,7 @@ import com.safesteps.backend.domain.common.exception.ResourceNotFoundException;
 import com.safesteps.backend.domain.common.exception.UserBannedException;
 import com.safesteps.backend.domain.common.exception.UserSuspendedException;
 import com.safesteps.backend.domain.incidents.model.Vote;
-import com.safesteps.backend.domain.users.dto.FilterRequestDTO;
-import com.safesteps.backend.domain.users.dto.PremiDTO;
-import com.safesteps.backend.domain.users.dto.RouteCompletionResponseDTO;
-import com.safesteps.backend.domain.users.dto.UserProfileDTO;
-import com.safesteps.backend.domain.users.dto.UserRequestDTO;
-import com.safesteps.backend.domain.users.dto.UserResponseDTO;
-import com.safesteps.backend.domain.users.dto.UserSearchResultDTO;
+import com.safesteps.backend.domain.users.dto.*;
 import com.safesteps.backend.domain.users.model.*;
 import com.safesteps.backend.domain.users.repository.FilterRepository;
 import com.safesteps.backend.domain.users.repository.UserRepository;
@@ -28,10 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -245,6 +236,24 @@ class UserServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> userService.updateUser("none", userRequestDTO));
 
+    }
+
+    @Test
+    @DisplayName("Debe actualizar un usuario existente")
+    void updatePicture_WhenExists_ReturnsUpdatedDTO() {
+        when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenReturn(user);
+
+        String url = "http://test.url/avatar.png";
+        UserResponseDTO result = userService.updateProfilePicture("g-123", url);
+
+        UserResponseDTO n = new UserResponseDTO(user);
+        n.setPictureUrl(url);
+
+        assertNotNull(result);
+        assertEquals(url, user.getPictureUrl());
+        verify(userRepository).save(user);
+        assertEquals(n, result);
     }
 
     @Test
@@ -1054,4 +1063,95 @@ class UserServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> userService.getEmergencyContactsGoogleIds(googleId));
     }
 
+    @Test
+    void testFriendDTO() {
+        FriendDTO f = new FriendDTO(null);
+        assertNull(f.getGoogleId());
+        assertNull(f.getUsername());
+        assertNull(f.getEmail());
+        assertNull(f.getPictureUrl());
+    }
+
+    @Test
+    void testUserSearchResultDTO() {
+        UserSearchResultDTO f = new UserSearchResultDTO(null);
+        assertNull(f.getGoogleId());
+        assertNull(f.getUsername());
+        assertNull(f.getEmail());
+        assertNull(f.getPictureUrl());
+    }
+
+    @Test
+    void testUserProfileDTO() {
+        UserProfileDTO f = new UserProfileDTO(null);
+        assertNull(f.getPoints());
+        assertNull(f.getUsername());
+        assertNull(f.getLevel());
+        assertNull(f.getPictureUrl());
+        assertNull(f.getCreatedAt());
+        assertNull(f.getStatus());
+    }
+
+    @Test
+    void testUserResponseDTO() {
+        UserResponseDTO f = new UserResponseDTO(null);
+        assertNull(f.getPoints());
+        assertNull(f.getUsername());
+        assertNull(f.getLevel());
+        assertNull(f.getPictureUrl());
+        assertNull(f.getCreatedAt());
+        assertNull(f.getIsInEmergency());
+    }
+
+    @Test
+    void testUserResponseDTO_premisNull() {
+        User u2 = user;
+        u2.setPremis(null);
+        UserResponseDTO f = new UserResponseDTO(u2);
+        assertEquals(0 ,f.getPremis().size());
+
+        assertEquals(user.getId(), f.getId());
+        assertEquals(user.getGoogleId(), f.getGoogleId());
+        assertEquals(user.getEmail(), f.getEmail());
+        assertEquals(user.getUsername(), f.getUsername());
+        assertEquals(user.getLanguage(), f.getLanguage());
+        assertEquals(user.getPictureUrl(), f.getPictureUrl());
+        assertEquals(user.getCreatedAt(), f.getCreatedAt());
+        assertEquals(user.getIsInEmergency(), f.getIsInEmergency());
+        assertEquals(user.getReputacio(), f.getReputacio());
+        assertEquals(user.getLevel(), f.getLevel());
+        assertEquals(user.getIsAnonymous(), f.getIsAnonymous());
+    }
+
+    @Test
+    void testUserResponseDTO_premisNotNull() {
+        User u2 = user;
+        Set<Premi> p = new HashSet<>();
+        Premi p1 = new Premi();
+        p1.setName("Prize1");
+        p.add(p1);
+        Premi p2 = new Premi();
+        p2.setName("Prize2");
+        p.add(p2);
+        u2.setPremis(p);
+        List<Premi> ps = new ArrayList<>();
+        ps.add(p1);
+        ps.add(p2);
+
+        UserResponseDTO f = new UserResponseDTO(u2);
+        assertEquals(ps.size() ,f.getPremis().size());
+
+
+        assertEquals(user.getId(), f.getId());
+        assertEquals(user.getGoogleId(), f.getGoogleId());
+        assertEquals(user.getEmail(), f.getEmail());
+        assertEquals(user.getUsername(), f.getUsername());
+        assertEquals(user.getLanguage(), f.getLanguage());
+        assertEquals(user.getPictureUrl(), f.getPictureUrl());
+        assertEquals(user.getCreatedAt(), f.getCreatedAt());
+        assertEquals(user.getIsInEmergency(), f.getIsInEmergency());
+        assertEquals(user.getReputacio(), f.getReputacio());
+        assertEquals(user.getLevel(), f.getLevel());
+        assertEquals(user.getIsAnonymous(), f.getIsAnonymous());
+    }
 }
