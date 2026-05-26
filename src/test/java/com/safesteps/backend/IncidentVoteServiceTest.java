@@ -308,6 +308,34 @@ class IncidentVoteServiceTest {
     }
 
     @Test
+    void checkValidation_StatusRejected() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(-15.0); // Supera el threshold de |-10|
+        incident.setStatus(IncidentStatusEnum.REJECTED.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+
+        voteService.checkValidation(1L);
+
+        verify(userSv, never()).updateUserReliability(anyList(), eq(false), eq("creator1"));
+        verify(incidentSv, never()).updateIncidentStatus(1L, IncidentStatusEnum.REJECTED);
+    }
+
+    @Test
+    void checkValidation_NotThreshold() {
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setReliabilityIndex(1.0); //
+        incident.setStatus(IncidentStatusEnum.PENDING.name());
+
+        when(incidentSv.findIncidentById(1L)).thenReturn(incident);
+
+        voteService.checkValidation(1L);
+
+        verify(userSv, never()).updateUserReliability(anyList(), eq(false), eq("creator1"));
+        verify(incidentSv, never()).updateIncidentStatus(1L, IncidentStatusEnum.REJECTED);
+    }
+
+    @Test
     void deleteVoteByVoteId_AcceptedIncident() {
         Vote vote = new Vote();
         vote.setId(1L);
@@ -360,6 +388,45 @@ class IncidentVoteServiceTest {
         assertNotNull(result);
         assertNull(result.getId());
     }
+
+    @Test
+    void createResolutionVote_IncidentNotFound() {
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(null);
+
+        VoteResponseDTO result = voteService.createResolutionVote(incidentId, req);
+
+        assertNotNull(result);
+        assertNull(result.getId());
+    }
+
+    @Test
+    void createResolutionVote_Vote0() {
+        Long incidentId = 1L;
+        VoteRequestDTO req = new VoteRequestDTO();
+        req.setGoogleId("user1");
+        req.setVoteScore(1);
+
+        IncidentResponseDTO incident = new IncidentResponseDTO();
+        incident.setStatus(IncidentStatusEnum.ACCEPTED.name());
+        incident.setCreatedAt(LocalDateTime.now().minusDays(5));
+
+        when(incidentSv.findIncidentById(incidentId)).thenReturn(incident);
+
+        UserResponseDTO user = mock(UserResponseDTO.class);
+        when(userSv.getUserByGoogleId("user1")).thenReturn(user);
+        when(user.getReputacio()).thenReturn(0.0);
+
+        VoteResponseDTO result = voteService.createResolutionVote(incidentId, req);
+
+        assertNotNull(result);
+        assertNull(result.getId());
+        verify(incidentSv, never()).updateExpirationIndex(anyDouble(), eq(incidentId));
+        verify(voteRepository, never()).save(any(Vote.class));
+    }
+
 
     @Test
     void createResolutionVote_OK() {
