@@ -96,7 +96,8 @@ backend.scheduler.scripts.path=src/scripts/
 Per al correcte funcionament de les tasques concurrents del Backend (com els Schedulers o os scripts de càrrega de dades), s'ha de mantenir la mateixa estructura de fitxers que en local:
 
 1. **Pujar els scripts manualment:** Els scripts de Python s'hande pujar al servidor de manera manual i col·locar-se exactament en el mateix directori base on resideixen els executables del backend, respectant la ruta: `src/scripts/`.
-2. **Logs d'execució dels scripts:** Tots els fitxers de logs relacionats amb l'execució i el processament d'aquests scripts es generaran de manera automàtica dins d'aquesta mateixa carpeta `src/scripts/`.
+2. **Per instal·lar les dependències de Python:** Es recomana crear un entorn virtual (`.venv`) dins de la carpeta `src/scripts/` i instal·lar-hi les dependències amb `pip install -r requirements.txt`.
+3. **Logs d'execució dels scripts:** Tots els fitxers de logs relacionats amb l'execució i el processament d'aquests scripts es generaran de manera automàtica dins d'aquesta mateixa carpeta `src/scripts/`.
 
 ---
 
