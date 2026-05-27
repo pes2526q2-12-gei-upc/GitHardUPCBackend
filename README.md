@@ -1,6 +1,6 @@
 # GitHardUPC Backend
 
-Aquest és el repositori del backend del projecte **GitHardUPC**. A continuació trobareu les instruccions detallades per a la configuració i instal·lació del projecte en el vostre entorn local.
+Aquest és el repositori del backend del projecte **GitHardUPC**. A continuació trobareu les instruccions detallades per a la configuració i instal·lació del projecte en el vostre entorn local, així com el funcionament de la nostra infraestructura automatitzada al servidor.
 
 ## Membres:
 
@@ -25,9 +25,9 @@ Abans de començar, assegureu-vos de tenir instal·lat:
 
 ---
 
-## Configuració del Projecte
+## Configuració del Projecte (Entorn Local)
 
-Seguiu aquests passos per configurar l'entorn de desenvolupament:
+Seguiu aquests passos per configurar l'entorn de desenvolupament local:
 
 ### 1. Configuració de Firebase
 Heu de col·locar el fitxer de credencials de Firebase (`.json`) a la carpeta de configuració:
@@ -49,7 +49,7 @@ setx FIREBASE_CONFIG_PATH "C:/ruta/al/fitxer/firebase-config.json"
 ### 2. Propietats Locals (`application-local.properties`)
 Heu de crear un fitxer de configuració local per sobreescriure les propietats per defecte:
 1. Copieu el fitxer `src/main/resources/application-local.properties.example`.
-2. Enganxeu-lo a la mateixa carpeta i anomeneu-lo `application-local.properties`.
+2. Enganxeu-lo a la maixa carpeta i anomeneu-lo `application-local.properties`.
 3. Configureu les següents dades segons el vostre entorn:
 
 #### Base de Dades (BD)
@@ -91,9 +91,19 @@ backend.scheduler.scripts.path=src/scripts/
 
 ---
 
+## Configuració de Scripts de Python al Servidor
+
+Per al correcte funcionament de les tasques concurrents del Backend (com els Schedulers o os scripts de càrrega de dades), s'ha de mantenir la mateixa estructura de fitxers que en local:
+
+1. **Pujar els scripts manualment:** Els scripts de Python s'hande pujar al servidor de manera manual i col·locar-se exactament en el mateix directori base on resideixen els executables del backend, respectant la ruta: `src/scripts/`.
+2. **Per instal·lar les dependències de Python:** Es recomana crear un entorn virtual (`.venv`) dins de la carpeta `src/scripts/` i instal·lar-hi les dependències amb `pip install -r requirements.txt`.
+3. **Logs d'execució dels scripts:** Tots els fitxers de logs relacionats amb l'execució i el processament d'aquests scripts es generaran de manera automàtica dins d'aquesta mateixa carpeta `src/scripts/`.
+
+---
+
 ## Configuració de Continuous Integration / Deployment (CI/CD)
 
-El projecte està configurat amb **GitHub Actions** per a CI/CD automàtic. Els fitxers de configuració es troben a `.github/workflows/`:
+El projecte està configurat amb **GitHub Actions** i un **Runner local (Self-Hosted)** allotjat al propi servidor per a CI/CD automàtic. Els fitxers de configuració es troben a `.github/workflows/`:
 
 ### Workflows Configurats
 
@@ -107,46 +117,145 @@ S'executa automàticament en cada **push** o **pull request** a les branques: `m
 - Anàlisi de codi amb SonarQube
 
 #### 2. **CD (Continuous Deployment)** - `backend-cd.yml`
-S'executa **automàticament** quan el CI passa correctament (build verd) a les branques: `main` o `develop`
+S'executa **automàticament** quan el CI passa correctament (build verd) a les branques: `main` o `develop`.
+Aquest workflow compta amb un filtre de seguretat estricte per ignorar execucions de forks externs.
 
 **Passos:**
 - Compilació de l'aplicació (`./mvnw package`)
-- Transferència del JAR al servidor via SCP
-- Desplegament automàtic del JAR al servidor
-- Versionatge automàtic:
-    - **main**: Versió major (v1.0, v2.0, etc.) al port **8081** (producció)
-    - **develop**: Versió minor (v1.1, v1.2, etc.) al port **8082** (staging)
-- Registre de logs per versió
+- Generació del JAR directament al workspace local del Runner
+- Desplegament automàtic mitjançant un sistema d'historial a la carpeta `/releases/` i enllaços simbòlics (*symlinks*).
+- Reinici automàtic del servei assignat mitjançant `systemd`:
+    - **main**: Versió major (v1.0, v2.0, etc.) al port **8081** (producció) -> Servei `safesteps-main`
+    - **develop**: Versió minor (v1.1, v1.2, etc.) al port **8082** (staging) -> Servei `safesteps-develop`
 
 ### Configuració de Secrets de GitHub
 
 Per fer funcionar el CD s'han de configurar els secrets següents a l'apartat **Settings** > **Secrets and Variables** > **Actions**:
 
-| Secret | Descripció                                         | Exemple                        |
+| Secret | Descripció | Exemple |
 |--------|----------------------------------------------------|--------------------------------|
-| `SERVER_HOST` | Adreça IP o hostname del servidor                  | `192.168.1.100` o `servidor.com` |
-| `SERVER_USER` | Usuari del servidor                                | `user`                         |
-| `SSH_PRIVATE_KEY` | Clau privada SSH                                   | CLAUSSHMOLTPRIVADA             |
-| `SAFESTEPS_DB_PASSWORD` | Contrasenya de la base de dades PostgreSQL, CI i CD | `your_secure_password`         |
-| `SONAR_TOKEN` | Token de SonarQube per a anàlisi de codi           | Token generat a SonarQube      |
+| `SERVER_USER` | Usuari local del servidor VirTech | `alumne` |
+| `SAFESTEPS_DB_PASSWORD` | Contrasenya de la base de dades PostgreSQL per al CI | `your_secure_password` |
+| `SONAR_TOKEN` | Token de SonarQube per a l'anàlisi de codi | Token generat a SonarQube |
 
 > [!WARNING]
 > **No pugeu secrets reals al vostre repositori!** Els secrets de GitHub s'emmagatzemen de forma segura.
 
-#### Generar clau SSH per al Secret
-```bash
-# Generar parella de claus de seguretat de forma silenciosa
-ssh-keygen -q -t rsa -b 4096 -N "" -f ~/.ssh/deploy_rsa
+---
 
-cat ~/.ssh/deploy_rsa       # Copiar tot el contingut com a `SSH_PRIVATE_KEY`
-cat ~/.ssh/deploy_rsa.pub   # Afegir a ~/.ssh/authorized_keys del servidor
+## Configuració Inicial de la Infraestructura al Servidor (Sysadmin)
+
+Si s'ha de configurar el servidor des de zero o realitzar un desplegament completament manual de la infraestructura de serveis, seguiu aquests passos directament connectats per SSH a VirTech:
+
+### 1. Preparació de Fitxers Locals del Servidor
+A la carpeta d'execució principal `/home/alumne/backend/` hi han de residir els fitxers de propietats que estan exclosos de Git:
+* `application-local.properties` (Configurat per al port `8082` de Staging)
+* `application-local_prod.properties` (Configurat per al port `8081` de Producció)
+
+### 2. Creació dels Serveis de Linux (systemd)
+S'han de crear dos fitxers de configuració de serveis a la ruta del sistema operatiu per gestionar les instàncies de forma aïllada i automatitzada.
+
+#### Instància de Develop/Staging (`/etc/systemd/system/safesteps-develop.service`):
+```ini
+[Unit]
+Description=SafeSteps Backend Staging (Develop)
+After=network.target
+
+[Service]
+User=alumne
+WorkingDirectory=/home/alumne/backend
+ExecStart=/usr/bin/env SAFESTEPS_DB_PASSWORD='la_vostra_contrasenya' /usr/bin/java -Xmx768m -XX:+UseSerialGC -jar /home/alumne/backend/deployedVersion-develop.jar --spring.config.location=file:/home/alumne/backend/application-local.properties
+Restart=always
+RestartSec=30
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=safesteps-develop
+
+[Install]
+WantedBy=multi-user.target
 ```
+
+#### Instància de Main/Producció (`/etc/systemd/system/safesteps-main.service`):
+```ini
+[Unit]
+Description=SafeSteps Backend Production (Main)
+After=network.target
+
+[Service]
+User=alumne
+WorkingDirectory=/home/alumne/backend
+ExecStart=/usr/bin/env SAFESTEPS_DB_PASSWORD='la_vostra_contrasenya' /usr/bin/java -Xmx768m -XX:+UseSerialGC -jar /home/alumne/backend/deployedVersion-main.jar --spring.config.location=file:/home/alumne/backend/application-local_prod.properties
+Restart=always
+RestartSec=30
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=safesteps-main
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Configuració de Permisos per al Runner (`visudo`)
+Per permetre que la pipeline de GitHub Actions apliqui els canvis de codi reiniciant els serveis de forma calenta sense demanar contrasenyes, s'ha de configurar un fitxer de drets d'usuari de sistema:
+
+1. Executar: `sudo visudo -f /etc/sudoers.d/safesteps`
+2. Introduir la següent configuració en una línia:
+```text
+alumne ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart safesteps-develop, /usr/bin/systemctl status safesteps-develop, /usr/bin/systemctl restart safesteps-main, /usr/bin/systemctl status safesteps-main
+```
+
+### 4. Activació dels Serveis
+Per registrar els nous fitxers de configuració al nucli de Linux i activar-ne la persistència (arrencada automàtica si el servidor es reinicia):
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable safesteps-develop
+sudo systemctl enable safesteps-main
+```
+
+---
+
+## Gestió de Serveis i Logs al Servidor (Manteniment)
+
+Una vegada configurada la infraestructura, podeu utilitzar les següents comandes per al manteniment manual i monitorització de la salut de l'aplicació en segon pla:
+
+### Control dels Serveis en Calent
+```bash
+# Aturar l'entorn de Staging o Producció
+sudo systemctl stop safesteps-develop
+sudo systemctl stop safesteps-main
+
+# Engegar o reiniciar els entorns de forma manual
+sudo systemctl start safesteps-develop
+sudo systemctl restart safesteps-develop
+
+# Comprovar l'estat d'execució per veure si estan actius (active running)
+systemctl status safesteps-develop
+systemctl status safesteps-main
+```
+
+### Visualització de Logs
+Els logs de l'aplicació s'emmagatzemen directament al gestor de diaris centralitzat de Linux, anomenat `journalctl`:
+
+```bash
+# Veure els logs de PRODUCCIÓ (main) en temps real (stream)
+journalctl -u safesteps-main -f
+
+# Veure os logs de STAGING (develop) en temps real (stream)
+journalctl -u safesteps-develop -f
+
+# Veure les últimes 100 línies de l'entorn de develop
+journalctl -u safesteps-develop -n 100
+
+# Filtrar només els errors d'execució i excepcions de Java
+journalctl -u safesteps-develop -p err
+```
+*(Per sortir de la pantalla de logs de `journalctl`, premeu la tecla **`q`**).*
 
 ---
 
 ## Docker
 
-Si voleu aixecar els serveis (com la base de dades) utilitzant Docker:
+Si voleu aixecar els serveis de suport en local (com la base de dades PostgreSQL) utilitzant Docker:
 
 1. Baixeu i instal·leu Docker Desktop.
 2. Reinicieu el PC i executeu Docker Desktop.
@@ -159,11 +268,9 @@ docker compose up -d
 
 ---
 
-## Execució de l'Aplicació
+## Execució de l'Aplicació (Local)
 
-Un cop configurat tout, podeu executar l'aplicació amb Maven (en local) o amb els scripts preparats.
-
-### Execució local
+Un cop configurat tot, podeu executar l'aplicació amb Maven (en local) o amb els scripts preparats.
 
 #### A Windows (PowerShell):
 ```powershell
@@ -176,7 +283,6 @@ Un cop configurat tout, podeu executar l'aplicació amb Maven (en local) o amb e
 ```
 
 O podeu utilitzar el vostre IDE (IntelliJ, Eclipse, etc.) executant la classe principal `BackendApplication`.
-
 L'aplicació s'iniciarà al port configurat (per defecte `8080` si no està específicat a `application-local.properties`).
 
 ### Altres comandes útils:
@@ -219,38 +325,7 @@ docker compose logs -f --tail=50
 
 ### Accés a l'aplicació
 
-Un cop l'aplicació estigui en marxa:
+Un cop l'aplicació estigui en marxa en local:
 - **API REST**: http://localhost:8080
 - **Swagger/OpenAPI**: http://localhost:8080/swagger-ui.html
 - **Admin**: http://localhost:8080/admin/login.html
-
----
-
-## Desplegament al servidor (Manual)
-
-Si voleu fare deploy manual sense esperar al CD automàtic:
-
-1. **Generar el JAR:**
-   ```powershell
-   ./mvnw package -DskipTests
-   ```
-
-2. **Transferir el JAR al servidor:**
-   ```bash
-   scp target/backend-*.jar user@your-server:/home/user/backend/releases/
-   ```
-
-3. **Connectar al servidor i executar el JAR:**
-   ```bash
-   ssh user@your-server
-   cd /home/user/backend
-   
-   export SAFESTEPS_DB_PASSWORD="your_password"
-   nohup java -jar releases/backend-v1.0.jar --server.port=8081 --spring.config.location=file:/home/user/backend/application-local.properties > logs/logs_vX.X.log 2>&1 &
-   ```
-
-4. **Verificar logs:**
-   Mirar la carpeta de logs, la versió que volem veure i el log corresponent:
-   ```bash
-   cat logs/logs_vX.X.log
-   ```

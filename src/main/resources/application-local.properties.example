@@ -37,3 +37,10 @@ backend.scheduler.python.command=python
 
 # Url del backend
 app.backend.url=http://localhost
+
+# Configuracio per a l'API de esdeveniments externs
+external.events.token=TOKENURLDELSERVEIDESDEVENIMENTSEXTERNS
+external.events.url=URLDELSERVEIDESDEVENIMENTSEXTERNS
+
+# Token per a l'API interna (si es necessari)
+api.internal.token=PosarTokenPerLAPI
