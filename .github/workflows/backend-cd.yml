@@ -12,7 +12,7 @@ on:
 jobs:
   build-and-deploy:
     # Condició: El CI en verd i la branca ha de ser main o develop
-    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'develop') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'develop') }}
     runs-on: self-hosted
 
     steps:
@@ -32,8 +32,8 @@ jobs:
       - name: Package Application (Generar JAR)
         run: ./mvnw package -DskipTests
 
-      # 2. Entrem per SSH de forma segura i aixequem els ports corresponents
-      - name: Deploy to VirTech Server via SSH
+      # Realitzem el deploy al servidor
+      - name: Deploy to Server with Services
         run: |
             BASE_DIR="/home/${{ secrets.SERVER_USER }}/backend"
             
@@ -55,6 +55,8 @@ jobs:
               # current version de la versio main
               CURRENT_MAJOR=$(basename "$LATEST_MAIN_JAR" | sed -E 's/backend-v([0-9]+)\.0\.jar/\1/')
             fi
+          
+            pkill -9 -u $(whoami) -f 'DataLoad_' || true
 
             # Deploy del main
             if [ "$BRANCH" = "main" ]; then
@@ -70,15 +72,10 @@ jobs:
               mv target/$JAR_NAME $BASE_DIR/releases/$NEW_JAR_NAME
             
               # Actualitzem el soft link apuntant sempre a l'última versió de producció
-              ln -sf $BASE_DIR/releases/$NEW_JAR_NAME $BASE_DIR/deployedVersion.jar
+              ln -sf $BASE_DIR/releases/$NEW_JAR_NAME $BASE_DIR/deployedVersion-main.jar
 
-              # Aturem el procés que estigués usant el port 8081
-              fuser -k 8081/tcp || true
-          
-              screen -X -S safesteps-main quit || true
-
-              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
-              RUNNER_TRACKING_ID="" screen -d -m -S safesteps-main bash -c "java -Xmx768m -XX:+UseSerialGC -jar $BASE_DIR/deployedVersion.jar --server.port=8081 --spring.config.location=file:$BASE_DIR/application-local_prod.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1"
+              # Reiniciem el servei
+              sudo systemctl restart safesteps-main
             # Deploy develop
             elif [ "$BRANCH" = "develop" ]; then
               # ultim develop deployed
@@ -101,16 +98,14 @@ jobs:
 
               # Movem el fitxer cap a la carpeta d'historial /releases amb el seu nou nom
               mv target/$JAR_NAME $BASE_DIR/releases/$NEW_JAR_NAME
+          
+              ln -sf $BASE_DIR/releases/$NEW_JAR_NAME $BASE_DIR/deployedVersion-develop.jar
 
               # Aturem el procés que estigués usant el port 8082
-              fuser -k 8082/tcp || true
           
-              screen -X -S safesteps-develop quit || true
-
-              export SAFESTEPS_DB_PASSWORD="${{ secrets.SAFESTEPS_BD_PASSWORD }}"
-              RUNNER_TRACKING_ID="" screen -d -m -S safesteps-develop bash -c "java -Xmx768m -XX:+UseSerialGC -jar $BASE_DIR/releases/$NEW_JAR_NAME --server.port=8082 --spring.config.location=file:$BASE_DIR/application-local.properties > $BASE_DIR/logs/logs_${VERSION_TAG}.log 2>&1"            
+              sudo systemctl restart safesteps-develop
             fi
 
             # Netejem la carpeta temporal target creada pel SCP
-            rm -rf $BASE_DIR/target
+            rm -rf target/
             echo "✅ Desplegament completat correctament al port assignat!"
